@@ -187,7 +187,7 @@ export default function FarmerDashboard() {
       let pending = 0;
       let completed = 0;
 
-      (orders || []).forEach(order => {
+      (uniqueOrders || []).forEach(order => {
         if (!order) return;
         const dateVal = order.createdAt || order.date;
         const orderDate = dateVal ? new Date(dateVal) : new Date();
