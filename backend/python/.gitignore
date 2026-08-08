@@ -1,0 +1,14 @@
+# Dataset Raw & Processed Image Storage (Large Binaries)
+data/raw/
+data
+data/processed/
+__pycache__/
+*.pyc
+
+# Trained Model Artifacts
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.onnx
+models/*.pkl
+!models/.gitkeep

@@ -1,0 +1,7 @@
+Flask==3.0.3
+flask-cors==4.0.1
+scikit-learn==1.4.1.post1
+google-generativeai
+python-dotenv
+requests
+beautifulsoup4

@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+imagehash
+Pillow
+reportlab
+qrcode[pil]
+motor
+pymongo
+python-dotenv
+numpy
