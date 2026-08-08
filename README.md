@@ -17,7 +17,8 @@
 
 | Service | URL | Platform |
 | :--- | :--- | :--- |
-| 🖥️ **Frontend** | [market-placee.vercel.app](https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/) | Vercel |
+| 🖥️ **Frontend (Live)** | [market-placee.vercel.app](https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/) | Vercel |
+| 🖥️ **Frontend (Local)** | [localhost:5173](http://localhost:5173) | Vercel (dev) |
 | 🟢 **Node.js API** | [market-placee.onrender.com](https://market-placee.onrender.com) | Render |
 | 🍃 **Database** | MongoDB Atlas — `cluster0.kybkp5w.mongodb.net` | Atlas |
 
