@@ -5,6 +5,7 @@
 [![Python ML](https://img.shields.io/badge/ML%20Engine-Python%20%7C%20Flask%20%7C%20PyTorch-3776AB?logo=python)](https://python.org/)
 [![Database](https://img.shields.io/badge/Database-MongoDB%20%7C%20SQLite-47A248?logo=mongodb)](https://mongodb.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI Pipeline](https://github.com/Charan-N-Naik/market_placee/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Charan-N-Naik/market_placee/actions/workflows/ci.yml)
 
 **KisanBazaar** is a next-generation agricultural marketplace and AI advisory platform designed to bridge the gap between farmers and buyers. By combining direct fair-trade crop commerce with computer vision quality verification, real-time market price analytics, multilingual AI advisory (supporting English, Kannada, Tulu, and Hindi), and live delivery tracking, KisanBazaar empowers agricultural communities with transparent, technology-driven solutions.
 
@@ -145,6 +146,74 @@ Open your browser and navigate to `http://localhost:5173`.
 - **Buyer Portal**: Filter crops by region, view Leaflet supply maps, and place escrow-protected bulk orders.
 - **AgriChat Assistant**: Voice-enabled multilingual advisor providing customized agricultural insights.
 - **Verification Engine**: Automated EXIF geolocation and image authenticity validation for listed produce.
+
+---
+
+## ⚙️ CI/CD Pipeline
+
+KisanBazaar uses **GitHub Actions** to automatically validate every push to the `main` branch. The pipeline ensures that no broken code ever lands on `main`.
+
+### 🔁 Trigger
+
+```yaml
+on:
+  push:
+    branches:
+      - main   # Runs ONLY when code is pushed/merged into main
+```
+
+> The pipeline does **NOT** run on feature branches — only when an admin merges a PR into `main`.
+
+---
+
+### 🏗️ Pipeline Jobs (Run in Parallel)
+
+| Job | What it does | Tool |
+| :--- | :--- | :--- |
+| 🖥️ **Frontend CI** | Install deps → ESLint check → Vite production build | Node.js 20 |
+| 🟢 **Node.js Backend CI** | Install deps → Syntax check on `server.js` | Node.js 20 |
+| 🐍 **Python ML CI** | Install deps → Syntax check on `app.py` & `ml_model.py` | Python 3.11 |
+| ✅ **CI Success** | Confirms all 3 jobs passed | — |
+
+---
+
+### 📊 Pipeline Flow
+
+```
+Push to main
+      │
+      ├──────────────────────────────────────────┐
+      │                    │                     │
+      ▼                    ▼                     ▼
+🖥️ Frontend CI     🟢 Node.js CI         🐍 Python CI
+  (Lint + Build)    (Install + Check)   (Install + Check)
+      │                    │                     │
+      └──────────────────────────────────────────┘
+                           │
+                           ▼
+                  ✅ All CI Checks Passed
+```
+
+---
+
+### 🔍 View Pipeline Results
+
+1. Go to your repo → click the **"Actions"** tab.
+2. Select **"🚀 KisanBazaar CI/CD Pipeline"** workflow.
+3. Click any run to see detailed logs for each job.
+
+You can also see the live status badge at the top of this README:
+
+[![CI Pipeline](https://github.com/Charan-N-Naik/market_placee/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Charan-N-Naik/market_placee/actions/workflows/ci.yml)
+
+---
+
+### ❌ What Happens if a Check Fails?
+
+- The badge turns **red** 🔴
+- GitHub sends a **notification email** to the admin
+- The failed job shows exactly which step broke (lint / build / syntax error)
+- Fix the issue → push again → pipeline re-runs automatically
 
 ---
 
