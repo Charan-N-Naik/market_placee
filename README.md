@@ -243,6 +243,27 @@ Before submitting your Pull Request, make sure:
 
 ---
 
+### 👥 Repository Settings → Collaborator Permissions
+
+Go to **Settings → Collaborators** and add contributors with the **Write** role.
+
+| Permission | What it allows |
+| :--- | :--- |
+| **Write** | ✅ Create their own branches freely |
+| **Write** | ✅ Push code to their own branch |
+| **Write** | ✅ Open Pull Requests to `main` |
+| **Write** | ❌ Cannot merge directly to `main` without admin approval |
+| **Admin** | ✅ Only the admin can review, approve & merge PRs into `main` |
+
+> 🔑 **How to add a collaborator:**
+> 1. Go to your repo → **Settings** → **Collaborators**
+> 2. Click **"Add people"**
+> 3. Search the contributor's GitHub username
+> 4. Set their role to **`Write`**
+> 5. They will receive an email invitation — they must accept it to gain access
+
+---
+
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
