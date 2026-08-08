@@ -243,24 +243,199 @@ Before submitting your Pull Request, make sure:
 
 ---
 
-### 👥 Repository Settings → Collaborator Permissions
+## 👥 Guide for Collaborators — How to Use This Repo
 
-Go to **Settings → Collaborators** and add contributors with the **Write** role.
+> This section is specifically for team members who have been added as collaborators to the **KisanBazaar** repository.
 
-| Permission | What it allows |
+---
+
+### 🔔 Step 1 — Accept Your Invitation
+
+1. Check your email inbox for a **GitHub collaboration invite** from `Charan-N-Naik`.
+2. Click **"View Invitation"** in the email → Click **"Accept Invitation"** on GitHub.
+3. You now have **Write access** to the repository.
+
+> Alternatively, go directly to:
+> `https://github.com/Charan-N-Naik/market_placee/invitations`
+
+---
+
+### 💻 Step 2 — Set Up the Project Locally
+
+**Clone the repository** (do this only once):
+```bash
+git clone https://github.com/Charan-N-Naik/market_placee.git
+cd market_placee
+```
+
+**Install all dependencies:**
+```bash
+# Node.js Backend
+cd backend/node
+npm install
+
+# Python ML Service
+cd ../python
+python -m venv venv
+venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+
+# Frontend
+cd ../../frontend
+npm install
+```
+
+**Create your local `.env` file** in `backend/node/` (ask the admin for values):
+```env
+PORT=5000
+MONGO_URI=your_mongo_uri
+JWT_SECRET=your_jwt_secret
+GEMINI_API_KEY=your_gemini_key
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
+RAZORPAY_KEY_ID=your_razorpay_key
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+```
+
+> ⚠️ **Never commit your `.env` file.** It is already in `.gitignore`.
+
+---
+
+### 🌿 Step 3 — Always Work on Your Own Branch
+
+> ❌ You **cannot push directly to `main`** — it is protected.
+> ✅ Always create and work on your own branch.
+
+```bash
+# First, make sure your local main is up to date
+git checkout main
+git pull origin main
+
+# Create your working branch
+git checkout -b feature/your-name-feature-description
+```
+
+**Examples:**
+```bash
+git checkout -b feature/akshay-crop-filter
+git checkout -b bugfix/ashmit-login-fix
+git checkout -b docs/chandrakant-api-docs
+```
+
+---
+
+### 💾 Step 4 — Save & Commit Your Work
+
+After making changes to the code:
+
+```bash
+# See what files you changed
+git status
+
+# Stage all your changes
+git add .
+
+# Commit with a clear message
+git commit -m "feat: add crop filter by region on buyer dashboard"
+```
+
+**Commit message format:**
+| Prefix | Use for |
 | :--- | :--- |
-| **Write** | ✅ Create their own branches freely |
-| **Write** | ✅ Push code to their own branch |
-| **Write** | ✅ Open Pull Requests to `main` |
-| **Write** | ❌ Cannot merge directly to `main` without admin approval |
-| **Admin** | ✅ Only the admin can review, approve & merge PRs into `main` |
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `docs:` | Documentation update |
+| `style:` | UI/CSS changes only |
+| `refactor:` | Code restructure (no new feature) |
 
-> 🔑 **How to add a collaborator:**
-> 1. Go to your repo → **Settings** → **Collaborators**
-> 2. Click **"Add people"**
-> 3. Search the contributor's GitHub username
-> 4. Set their role to **`Write`**
-> 5. They will receive an email invitation — they must accept it to gain access
+---
+
+### 🚀 Step 5 — Push Your Branch to GitHub
+
+```bash
+git push origin feature/your-name-feature-description
+```
+
+If it's your **first push** on that branch:
+```bash
+git push --set-upstream origin feature/your-name-feature-description
+```
+
+---
+
+### 🔁 Step 6 — Open a Pull Request (PR)
+
+1. Go to → [https://github.com/Charan-N-Naik/market_placee](https://github.com/Charan-N-Naik/market_placee)
+2. You'll see a yellow banner: **"Compare & pull request"** → Click it.
+3. Fill in the PR form:
+   - **Title**: Short description of your change
+   - **Description**: What you changed, why, and how to test it
+4. Make sure the base branch is **`main`** and compare branch is **your branch**.
+5. Click **"Create pull request"**.
+
+> 📌 Your PR will be reviewed by the admin. You **cannot merge it yourself**.
+
+---
+
+### 🔄 Step 7 — Handle Review Feedback
+
+The admin may:
+
+| Action | What you should do |
+| :--- | :--- |
+| ✅ **Approved** | Admin will merge. Your changes are live on `main`! |
+| 💬 **Request changes** | Fix the issues on your same branch, commit & push again |
+| ❌ **Closed without merge** | Discuss with admin before re-submitting |
+
+**To update your branch after review feedback:**
+```bash
+# Make your fixes
+git add .
+git commit -m "fix: address review comments on crop filter"
+git push origin feature/your-name-feature-description
+```
+> The PR updates automatically — no need to open a new one.
+
+---
+
+### 🔃 Step 8 — Keep Your Branch Updated
+
+If `main` has been updated while you're working, sync your branch:
+```bash
+git checkout main
+git pull origin main
+git checkout feature/your-name-feature-description
+git merge main
+```
+Resolve any merge conflicts, then:
+```bash
+git add .
+git commit -m "merge: sync with latest main"
+git push origin feature/your-name-feature-description
+```
+
+---
+
+### ⛔ What Collaborators Cannot Do
+
+| Action | Allowed? |
+| :--- | :--- |
+| Create a new branch | ✅ Yes |
+| Push to your own branch | ✅ Yes |
+| Open a Pull Request | ✅ Yes |
+| Comment on PRs | ✅ Yes |
+| Push directly to `main` | ❌ No — blocked by ruleset |
+| Merge a PR into `main` | ❌ No — admin only |
+| Delete the `main` branch | ❌ No — blocked by ruleset |
+| Force push to `main` | ❌ No — blocked by ruleset |
+
+---
+
+### 📞 Need Help?
+
+- Open a **GitHub Issue** in the repo describing your problem.
+- Contact the admin: **Charan N Naik** (`Charan-N-Naik` on GitHub).
 
 ---
 
