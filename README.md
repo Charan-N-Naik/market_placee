@@ -150,12 +150,96 @@ Open your browser and navigate to `http://localhost:5173`.
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you'd like to improve KisanBazaar:
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Contributions are welcome! KisanBazaar follows a **protected branch workflow** to ensure code quality and stability on the `main` branch.
+
+---
+
+### 🔐 Branch Protection Policy
+
+The `main` branch is protected with the following ruleset enforced via GitHub Branch Rulesets:
+
+| Rule | Status |
+| :--- | :--- |
+| **Block force pushes to `main`** | ✅ Enabled |
+| **Restrict deletions of `main`** | ✅ Enabled |
+| **Require a Pull Request before merging** | ✅ Enabled |
+| **Required approvals before merge** | ✅ Minimum 1 (Admin review) |
+| **Dismiss stale reviews on new push** | ✅ Enabled |
+| **Direct push to `main`** | ❌ Not allowed for contributors |
+
+> **Only the repository admin can approve and merge Pull Requests into `main`.**
+
+---
+
+### 🔄 Contributor Workflow
+
+Follow these steps to contribute to KisanBazaar:
+
+**1. Get Access**
+- You must be added as a collaborator with **Write** permission by the admin.
+
+**2. Clone the Repository**
+```bash
+git clone https://github.com/Charan-N-Naik/market_placee.git
+cd market_placee
+```
+
+**3. Create Your Own Branch**
+> ⚠️ Never commit directly to `main`. Always work on a dedicated branch.
+```bash
+# For a new feature
+git checkout -b feature/your-feature-name
+
+# For a bug fix
+git checkout -b bugfix/issue-description
+
+# For documentation updates
+git checkout -b docs/update-description
+```
+
+**4. Make Your Changes & Commit**
+```bash
+git add .
+git commit -m "feat: describe your change clearly"
+```
+
+**5. Push Your Branch to GitHub**
+```bash
+git push origin feature/your-feature-name
+```
+
+**6. Open a Pull Request**
+- Go to the repository on GitHub.
+- Click **"Compare & pull request"** for your branch.
+- Fill in the PR title and description explaining **what** and **why**.
+- Submit the PR — it will be assigned to the admin for review.
+
+**7. Wait for Admin Review**
+- The admin will review your code, request changes if needed, or approve.
+- ✅ Once approved, **only the admin will merge** your PR into `main`.
+- ❌ Contributors **cannot merge** their own PRs into `main`.
+
+---
+
+### 📋 Branch Naming Convention
+
+| Type | Pattern | Example |
+| :--- | :--- | :--- |
+| Feature | `feature/name` | `feature/crop-filter-map` |
+| Bug Fix | `bugfix/name` | `bugfix/login-redirect` |
+| Documentation | `docs/name` | `docs/api-endpoints` |
+| Hotfix | `hotfix/name` | `hotfix/payment-crash` |
+
+---
+
+### ✅ PR Checklist
+
+Before submitting your Pull Request, make sure:
+- [ ] Code runs without errors locally
+- [ ] No `.env` files or secrets are committed
+- [ ] Descriptive commit messages are used
+- [ ] PR description clearly explains the changes
+- [ ] Tested the affected feature end-to-end
 
 ---
 
