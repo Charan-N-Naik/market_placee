@@ -6,8 +6,22 @@
 [![Database](https://img.shields.io/badge/Database-MongoDB%20%7C%20SQLite-47A248?logo=mongodb)](https://mongodb.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI Pipeline](https://github.com/Charan-N-Naik/market_placee/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Charan-N-Naik/market_placee/actions/workflows/ci.yml)
+[![Frontend](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel)](https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/)
+[![Backend](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://market-placee.onrender.com)
 
 **KisanBazaar** is a next-generation agricultural marketplace and AI advisory platform designed to bridge the gap between farmers and buyers. By combining direct fair-trade crop commerce with computer vision quality verification, real-time market price analytics, multilingual AI advisory (supporting English, Kannada, Tulu, and Hindi), and live delivery tracking, KisanBazaar empowers agricultural communities with transparent, technology-driven solutions.
+
+---
+
+## 🌐 Live Demo
+
+| Service | URL | Platform |
+| :--- | :--- | :--- |
+| 🖥️ **Frontend** | [market-placee.vercel.app](https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/) | Vercel |
+| 🟢 **Node.js API** | [market-placee.onrender.com](https://market-placee.onrender.com) | Render |
+| 🍃 **Database** | MongoDB Atlas — `cluster0.kybkp5w.mongodb.net` | Atlas |
+
+> ⚠️ The backend is hosted on Render's free tier — it may take **30–60 seconds** to wake up after inactivity.
 
 ---
 

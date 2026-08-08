@@ -116,3 +116,45 @@ jobs:
           echo "  ✅ KisanBazaar CI Pipeline Completed!"
           echo "  All 3 services passed checks on main branch."
           echo "================================================"
+
+  # ─────────────────────────────────────────────
+  # JOB 5: Deployment Health Check
+  # ─────────────────────────────────────────────
+  deployment-health-check:
+    name: 🌐 Deployment Health Check
+    runs-on: ubuntu-latest
+    needs: [ci-success]
+
+    steps:
+      - name: ⏳ Wait for Render to wake up
+        run: sleep 30
+
+      - name: 🟢 Ping Node.js Backend (Render)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://market-placee.onrender.com)
+          echo "Backend HTTP Status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+            echo "✅ Backend is reachable at https://market-placee.onrender.com"
+          else
+            echo "⚠️ Backend returned status $STATUS — it may still be waking up."
+          fi
+
+      - name: 🖥️ Ping Frontend (Vercel)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/)
+          echo "Frontend HTTP Status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "✅ Frontend is live at https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/"
+          else
+            echo "⚠️ Frontend returned status $STATUS"
+          fi
+
+      - name: 🚀 Deployment Summary
+        run: |
+          echo "=============================================="
+          echo "  🌾 KisanBazaar — Deployment Health Report"
+          echo "=============================================="
+          echo "  🖥️  Frontend : https://market-placee-git-main-charannnaik24-8406s-projects.vercel.app/"
+          echo "  🟢  Backend  : https://market-placee.onrender.com"
+          echo "  🍃  Database : MongoDB Atlas (cluster0.kybkp5w.mongodb.net)"
+          echo "=============================================="
