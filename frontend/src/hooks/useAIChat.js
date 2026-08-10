@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 
 export function useAIChat() {
-  const { t, lang } = useLanguage();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'en';
   const [messages, setMessages] = useState([
     {
       id: 'welcome-1',
@@ -143,9 +144,7 @@ export function useAIChat() {
       speak(reply, botMsgId);
     } catch (err) {
       console.error('AI Backend Error:', err);
-      const errorMsg = lang === 'kn' 
-        ? "AI ಬ್ಯಾಕೆಂಡ್ ಸಂಪರ್ಕಿಸಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಪೈಥಾನ್ ಸರ್ವರ್ 5001 ಪೋರ್ಟ್‌ನಲ್ಲಿದೆಯೇ ಪರಿಶೀಲಿಸಿ."
-        : "I am currently unable to reach the AI backend. Please ensure the Python ML server is running on port 5001.";
+      const errorMsg = t('aiAssistant.aiBackendError');
       const errorMsgId = `msg-err-${Date.now()}`;
       const botMsg = {
         id: errorMsgId,
@@ -173,9 +172,9 @@ export function useAIChat() {
     ]);
   }, [stopSpeaking, t]);
 
-  const suggestions = lang === 'kn' 
-    ? ["ಈಗಿನ ಬೆಳೆ ಬೆಲೆಗಳು", "ಟೊಮೆಟೊ ರೋಗ ನಿಯಂತ್ರಣ", "ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು", "ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ"]
-    : ["Current crop prices", "Pest control for tomato", "Government schemes", "Weather forecast"];
+  const suggestions = lang.startsWith('kn') 
+    ? ["ಇಂದಿನ ಟೊಮೆಟೊ ಮಂಡಿ ಬೆಲೆ ಎಷ್ಟು?", "ರಾಗಿ ಬೆಳೆಯುವ ಉತ್ತಮ ಕೃಷಿ ವಿಧಾನ ಯಾವುದು?", "ಬೆಳೆ ಕೀಟ ನಿಯಂತ್ರಣ ಮತ್ತು ಔಷಧಿ ಯಾವುದು?", "ಕರ್ನಾಟಕದಲ್ಲಿ ಈ ವಾರದ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ"]
+    : ["What is the price of Tomato today?", "Best cultivation practices for Ragi crop", "Pest control for yellow leaf disease", "Agri weather forecast for Karnataka"];
 
   const sendSuggestion = useCallback((suggestion) => {
     sendMessageDirect(suggestion);
@@ -239,7 +238,7 @@ export function useAIChat() {
 
   const handleVoiceInput = useCallback(() => {
     if (!SpeechRecognition) {
-      alert(lang === 'kn' ? 'ನಿಮ್ಮ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಧ್ವನಿ ಗ್ರಹಿಕೆ ಬೆಂಬಲಿತವಾಗಿಲ್ಲ.' : 'Voice recognition is not supported in this browser.');
+      alert(t('aiAssistant.voiceNotSupported'));
       return;
     }
 

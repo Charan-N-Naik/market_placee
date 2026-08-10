@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
@@ -49,7 +49,12 @@ class ErrorBoundary extends React.Component {
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
-  const { t, lang, toggleLanguage } = useLanguage();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'en';
+  const toggleLanguage = () => {
+    const newLang = lang.startsWith('en') ? 'kn' : 'en';
+    i18n.changeLanguage(newLang);
+  };
   const { user, logout, updateProfile } = useAuth();
   const { listings, toggleSaved, isSaved, savedListings, fetchListings } = useListings();
   const { cartItemsCount, addToCart } = useCart();
@@ -72,23 +77,76 @@ export default function BuyerDashboard() {
   const [isListening, setIsListening] = useState(false);
   const imageInputRef = React.useRef(null);
 
+  const handleVoiceCommand = (transcript) => {
+    const cmd = transcript.toLowerCase().trim();
+    // ── Navigation intent map ──────────────────────────────────────────────
+    const navMap = [
+      { keys: ['order', 'orders', 'pending', 'my order', 'track'], action: () => { navigate('/buyer/pending-orders'); showToast(`🎙 "${transcript}" → Orders`); } },
+      { keys: ['cart', 'basket', 'checkout', 'my cart'], action: () => { navigate('/cart'); showToast(`🎙 "${transcript}" → Cart`); } },
+      { keys: ['weather', 'forecast', 'rain', 'temperature', 'climate'], action: () => { navigate('/weather'); showToast(`🎙 "${transcript}" → Weather`); } },
+      { keys: ['market price', 'market', 'mandi', 'price', 'rates', 'apmc'], action: () => { navigate('/market-prices'); showToast(`🎙 "${transcript}" → Market Prices`); } },
+      { keys: ['wishlist', 'wish list', 'favourite', 'favorite', 'liked'], action: () => { setActiveTab('wishlist'); showToast(`🎙 "${transcript}" → Wishlist`); } },
+      { keys: ['saved', 'saved listing', 'bookmark'], action: () => { setActiveTab('saved'); showToast(`🎙 "${transcript}" → Saved Listings`); } },
+      { keys: ['notification', 'alert', 'updates'], action: () => { setActiveTab('notifications'); showToast(`🎙 "${transcript}" → Notifications`); } },
+      { keys: ['profile', 'account', 'my profile', 'settings'], action: () => { setActiveTab('profile'); showToast(`🎙 "${transcript}" → Profile`); } },
+      { keys: ['assistant', 'ai', 'chatbot', 'chat', 'help', 'bot'], action: () => { setActiveTab('assistant'); showToast(`🎙 "${transcript}" → AI Assistant`); } },
+      { keys: ['analyzer', 'analyse', 'analyze', 'verify', 'crop verify', 'verification'], action: () => { setActiveTab('analyzer'); showToast(`🎙 "${transcript}" → Crop Verification`); } },
+      { keys: ['dashboard', 'home', 'main', 'overview'], action: () => { setActiveTab('dashboard'); showToast(`🎙 "${transcript}" → Dashboard`); } },
+      { keys: ['browse', 'shop', 'marketplace', 'listing', 'buy', 'search', 'find', 'show me'], action: () => {
+        // Extract what comes after action words for search
+        const searchTermMatch = cmd.match(/(?:find|search|show me|buy|browse|shop for|looking for)\s+(.+)/);
+        if (searchTermMatch) {
+          setSearchQuery(searchTermMatch[1]);
+        }
+        setActiveTab('browse');
+        showToast(`🎙 "${transcript}" → Browse`);
+      }},
+    ];
+
+    // ── Kannada navigation keywords ────────────────────────────────────────
+    const kannadaMap = [
+      { keys: ['ಆರ್ಡರ್', 'ಆದೇಶ'], action: () => { navigate('/buyer/pending-orders'); showToast(`🎙 ಆರ್ಡರ್‌ಗಳು`); } },
+      { keys: ['ಕಾರ್ಟ್', 'ಬುಟ್ಟಿ'], action: () => { navigate('/cart'); showToast(`🎙 ಕಾರ್ಟ್`); } },
+      { keys: ['ಹವಾಮಾನ', 'ಮಳೆ'], action: () => { navigate('/weather'); showToast(`🎙 ಹವಾಮಾನ`); } },
+      { keys: ['ಮಾರುಕಟ್ಟೆ', 'ಬೆಲೆ', 'ಮಂಡಿ'], action: () => { navigate('/market-prices'); showToast(`🎙 ಮಾರುಕಟ್ಟೆ ಬೆಲೆ`); } },
+    ];
+
+    // ── Try navigation match first ─────────────────────────────────────────
+    for (const entry of [...navMap, ...kannadaMap]) {
+      if (entry.keys.some(k => cmd.includes(k))) {
+        entry.action();
+        return;
+      }
+    }
+
+    // ── Fallback: treat as produce search ─────────────────────────────────
+    setSearchQuery(transcript);
+    setActiveTab('browse');
+    showToast(`🎙 Searching for "${transcript}"`);
+  };
+
   const startVoiceSearch = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Voice search is not supported in this browser.");
       return;
     }
+    if (isListening) return; // prevent double-start
     try {
       const rec = new SpeechRecognition();
-      rec.lang = 'en-IN';
+      rec.lang = lang === 'kn' ? 'kn-IN' : 'en-IN';
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
       rec.onstart = () => setIsListening(true);
       rec.onresult = (e) => {
         const transcript = e.results[0][0].transcript;
-        setSearchQuery(transcript);
         setIsListening(false);
-        setActiveTab('browse');
+        handleVoiceCommand(transcript);
       };
-      rec.onerror = () => setIsListening(false);
+      rec.onerror = (e) => {
+        setIsListening(false);
+        if (e.error !== 'no-speech') showToast(`Voice error: ${e.error}`, 'error');
+      };
       rec.onend = () => setIsListening(false);
       rec.start();
     } catch (_) {
@@ -218,18 +276,18 @@ export default function BuyerDashboard() {
   };
 
   const navItems = [
-    { id: 'dashboard', icon: ShoppingBag, label: 'Dashboard' },
-    { id: 'browse', icon: Search, label: 'Browse Marketplace' },
-    { id: 'saved', icon: Bookmark, label: 'Saved Listings' },
-    { id: 'orders', icon: ShoppingCart, label: 'Orders', external: '/buyer/pending-orders' },
-    { id: 'wishlist', icon: Heart, label: 'Wishlist' },
-    { id: 'cart', icon: ShoppingCart, label: `Cart${cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}`, external: '/cart' },
-    { id: 'assistant', icon: Bot, label: 'AI Assistant', badge: 'AI' },
-    { id: 'analyzer', icon: Eye, label: 'Crop Verification', badge: 'AI' },
-    { id: 'weather', icon: CloudSun, label: 'Weather', external: '/weather' },
-    { id: 'market', icon: TrendingUp, label: 'Market Prices', external: '/market-prices' },
-    { id: 'notifications', icon: Bell, label: 'Notifications' },
-    { id: 'profile', icon: User, label: 'Profile' },
+    { id: 'dashboard', icon: ShoppingBag, label: t('sidebar.dashboard') },
+    { id: 'browse', icon: Search, label: t('sidebar.browseMarketplace') },
+    { id: 'saved', icon: Bookmark, label: t('sidebar.savedListings') },
+    { id: 'orders', icon: ShoppingCart, label: t('sidebar.orders'), external: '/buyer/pending-orders' },
+    { id: 'wishlist', icon: Heart, label: t('sidebar.wishlist') },
+    { id: 'cart', icon: ShoppingCart, label: `${t('sidebar.cart')}${cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}`, external: '/cart' },
+    { id: 'assistant', icon: Bot, label: t('sidebar.aiAssistant'), badge: 'AI' },
+    { id: 'analyzer', icon: Eye, label: t('sidebar.cropVerification'), badge: 'AI' },
+    { id: 'weather', icon: CloudSun, label: t('sidebar.weather'), external: '/weather' },
+    { id: 'market', icon: TrendingUp, label: t('sidebar.marketPrices'), external: '/market-prices' },
+    { id: 'notifications', icon: Bell, label: t('sidebar.notifications') },
+    { id: 'profile', icon: User, label: t('sidebar.profile') },
   ];
 
   const savedItems = savedListings || [];
@@ -341,28 +399,17 @@ export default function BuyerDashboard() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <p className="text-xs text-[#FF8C42] font-black uppercase tracking-widest">
-                      {new Date().getHours() < 12 ? 'Good Morning 👋' : new Date().getHours() < 17 ? 'Good Afternoon 👋' : 'Good Evening 👋'}
+                      {new Date().getHours() < 12 ? t('buyerDashboard.goodMorning') : new Date().getHours() < 17 ? t('buyerDashboard.goodAfternoon') : t('buyerDashboard.goodEvening')}
                     </p>
                     <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
-                      Welcome back, <span className="text-[#1F7A4D]">{user.name?.split(' ')[0]}</span>.
+                      {t('buyerDashboard.welcomeBack')} <span className="text-[#1F7A4D]">{user.name?.split(' ')[0]}</span>.
                     </h1>
                     <p className="text-xs md:text-sm text-gray-600 font-semibold pt-0.5">
-                      Browse fresh produce directly from local farmers.
+                      {t('buyerDashboard.browseFreshProduce')}
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <span className="px-3.5 py-1.5 bg-[#E8F7EE] text-[#1F7A4D] border border-[#1F7A4D]/20 rounded-full text-xs font-black uppercase tracking-wider inline-flex items-center gap-2 shadow-xs">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Marketplace Live
-                    </span>
-                    <span className="px-3.5 py-1.5 bg-white text-gray-700 border border-gray-200 rounded-full text-xs font-bold shadow-xs">
-                      📍 Karnataka
-                    </span>
-                    <span className="px-3.5 py-1.5 bg-white text-gray-700 border border-gray-200 rounded-full text-xs font-bold shadow-xs">
-                      🌡 28°C
-                    </span>
-                  </div>
+
                 </div>
 
                 {/* ========================================================== */}
@@ -375,7 +422,7 @@ export default function BuyerDashboard() {
                     <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#1F7A4D] pointer-events-none z-10" />
                     <input
                       type="text"
-                      placeholder="Search crops, farmers, locations, and categories..."
+                      placeholder={t('buyerDashboard.searchPlaceholder')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => {
@@ -389,7 +436,7 @@ export default function BuyerDashboard() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-gray-100">
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
                       <span className="w-2 h-2 rounded-full bg-[#1F7A4D]"></span>
-                      <span>Marketplace Search • {listings.length} Live Produce Listings</span>
+                      <span>{t('buyerDashboard.marketplaceSearch')} • {listings.length} {t('buyerDashboard.liveProduceListings')}</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
@@ -403,10 +450,10 @@ export default function BuyerDashboard() {
                             : 'bg-[#E8F7EE] text-[#1F7A4D] border-[#1F7A4D]/20 hover:bg-[#1F7A4D] hover:text-white'
                           }
                         `}
-                        title="Voice Search"
+                        title={t('buyerDashboard.voiceSearch')}
                       >
                         <Mic size={16} />
-                        <span>{isListening ? 'Listening...' : 'Voice Search'}</span>
+                        <span>{isListening ? t('buyerDashboard.listening') : t('buyerDashboard.voiceSearch')}</span>
                       </button>
 
                       {/* Image Search Button */}
@@ -414,10 +461,10 @@ export default function BuyerDashboard() {
                         type="button"
                         onClick={() => imageInputRef.current?.click()}
                         className="px-4 py-2.5 rounded-xl bg-[#E8F7EE] text-[#1F7A4D] border border-[#1F7A4D]/20 font-bold text-xs flex items-center gap-2 hover:bg-[#1F7A4D] hover:text-white transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95"
-                        title="Image Search"
+                        title={t('buyerDashboard.imageSearch')}
                       >
                         <Camera size={16} />
-                        <span>Image Search</span>
+                        <span>{t('buyerDashboard.imageSearch')}</span>
                       </button>
                       <input
                         type="file"
@@ -434,7 +481,7 @@ export default function BuyerDashboard() {
                         className="px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs hover:scale-105 active:scale-95"
                       >
                         <Filter size={16} className="text-[#FF8C42]" />
-                        <span>Filter</span>
+                        <span>{t('buyerDashboard.filter')}</span>
                       </button>
 
                       {/* Browse Catalogue Button */}
@@ -442,7 +489,7 @@ export default function BuyerDashboard() {
                         onClick={() => setActiveTab('browse')}
                         className="px-6 py-2.5 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-2 hover:scale-105 active:scale-95"
                       >
-                        <span>Browse Catalogue</span>
+                        <span>{t('buyerDashboard.browseCatalogue')}</span>
                         <ArrowRight size={14} />
                       </button>
                     </div>
@@ -1235,20 +1282,20 @@ export default function BuyerDashboard() {
                   <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4">
                     <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
                       <Globe size={15} className="text-orange-600" />
-                      <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">System Language</h3>
+                      <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">{t('buyerDashboard.systemLanguage')}</h3>
                     </div>
                     <div className="flex items-center justify-between bg-stone-50/50 border border-stone-100 rounded-2xl p-3">
                       <div>
                         <span className="text-xs font-black text-stone-800">
-                          {lang === 'en' ? 'English (India)' : 'Kannada (ಕನ್ನಡ)'}
+                          {lang === 'en' ? t('buyerDashboard.englishIndia') : t('buyerDashboard.kannadaLang')}
                         </span>
-                        <p className="text-[10px] text-stone-400 font-semibold mt-0.5">Toggle language preferences</p>
+                        <p className="text-[10px] text-stone-400 font-semibold mt-0.5">{t('buyerDashboard.toggleLanguagePref')}</p>
                       </div>
                       <button
                         onClick={toggleLanguage}
-                        className="px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-black transition-all hover:bg-orange-700 active:scale-95 shadow-sm"
+                        className="px-4 py-2 bg-orange-600 text-white rounded-xl text-xs font-black transition-all hover:bg-orange-700 active:scale-95 shadow-sm cursor-pointer"
                       >
-                        {lang === 'en' ? 'ಕನ್ನಡ' : 'English'}
+                        {lang === 'en' ? t('buyerDashboard.switchToKannada') : t('buyerDashboard.switchToEnglish')}
                       </button>
                     </div>
                   </div>

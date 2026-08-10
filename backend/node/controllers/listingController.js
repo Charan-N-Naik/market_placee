@@ -43,18 +43,32 @@ export const createListing = asyncHandler(async (req, res) => {
   if (req.body.aiVerify === 'true') {
     if (req.body.verificationReport) {
       try {
-        const parsedReport = JSON.parse(req.body.verificationReport);
+        const r = JSON.parse(req.body.verificationReport);
         aiVerified = true;
-        // Map report fields to the mongoose schema
+
+        // Support both new multi-angle Gemini report shape and legacy shape
         verificationReport = {
-          confidenceScore: parsedReport.confidence || 95,
-          healthScore: parsedReport.report?.freshnessIndex ? parseInt(parsedReport.report.freshnessIndex) || 90 : 90,
-          diseaseSigns: parsedReport.report?.pestIssues && parsedReport.report.pestIssues !== 'None detected' ? [parsedReport.report.pestIssues] : [],
-          pestDetection: parsedReport.report?.pestIssues && parsedReport.report.pestIssues !== 'None detected',
-          estimatedPrice: parsedReport.report?.estimatedPrice ? Number(parsedReport.report.estimatedPrice) : undefined,
-          storageRecommendation: parsedReport.report?.storageRecommendation || 'Store in dry place',
-          qualityGrade: parsedReport.report?.condition || 'A',
-          overallAssessment: parsedReport.report?.overallAssessment || parsedReport.message || 'Verified by AI crop scanning.',
+          // New Gemini multi-angle fields
+          cropName:              r.cropName  || r.report?.cropDetected || '',
+          variety:               r.variety   || r.report?.variety      || '',
+          trustScore:            r.trustScore ?? r.confidenceScore ?? 0,
+          qualityGrade:          r.qualityGrade || r.report?.condition || 'Unknown',
+          ripeness:              r.ripeness  || '',
+          freshness:             r.freshness || '',
+          defects:               Array.isArray(r.defects) ? r.defects : [],
+          pestDetection:         r.pestDetection ?? false,
+          estimatedShelfLife:    r.estimatedShelfLife || '',
+          estimatedPricePerKg:   r.estimatedPricePerKg ?? 0,
+          storageRecommendation: r.storageRecommendation || r.report?.storageRecommendation || '',
+          summary:               r.summary   || r.overallAssessment || '',
+          analyzedAngles:        Array.isArray(r.analyzedAngles) ? r.analyzedAngles : ['front'],
+          analysisTimestamp:     r.analysisTimestamp ? new Date(r.analysisTimestamp) : new Date(),
+          // Legacy backwards-compat
+          confidenceScore:       r.confidenceScore ?? r.trustScore ?? 0,
+          healthScore:           r.healthScore ?? 0,
+          diseaseSigns:          r.diseaseSigns || r.defects || [],
+          estimatedPrice:        r.estimatedPrice ?? r.estimatedPricePerKg ?? 0,
+          overallAssessment:     r.overallAssessment || r.summary || '',
         };
       } catch (err) {
         console.error('Failed to parse verificationReport from body:', err);

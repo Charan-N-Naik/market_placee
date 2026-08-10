@@ -50,17 +50,21 @@ export function ListingProvider({ children }) {
         if (key === 'photoFile' && listingData[key]) {
           formData.append('images', listingData[key]);
         } else if (key === 'report') {
+          // New multi-angle Gemini report
           if (listingData[key]) {
             formData.append('aiVerify', 'true');
             formData.append('verificationReport', JSON.stringify(listingData[key]));
           }
+        } else if (key === 'aiVerify') {
+          // Allow explicit aiVerify flag from AddListingPage
+          formData.append('aiVerify', listingData[key]);
         } else if (key === 'location') {
           formData.append('location[address]', listingData[key].address || listingData[key]);
         } else if (key !== 'photo' && listingData[key] !== undefined) {
           formData.append(key, listingData[key]);
         }
       });
-      
+
       const { data } = await api.post('/listings', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -71,6 +75,7 @@ export function ListingProvider({ children }) {
       throw err;
     }
   }, []);
+
 
   const toggleSaved = useCallback(async (listingId) => {
     try {

@@ -1,5 +1,5 @@
 import { Bot, Sparkles, Volume2, VolumeX, Mic, Activity, Trash2, Square } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
 import { useEffect, useRef, useState } from 'react';
 
@@ -12,7 +12,8 @@ export default function ChatHeader({
   clearChat,
   messageCount = 0
 }) {
-  const { t, lang } = useLanguage();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'en';
   const audioContextRef = useRef(null);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
 
@@ -93,17 +94,17 @@ export default function ChatHeader({
 
         <div>
           <h3 className="text-white font-extrabold text-base sm:text-lg flex items-center gap-2 tracking-tight">
-            KisanMitra Voice AI
+            {t('aiAssistant.voiceAiTitle')}
             <Sparkles size={16} className="text-amber-300 animate-pulse" />
           </h3>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-emerald-100/90 text-xs font-semibold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               {isListening 
-                ? (lang === 'kn' ? 'ಧ್ವನಿ ಗ್ರಹಿಸಲಾಗುತ್ತಿದೆ...' : 'Listening via Microphone...') 
+                ? t('aiAssistant.listening') 
                 : activeSpeakingId 
-                  ? (lang === 'kn' ? 'ಮಾತನಾಡುತ್ತಿದೆ...' : 'Speaking aloud...')
-                  : (lang === 'kn' ? 'ಸಿದ್ಧವಾಗಿದೆ • ಸಕ್ರಿಯ AI' : 'Ready • Voice Assistant Active')}
+                  ? t('aiAssistant.speaking')
+                  : t('aiAssistant.readyActive')}
             </span>
           </div>
         </div>
@@ -120,7 +121,7 @@ export default function ChatHeader({
             title="Stop Speech"
           >
             <Square size={13} className="fill-amber-300" />
-            <span className="hidden md:inline">Stop Audio</span>
+            <span className="hidden md:inline">{t('aiAssistant.stopAudio')}</span>
           </button>
         )}
 
@@ -139,7 +140,7 @@ export default function ChatHeader({
         >
           {isSpeechEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
           <span className="text-[11px] font-bold hidden sm:inline">
-            {isSpeechEnabled ? 'Speech ON' : 'Muted'}
+            {isSpeechEnabled ? t('aiAssistant.speechOn') : t('aiAssistant.muted')}
           </span>
         </button>
 
@@ -162,14 +163,14 @@ export default function ChatHeader({
                   onClick={handleConfirmClear}
                   className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg cursor-pointer"
                 >
-                  Clear?
+                  {t('aiAssistant.clearConfirm')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowConfirmClear(false)}
                   className="px-2 py-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-lg cursor-pointer"
                 >
-                  Cancel
+                  {t('aiAssistant.cancel')}
                 </button>
               </div>
             )}
@@ -178,10 +179,9 @@ export default function ChatHeader({
 
         <div className="hidden lg:flex items-center gap-1.5 bg-black/20 border border-white/15 text-emerald-200 text-[10px] px-3 py-1.5 rounded-full uppercase font-black tracking-wider">
           <Activity size={12} className="text-emerald-400 animate-pulse" />
-          ML Engine v2
+          {t('aiAssistant.mlEngine')}
         </div>
       </div>
     </div>
   );
 }
-

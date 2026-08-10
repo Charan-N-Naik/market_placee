@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Bell, CloudSun, TrendingUp, Globe, ChevronDown } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
 import api from '../../api/axios';
 
@@ -14,7 +14,7 @@ export default function Navbar({
   user
 }) {
   const isFarmer = role === 'farmer';
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const [navWeather, setNavWeather] = useState(null);
@@ -82,7 +82,7 @@ export default function Navbar({
                 {currentItem?.label || activeTab}
               </h2>
               <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Buyer Hub / {activeTab}
+                {t('navbar.buyerHubBreadcrumb')} / {activeTab}
               </p>
             </div>
           </div>
@@ -129,7 +129,7 @@ export default function Navbar({
           <h2 style={{
             fontSize: '0.95rem', fontWeight: 700, color: '#18181b', margin: 0, lineHeight: 1.2,
           }}>
-            Welcome back, <span style={{ color: '#166534' }}>{user?.name?.split(' ')[0] || 'Farmer'}</span> 👋
+            {t('navbar.welcomeBack')} <span style={{ color: '#166534' }}>{user?.name?.split(' ')[0] || 'Farmer'}</span> 👋
           </h2>
           <p style={{
             fontSize: '0.65rem', fontWeight: 500, color: '#71717a', margin: '2px 0 0',
@@ -148,7 +148,7 @@ export default function Navbar({
           className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-emerald-300 bg-[#E8F7EE] hover:bg-[#1F7A4D] hover:text-white text-xs font-black text-[#1F7A4D] transition-all cursor-pointer shadow-xs"
         >
           <span className="text-sm">🏛️</span>
-          <span>Govt Schemes</span>
+          <span>{t('navbar.govtSchemes')}</span>
         </button>
 
         {/* Minimal Weather Widget */}
@@ -158,7 +158,7 @@ export default function Navbar({
         >
           <CloudSun size={15} className="text-[#22C55E]" />
           <span>{navWeather || 'Loading...'}</span>
-          <span className="text-[10px] text-gray-400 font-normal">| View Weather</span>
+          <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewWeather')}</span>
         </button>
 
         {/* Minimal Market Price Widget */}
@@ -168,7 +168,7 @@ export default function Navbar({
         >
           <TrendingUp size={14} className="text-[#22C55E]" />
           <span>{navPrice || 'Loading...'}</span>
-          <span className="text-[10px] text-gray-400 font-normal">| View Prices</span>
+          <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewPrices')}</span>
         </button>
 
         {/* Notification Bell */}

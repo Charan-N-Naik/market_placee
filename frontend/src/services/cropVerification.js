@@ -1,8 +1,56 @@
 import api from '../api/axios';
 
 /**
- * Real AI crop verification service using Gemini Vision via Node.js backend.
- * Sends the crop image to /api/verify/scan and returns structured analysis.
+ * Real multi-angle AI crop verification using Gemini Vision via Node.js backend.
+ * Sends up to 3 images (front, left, right) to /api/crop-verification/analyze.
+ *
+ * @param {{ front?: File, left?: File, right?: File }} files
+ * @param {string} [cropType]  - Crop name hint (e.g. 'Tomato')
+ * @param {string} [role]      - 'farmer' | 'buyer'
+ * @returns {Promise<Object>}  - { rejected, reason?, report? }
+ */
+export async function analyzeCropMultiAngle(files, cropType = '', role = 'buyer') {
+  if (!files.front || !files.left || !files.right) {
+    throw new Error('All 3 harvest photos (Front View, Left Side, Right Side) are required to perform AI crop quality analysis.');
+  }
+
+  const formData = new FormData();
+  if (files.front) formData.append('front', files.front);
+  if (files.left)  formData.append('left',  files.left);
+  if (files.right) formData.append('right', files.right);
+  if (cropType)    formData.append('cropType', cropType);
+  if (role)        formData.append('role', role);
+
+  try {
+    const response = await api.post('/crop-verification/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data; // { rejected, report?, reason? }
+  } catch (error) {
+    // 422 = AI-generated or mismatch rejection
+    if (error?.response?.status === 422) {
+      return {
+        rejected:       true,
+        rejectionType:  error.response.data?.rejectionType || 'unknown',
+        reason:         error.response.data?.reason || 'Photo rejected by AI verification.',
+        detectedCrops:  error.response.data?.detectedCrops,
+      };
+    }
+    let message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Crop verification failed due to a network or server error.';
+    if (message.startsWith('{') || message.includes('RESOURCE_EXHAUSTED')) {
+      message = 'AI rate limit exceeded. Please try again in a few moments.';
+    }
+    throw new Error(message);
+  }
+}
+
+/**
+ * Legacy single-image crop verification (kept for backwards compat).
+ * Uses /api/verify/scan with the existing Gemini Vision service.
  */
 export async function verifyCropPhoto(file) {
   const formData = new FormData();
@@ -10,9 +58,7 @@ export async function verifyCropPhoto(file) {
 
   try {
     const response = await api.post('/verify/scan', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
 
     const data = response.data;

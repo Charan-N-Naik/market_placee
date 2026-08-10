@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
@@ -16,7 +16,7 @@ import { cropOptions } from '../data/mockData';
 export default function StateCropsPage() {
   const navigate = useNavigate();
   const { stateName } = useParams();
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const { listings, toggleSaved, isSaved } = useListings();
   const { cartItemsCount } = useCart();

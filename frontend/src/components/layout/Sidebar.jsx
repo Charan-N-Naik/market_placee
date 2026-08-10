@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
 import api from '../../api/axios';
 import {
@@ -21,7 +21,7 @@ export default function Sidebar({
   sidebarOpen,
   setSidebarOpen
 }) {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const isFarmer = role === 'farmer';
   const [collapsed, setCollapsed] = useState(false);
@@ -39,31 +39,31 @@ export default function Sidebar({
   // Farmer-specific menu with sections
   const farmerSections = [
     {
-      label: 'MAIN',
+      label: t('sidebar.main'),
       items: [
-        { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-        { id: 'listings', icon: Package, label: 'My Listings' },
-        { id: 'add', icon: Plus, label: 'Add New Crop' },
-        { id: 'orders', icon: ShoppingCart, label: 'Orders' },
-        { id: 'analytics', icon: BarChart3, label: 'Analytics' },
-        { id: 'schemes', icon: Landmark, label: 'Gov Schemes', external: '/schemes' },
+        { id: 'dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard') },
+        { id: 'listings', icon: Package, label: t('sidebar.myListings') },
+        { id: 'add', icon: Plus, label: t('sidebar.addNewCrop') },
+        { id: 'orders', icon: ShoppingCart, label: t('sidebar.orders') },
+        { id: 'analytics', icon: BarChart3, label: t('sidebar.analytics') },
+        { id: 'schemes', icon: Landmark, label: t('sidebar.govSchemes'), external: '/schemes' },
       ]
     },
     {
-      label: 'AI TOOLS',
+      label: t('sidebar.aiTools'),
       items: [
-        { id: 'assistant', icon: Bot, label: 'AI Assistant', badge: 'AI' },
-        { id: 'analyzer', icon: ScanEye, label: 'Crop Verification', badge: 'AI' },
-        { id: 'weather', icon: CloudSun, label: 'Weather', external: '/weather' },
-        { id: 'market', icon: TrendingUp, label: 'Market Prices', external: '/market-prices' },
+        { id: 'assistant', icon: Bot, label: t('sidebar.aiAssistant'), badge: 'AI' },
+        { id: 'analyzer', icon: ScanEye, label: t('sidebar.cropVerification'), badge: 'AI' },
+        { id: 'weather', icon: CloudSun, label: t('sidebar.weather'), external: '/weather' },
+        { id: 'market', icon: TrendingUp, label: t('sidebar.marketPrices'), external: '/market-prices' },
       ]
     },
     {
-      label: 'ACCOUNT',
+      label: t('sidebar.account'),
       items: [
-        { id: 'notifications', icon: Bell, label: 'Notifications', count: unreadCount },
-        { id: 'profile', icon: User, label: 'Profile' },
-        { id: 'settings', icon: Settings, label: 'Settings' },
+        { id: 'notifications', icon: Bell, label: t('sidebar.notifications'), count: unreadCount },
+        { id: 'profile', icon: User, label: t('sidebar.profile') },
+        { id: 'settings', icon: Settings, label: t('sidebar.settings') },
       ]
     }
   ];
@@ -108,8 +108,16 @@ export default function Sidebar({
                 width: 38, height: 38, borderRadius: 10,
                 background: 'var(--color-primary-light, #E8F7EE)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.2rem'
-              }}>🛒</div>
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Basket base in Orange */}
+                  <path d="M4 10h16l-1.5 8.5c-.2 1.1-1.1 1.5-2.2 1.5H7.7c-1.1 0-2-.4-2.2-1.5L4 10z" fill="#FF8C42" stroke="#FF8C42" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M9 10v6M15 10v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                  {/* Leaves growing up from basket in Green */}
+                  <path d="M12 3c-1.5 2-2 4.5-2 6.5h4c0-2-.5-4.5-2-6.5z" fill="#1F7A4D" />
+                  <path d="M12 3c1.5 1.5 3 3 3 5h-3V3z" fill="#22C55E" />
+                </svg>
+              </div>
               <div>
                 <h1 style={{
                   fontWeight: 900, fontSize: '1.2rem', color: 'var(--text-main, #1c1917)',
@@ -120,7 +128,7 @@ export default function Sidebar({
                 <p style={{
                   fontSize: '0.58rem', fontWeight: 800, color: 'var(--color-primary, #1F7A4D)',
                   textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
-                }}>🛒 Buyer Hub</p>
+                }}>🍃 {t('sidebar.buyerHub')}</p>
               </div>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="md:hidden"
@@ -153,12 +161,7 @@ export default function Sidebar({
                     ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
                     : (user?.location || 'Karnataka')}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                  <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#1F7A4D', background: '#ffffff', padding: '1px 6px', borderRadius: 99, border: '1px solid #1F7A4D33' }}>
-                    🟢 Live
-                  </span>
-                  <span style={{ fontSize: '0.58rem', fontWeight: 700, color: '#6b7280' }}>🌡 28°C</span>
-                </div>
+
               </div>
             </div>
           </div>
@@ -203,7 +206,7 @@ export default function Sidebar({
               onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
             >
-              <LogOut size={15} />{t('logout') || 'Logout'}
+              <LogOut size={15} />{t('common.logout')}
             </button>
           </div>
         </aside>
@@ -247,7 +250,14 @@ export default function Sidebar({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: '1px solid rgba(34,197,94,0.3)'
               }}>
-                <Leaf size={20} color="#22C55E" />
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Basket base in Orange */}
+                  <path d="M4 10h16l-1.5 8.5c-.2 1.1-1.1 1.5-2.2 1.5H7.7c-1.1 0-2-.4-2.2-1.5L4 10z" fill="#FF8C42" stroke="#FF8C42" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M9 10v6M15 10v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                  {/* Leaves growing up from basket in Green */}
+                  <path d="M12 3c-1.5 2-2 4.5-2 6.5h4c0-2-.5-4.5-2-6.5z" fill="#1F7A4D" />
+                  <path d="M12 3c1.5 1.5 3 3 3 5h-3V3z" fill="#22C55E" />
+                </svg>
               </div>
               <div>
                 <h1 style={{
@@ -259,7 +269,7 @@ export default function Sidebar({
                 <p style={{
                   fontSize: '0.55rem', fontWeight: 700, color: 'rgba(132,204,22,0.8)',
                   textTransform: 'uppercase', letterSpacing: '0.15em', margin: '3px 0 0'
-                }}>Farmer Portal</p>
+                }}>{t('sidebar.farmerPortal')}</p>
               </div>
             </div>
           )}
@@ -270,7 +280,14 @@ export default function Sidebar({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '1px solid rgba(34,197,94,0.3)'
             }}>
-              <Leaf size={20} color="#22C55E" />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Basket base in Orange */}
+                <path d="M4 10h16l-1.5 8.5c-.2 1.1-1.1 1.5-2.2 1.5H7.7c-1.1 0-2-.4-2.2-1.5L4 10z" fill="#FF8C42" stroke="#FF8C42" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M9 10v6M15 10v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Leaves growing up from basket in Green */}
+                <path d="M12 3c-1.5 2-2 4.5-2 6.5h4c0-2-.5-4.5-2-6.5z" fill="#1F7A4D" />
+                <path d="M12 3c1.5 1.5 3 3 3 5h-3V3z" fill="#22C55E" />
+              </svg>
             </div>
           )}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -416,7 +433,7 @@ export default function Sidebar({
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
           >
-            <LogOut size={15} />{!collapsed && (t('logout') || 'Logout')}
+            <LogOut size={15} />{!collapsed && t('common.logout')}
           </button>
         </div>
       </aside>
