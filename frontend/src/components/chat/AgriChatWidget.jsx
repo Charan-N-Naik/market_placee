@@ -7,14 +7,10 @@ import {
   Volume2, 
   VolumeX, 
   Sparkles, 
-  TrendingUp, 
-  ShieldAlert, 
-  FileText, 
   X, 
-  MessageSquare,
   Globe,
   CheckCircle2,
-  AlertTriangle
+  AlertCircle
 } from 'lucide-react';
 import { useAgriAdvisoryChat } from '../../hooks/useAgriAdvisoryChat';
 
@@ -36,6 +32,8 @@ export function AgriChatWidget() {
     playAudioResponse,
     stopAudioPlayback,
     messagesEndRef,
+    isSpeechEnabled,
+    setIsSpeechEnabled,
   } = useAgriAdvisoryChat();
 
   const handleFormSubmit = (e) => {
@@ -43,234 +41,199 @@ export function AgriChatWidget() {
     sendMessage();
   };
 
-  const languages = [
-    { code: 'en', label: 'English' },
-    { code: 'hi', label: 'हिंदी (Hindi)' },
-    { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' },
-    { code: 'tcy', label: 'ತುಳು (Tulu)' },
-  ];
+  const toggleWidget = () => {
+    setIsOpen(!isOpen);
+    if (isOpen) {
+      stopAudioPlayback();
+    }
+  };
 
   return (
     <div className="fixed bottom-6 right-6 z-50 font-sans flex flex-col items-end gap-3">
-      {/* Floating Action Button — small circle, no overlap */}
-      {!isOpen && (
-        <div className="relative group">
-          {/* Tooltip */}
-          <span className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-lg">
-            KisanMitra AI Advisory
-          </span>
-          <button
-            onClick={() => setIsOpen(true)}
-            className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-emerald-400/40 flex items-center justify-center relative"
-            aria-label="Open KisanMitra AI Assistant"
-          >
-            <Bot className="w-6 h-6" />
-          </button>
-        </div>
-      )}
+      {/* Floating Action Button (FAB) — always persistent */}
+      <div className="relative group">
+        <span className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-lg border border-gray-800">
+          {lang === 'kn' ? 'ಕಿಸಾನ್ ಮಿತ್ರ AI ಸಹಾಯಕಿ' : 'KisanMitra AI Assistant'}
+        </span>
+        <button
+          onClick={toggleWidget}
+          className={`w-14 h-14 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center relative cursor-pointer border-2
+            ${isOpen 
+              ? 'bg-rose-500 hover:bg-rose-600 border-rose-400 text-white' 
+              : 'bg-gradient-to-tr from-green-600 via-emerald-600 to-teal-500 border-green-400 text-white animate-bounce'
+            }
+          `}
+          style={{ animationDuration: '4s' }}
+          aria-label="Toggle Assistant"
+        >
+          {isOpen ? <X className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
+          
+          {/* Pulse notification dot */}
+          {!isOpen && (
+            <span className="absolute top-0 right-0 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-orange-500"></span>
+            </span>
+          )}
+        </button>
+      </div>
 
-      {/* Embedded Chat Drawer Modal */}
+      {/* Slide-in Chat Widget panel */}
       {isOpen && (
-        <div className="w-[95vw] sm:w-[420px] h-[600px] max-h-[85vh] bg-slate-900 text-slate-100 rounded-2xl shadow-2xl border border-slate-700/60 flex flex-col overflow-hidden backdrop-blur-xl transition-all duration-300">
+        <div className="w-[95vw] sm:w-[420px] h-[550px] max-h-[80vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-300 ease-out transform translate-y-0 scale-100 animate-fadeIn">
           {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-slate-800 p-4 flex items-center justify-between border-b border-emerald-500/20">
+          <div className="bg-gradient-to-r from-green-700 via-emerald-700 to-teal-600 p-4 flex items-center justify-between shadow-md">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-400/30">
-                <Bot className="w-5 h-5 text-emerald-300" />
+              <div className="p-2 bg-white/10 rounded-xl border border-white/20">
+                <Bot className="w-5 h-5 text-green-200" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-emerald-100 flex items-center gap-1.5">
-                  KisanMitra
-                  <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30 font-mono">
-                    LIVE API
+                <h3 className="font-bold text-base text-white flex items-center gap-1.5">
+                  KisanMitra AI
+                  <span className="text-[9px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30 uppercase tracking-widest font-black">
+                    Live RAG
                   </span>
                 </h3>
-                <p className="text-xs text-emerald-200/80">Real-Time Multilingual Agri Assistant</p>
+                <p className="text-xs text-green-100/90 font-medium">
+                  {lang === 'kn' ? 'ಲೈವ್ ಅಸಿಸ್ಟೆಂಟ್' : 'Real-time Assistant'}
+                </p>
               </div>
             </div>
+            
+            {/* Audio Toggle switch in Header */}
             <button
-              onClick={() => setIsOpen(false)}
-              className="text-slate-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              onClick={() => setIsSpeechEnabled(!isSpeechEnabled)}
+              className={`p-2 rounded-lg transition-colors border cursor-pointer ${
+                isSpeechEnabled 
+                  ? 'bg-emerald-600/50 border-emerald-400 text-white' 
+                  : 'bg-white/10 border-white/10 text-green-200 hover:bg-white/20'
+              }`}
+              title={isSpeechEnabled ? "Mute Speech Response" : "Unmute Speech Response"}
             >
-              <X className="w-5 h-5" />
+              {isSpeechEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
             </button>
           </div>
 
-          {/* Language Selector Bar */}
-          <div className="bg-slate-850 px-4 py-2 bg-slate-950/60 flex items-center justify-between border-b border-slate-800 text-xs">
-            <span className="text-slate-400 flex items-center gap-1 text-[11px]">
-              <Globe className="w-3.5 h-3.5 text-emerald-400" /> Language:
+          {/* Sub-header Language Switcher Bar */}
+          <div className="bg-gray-550/50 bg-gray-50 px-4 py-2 flex items-center justify-between border-b border-gray-200 text-xs">
+            <span className="text-gray-500 font-bold flex items-center gap-1">
+              <Globe className="w-3.5 h-3.5 text-green-600" /> 
+              {lang === 'kn' ? 'ಭಾಷೆ:' : 'Language:'}
             </span>
-            <div className="flex gap-1">
-              {languages.map((l) => (
+            <div className="flex gap-1.5">
+              {[
+                { code: 'en', label: 'English' },
+                { code: 'kn', label: 'ಕನ್ನಡ (Kannada)' }
+              ].map((l) => (
                 <button
                   key={l.code}
                   onClick={() => setLang(l.code)}
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
                     lang === l.code
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-green-700 text-white shadow-md'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
-                  {l.label.split(' ')[0]}
+                  {l.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Message History Container */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-900/90 scrollbar-thin scrollbar-thumb-slate-700">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${
-                  msg.role === 'user' ? 'items-end' : 'items-start'
-                }`}
-              >
+          {/* Messages Log Container */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50 scrollbar-thin scrollbar-thumb-gray-250">
+            {messages.map((msg) => {
+              const isUser = msg.role === 'user';
+              return (
                 <div
-                  className={`max-w-[88%] rounded-2xl p-3.5 text-sm shadow-md transition-all ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-br-none'
-                      : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-bl-none'
-                  }`}
+                  key={msg.id}
+                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
                 >
-                  {/* Text Response */}
-                  <p className="whitespace-pre-line leading-relaxed">{msg.content}</p>
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-3.5 text-xs md:text-sm shadow-sm leading-relaxed border transition-all ${
+                      isUser
+                        ? 'bg-gradient-to-tr from-green-700 to-emerald-600 text-white rounded-tr-none border-green-600'
+                        : msg.isError
+                          ? 'bg-red-50 text-red-800 border-red-200 rounded-tl-none'
+                          : 'bg-white text-gray-800 border-gray-200 rounded-tl-none'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line font-medium">{msg.content}</p>
 
-                  {/* Structured Render Card: Market Price */}
-                  {msg.intent === 'market_price' && Array.isArray(msg.structuredData) && msg.structuredData.length > 0 && (
-                    <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-emerald-500/30 text-xs space-y-2">
-                      <div className="flex justify-between items-center text-emerald-400 font-semibold border-b border-slate-800 pb-1.5">
-                        <span className="flex items-center gap-1">
-                          <TrendingUp className="w-3.5 h-3.5" /> Mandi Price Card
+                    {/* Speech response play control inside message (for bot messages only) */}
+                    {!isUser && !msg.isError && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                        <span className="flex items-center gap-1 text-emerald-700 font-bold">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          {lang === 'kn' ? 'ಲೈವ್ ದೃಢೀಕೃತ' : 'Live Verified'}
                         </span>
-                        <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded">
-                          {msg.structuredData[0].provider}
-                        </span>
+                        
+                        <button
+                          onClick={() => {
+                            if (activeAudioId === msg.id) {
+                              stopAudioPlayback();
+                            } else {
+                              playAudioResponse(null, msg.content, msg.detectedLang || lang, msg.id);
+                            }
+                          }}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border font-black transition-all cursor-pointer ${
+                            activeAudioId === msg.id
+                              ? 'bg-orange-50 border-orange-200 text-orange-600 animate-pulse'
+                              : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                          }`}
+                        >
+                          {activeAudioId === msg.id ? (
+                            <>
+                              <VolumeX size={12} />
+                              {lang === 'kn' ? 'ನಿಲ್ಲಿಸು' : 'Stop'}
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 size={12} />
+                              {lang === 'kn' ? 'ಕೇಳಿ' : 'Listen'}
+                            </>
+                          )}
+                        </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-slate-300">
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Crop / Variety:</span>
-                          <span className="font-semibold text-white">{msg.structuredData[0].crop} ({msg.structuredData[0].variety})</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">APMC Market:</span>
-                          <span className="font-semibold text-white">{msg.structuredData[0].market || msg.structuredData[0].district}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Modal Price:</span>
-                          <span className="font-bold text-emerald-400 text-sm">₹{msg.structuredData[0].modalPrice} / Quintal</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px]">Per Kg Rate:</span>
-                          <span className="font-bold text-teal-300 text-sm">₹{msg.structuredData[0].pricePerKg} / kg</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Structured Render Card: Pesticide Advisory */}
-                  {msg.intent === 'pesticide_advice' && msg.structuredData && (
-                    <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-amber-500/30 text-xs space-y-2">
-                      <div className="flex items-center gap-1.5 text-amber-400 font-semibold border-b border-slate-800 pb-1.5">
-                        <ShieldAlert className="w-3.5 h-3.5" /> ICAR Approved Crop Protection
-                      </div>
-                      <div className="space-y-1.5 text-slate-300">
-                        <p><span className="text-slate-400 font-medium">Approved Chemical:</span> <span className="text-white font-semibold">{msg.structuredData.approvedPesticide}</span></p>
-                        <p><span className="text-slate-400 font-medium">Recommended Dosage:</span> <span className="text-amber-300 font-bold">{msg.structuredData.dosage}</span></p>
-                        <p><span className="text-slate-400 font-medium">Safety Waiting Period:</span> <span className="text-slate-200">{msg.structuredData.waitingPeriodDays} days harvest interval</span></p>
-                        <div className="bg-amber-950/40 p-2 rounded border border-amber-500/20 text-[11px] text-amber-200 flex items-start gap-1.5">
-                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                          <span>{msg.structuredData.disclaimer}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Structured Render Card: Government Schemes */}
-                  {msg.intent === 'gov_scheme' && Array.isArray(msg.structuredData) && msg.structuredData.length > 0 && (
-                    <div className="mt-3 p-3 bg-slate-900/80 rounded-xl border border-cyan-500/30 text-xs space-y-2">
-                      <div className="flex items-center justify-between text-cyan-400 font-semibold border-b border-slate-800 pb-1.5">
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-3.5 h-3.5" /> Government Scheme
-                        </span>
-                        <span className="bg-cyan-500/20 text-cyan-300 text-[10px] px-1.5 py-0.5 rounded">
-                          {msg.structuredData[0].category || 'Subsidy'}
-                        </span>
-                      </div>
-                      <div className="space-y-1.5 text-slate-300">
-                        <p className="font-bold text-white text-sm">{msg.structuredData[0].schemeName}</p>
-                        <p><span className="text-slate-400">Eligibility:</span> {msg.structuredData[0].eligibility}</p>
-                        <p><span className="text-slate-400">Benefits:</span> <span className="text-cyan-300 font-medium">{msg.structuredData[0].benefits}</span></p>
-                        {msg.structuredData[0].officialUrl && (
-                          <a
-                            href={msg.structuredData[0].officialUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block mt-1 text-[11px] bg-cyan-600/30 text-cyan-200 hover:bg-cyan-600/50 px-2.5 py-1 rounded border border-cyan-400/30 transition-colors"
-                          >
-                            Apply on Official Portal ↗
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Audio TTS Playback Trigger */}
-                  {msg.role === 'assistant' && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-400">
-                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Fact Verified
-                      </span>
-                      <button
-                        onClick={() =>
-                          activeAudioId === msg.id
-                            ? stopAudioPlayback()
-                            : playAudioResponse(msg.audioOutput, msg.content, msg.detectedLang || lang, msg.id)
-                        }
-                        className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-[11px] font-medium bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 transition-all"
-                      >
-                        {activeAudioId === msg.id ? (
-                          <>
-                            <VolumeX className="w-3.5 h-3.5 animate-pulse text-amber-400" /> Stop Audio
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="w-3.5 h-3.5" /> Listen Audio
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  
+                  <span className="text-[9px] text-gray-400 font-bold mt-1 px-1.5">
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-1 px-1">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              );
+            })}
+
+            {/* Waiting indicator */}
+            {isLoading && (
+              <div className="flex items-center gap-2 text-green-700 text-xs font-bold bg-green-50/80 p-3 rounded-2xl w-max border border-green-200/50 animate-pulse">
+                <Sparkles className="w-4 h-4 animate-spin text-green-600" />
+                <span>
+                  {lang === 'kn' ? 'ಲೈವ್ ಕೃಷಿ ದರಗಳನ್ನು ಪಡೆಯಲಾಗುತ್ತಿದೆ...' : 'Fetching live database records...'}
                 </span>
               </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex items-center gap-2 text-emerald-400 text-xs bg-slate-800/80 p-3 rounded-2xl w-max border border-slate-700">
-                <Sparkles className="w-4 h-4 animate-spin text-emerald-400" />
-                <span>Fetching live market prices & ICAR advisories...</span>
-              </div>
             )}
+            
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Controls Footer */}
-          <div className="p-3 bg-slate-950 border-t border-slate-800">
+          {/* Footer Input Bar */}
+          <div className="p-3 bg-white border-t border-gray-200">
             {isRecording ? (
-              <div className="flex items-center justify-between bg-amber-950/50 border border-amber-500/40 rounded-xl p-2.5 text-amber-300 text-xs animate-pulse">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-                  <span>Recording voice input ({recordingTime}s)...</span>
+              <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-xl p-2.5 text-orange-700 text-xs animate-pulse">
+                <div className="flex items-center gap-2 font-bold">
+                  <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping" />
+                  <span>
+                    {lang === 'kn' ? `ಧ್ವನಿ ಗ್ರಹಿಸಲಾಗುತ್ತಿದೆ (${recordingTime}s)...` : `Listening to voice (${recordingTime}s)...`}
+                  </span>
                 </div>
                 <button
                   onClick={stopRecording}
-                  className="bg-amber-600 hover:bg-amber-500 text-white p-1.5 rounded-lg flex items-center gap-1 text-[11px] transition-colors"
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 text-[11px] font-black transition-colors cursor-pointer"
                 >
-                  <Square className="w-3.5 h-3.5" /> Stop & Process
+                  <Square className="w-3.5 h-3.5" /> 
+                  {lang === 'kn' ? 'ನಿಲ್ಲಿಸಿ' : 'Stop'}
                 </button>
               </div>
             ) : (
@@ -278,8 +241,8 @@ export function AgriChatWidget() {
                 <button
                   type="button"
                   onClick={startRecording}
-                  className="p-2.5 bg-slate-800 text-slate-300 hover:text-emerald-400 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors"
-                  title="Speak query (Voice STT)"
+                  className="p-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-green-700 rounded-xl border border-gray-250 transition-colors cursor-pointer"
+                  title={lang === 'kn' ? 'ಮಾತನಾಡಿ' : 'Voice Input'}
                 >
                   <Mic className="w-4 h-4" />
                 </button>
@@ -287,13 +250,17 @@ export function AgriChatWidget() {
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask crop price, pesticide, or scheme..."
-                  className="flex-1 bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-400 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                  placeholder={
+                    lang === 'kn' 
+                      ? 'ದಾಸ್ತಾನು ಅಥವಾ ಬೆಳೆ ಬೆಲೆ ವಿವರಗಳ ಬಗ್ಗೆ ಕೇಳಿ...' 
+                      : 'Ask about crop prices, stocks, or orders...'
+                  }
+                  className="flex-1 bg-gray-550/30 bg-gray-50 border border-gray-250 text-gray-900 placeholder-gray-400 rounded-xl px-3.5 py-2.5 text-xs md:text-sm font-semibold focus:outline-none focus:border-green-600 focus:bg-white transition-all shadow-inner"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white rounded-xl transition-all shadow-md"
+                  className="p-2.5 bg-gradient-to-tr from-green-700 to-emerald-600 hover:from-green-600 hover:to-emerald-500 disabled:opacity-40 disabled:pointer-events-none text-white rounded-xl transition-all shadow-md cursor-pointer active:scale-95"
                 >
                   <Send className="w-4 h-4" />
                 </button>

@@ -1,8 +1,15 @@
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react';
 
 export default function LanguageToggle({ className = '' }) {
-  const { lang, toggleLanguage } = useLanguage();
+  const { i18n } = useTranslation();
+  
+  const currentLang = i18n.language || 'en';
+
+  const toggleLanguage = () => {
+    const newLang = currentLang.startsWith('en') ? 'kn' : 'en';
+    i18n.changeLanguage(newLang);
+  };
 
   return (
     <button
@@ -14,7 +21,7 @@ export default function LanguageToggle({ className = '' }) {
     >
       <Globe size={16} className={className.includes('text-white') ? "text-white" : "text-green-700"} />
       <span className={`font-semibold ${className.includes('text-white') ? "text-white" : "text-green-800"}`}>
-        {lang === 'en' ? 'ಕನ್ನಡ' : 'EN'}
+        {currentLang.startsWith('en') ? 'ಕನ್ನಡ' : 'EN'}
       </span>
     </button>
   );

@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../components/LanguageToggle';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t } = useTranslation();
 
   return (
     <div className="landing-root">

@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import CropCard from '../components/CropCard';
@@ -28,7 +28,7 @@ import {
 
 export default function FarmerDashboard() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const { user, logout, updateProfile } = useAuth();
   const { listings, getMyListings, deleteListing, updateListing, addListing } = useListings();
   const [activeTab, setActiveTab] = useState('dashboard');

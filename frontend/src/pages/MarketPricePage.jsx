@@ -1,8 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft, TrendingUp, ArrowUpRight, ArrowDownRight,
-  BarChart3, Loader2, RefreshCw, MapPin, Info, Store
+  BarChart3, Loader2, RefreshCw, MapPin, Info, Store,
+  Apple, Wheat, Carrot, Flame, Sprout, Leaf, Citrus
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -15,14 +17,22 @@ const APMC_MANDIS = [
 ];
 
 const COMMODITY_ICONS = {
-  'Tomato': 'ðŸ…', 'Ragi': 'ðŸŒ¾', 'Banana': 'ðŸŒ', 'Onion': 'ðŸ§…',
-  'Mango': 'ðŸ¥­', 'Rice': 'ðŸŒ¾', 'Wheat': 'ðŸŒ¾', 'Potato': 'ðŸ¥”',
-  'Coconut': 'ðŸ¥¥', 'Chilli': 'ðŸŒ¶ï¸', 'Sugarcane': 'ðŸŽ‹', 'Groundnut': 'ðŸ¥œ',
+  'Tomato': Apple,
+  'Ragi': Wheat,
+  'Banana': Leaf,
+  'Onion': Carrot,
+  'Mango': Citrus,
+  'Rice': Wheat,
+  'Wheat': Wheat,
+  'Potato': Carrot,
+  'Coconut': Sprout,
+  'Chilli': Flame,
+  'Sugarcane': Leaf,
+  'Groundnut': Sprout,
 };
 
-
-
 const MarketPricePage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [marketData, setMarketData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +50,7 @@ const MarketPricePage = () => {
       setMarketData(enriched);
     } catch (error) {
       console.error('Failed to fetch APMC data:', error);
-      setMarketData([]); // Clear old data if failed
+      setMarketData([]);
     } finally {
       setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
       setLoading(false);
@@ -57,168 +67,202 @@ const MarketPricePage = () => {
   const losers = marketData.filter(d => !d.up).length;
 
   return (
-    <div style={styles.layout}>
+    <div className="max-w-[1200px] mx-auto px-[5%] pb-32 bg-[#fafaf9] min-h-screen font-sans">
       {/* Header */}
-      <div style={styles.header}>
-        <button onClick={() => navigate(-1)} style={styles.backBtn}>
-          <ChevronLeft size={16} /> Back
+      <div className="flex items-center justify-between py-6 mb-8 border-b-2 border-stone-100">
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1 bg-transparent border-none text-stone-500 font-black text-xs uppercase tracking-widest hover:text-stone-900 transition-colors cursor-pointer">
+          <ChevronLeft size={16} /> {t('common.back')}
         </button>
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#1c1917', margin: 0 }}>
-            APMC <span style={{ color: '#16a34a' }}>Market Prices</span>
+        <div className="text-center">
+          <h1 className="text-xl sm:text-2xl font-black text-stone-900 m-0">
+            {t('marketPrice.title')} <span className="text-green-600">{t('marketPrice.titleHighlight')}</span>
           </h1>
-          <p style={{ fontSize: '0.65rem', fontWeight: 800, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
-            Karnataka Mandis â€“ Live Feed
+          <p className="text-[10px] sm:text-xs font-black text-stone-400 uppercase tracking-widest m-0 mt-1">
+            {t('marketPrice.subtitle')}
           </p>
         </div>
-        <button onClick={fetchData} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'none', border: 'none', color: '#16a34a', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer', textTransform: 'uppercase' }}>
-          <RefreshCw size={14} /> Refresh
+        <button onClick={fetchData} className="inline-flex items-center gap-1.5 bg-transparent border-none text-green-600 font-black text-[11px] sm:text-xs cursor-pointer uppercase transition-all hover:text-green-800">
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> {t('common.refresh')}
         </button>
       </div>
 
-      <div style={styles.contentStack}>
+      <div className="flex flex-col gap-6">
         {/* Hero / intro */}
-        <div style={styles.card}>
-          <div style={styles.badge}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', marginRight: '0.4rem' }} />
-            LIVE FEED
+        <div className="bg-white rounded-3xl border border-stone-100 shadow-sm p-6 sm:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+             <Store size={120} />
           </div>
-          <h2 style={styles.pageTitle}>
-            APMC Live <span style={{ color: '#16a34a' }}>Mandi Rates</span>
-          </h2>
-          <p style={styles.subtitle}>
-            Real-time commodity rates from Karnataka APMC mandis. Updated continuously.
-            {lastUpdated && <span style={{ color: '#a8a29e' }}> Â· Last refreshed at {lastUpdated}</span>}
-          </p>
+          <div className="relative z-10">
+            <div className="inline-flex items-center bg-green-100 text-green-700 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest mb-4 border border-green-200">
+              <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />
+              {t('marketPrice.liveFeed')}
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-stone-900 m-0 mb-2 tracking-tight">
+              {t('marketPrice.heroTitle')} <span className="text-green-600">{t('marketPrice.heroTitleHighlight')}</span>
+            </h2>
+            <p className="text-sm text-stone-500 m-0 leading-relaxed max-w-2xl">
+              {t('marketPrice.heroDesc')}
+              {lastUpdated && <span className="text-stone-400 block sm:inline sm:ml-1 mt-1 sm:mt-0 font-bold"> · {t('marketPrice.lastRefreshed')} {lastUpdated}</span>}
+            </p>
+          </div>
         </div>
 
         {/* Summary Stats */}
-        <div style={styles.grid4}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Commodities', value: marketData.length, color: '#1c1917', bg: '#f5f5f4', sub: 'Across all mandis' },
-            { label: 'Gainers Today', value: gainers, color: '#16a34a', bg: '#dcfce7', sub: 'Price up today' },
-            { label: 'Losers Today', value: losers, color: '#dc2626', bg: '#fee2e2', sub: 'Price down today' },
-            { label: 'Active Mandis', value: APMC_MANDIS.length, color: '#2563eb', bg: '#dbeafe', sub: 'Karnataka regions' },
-          ].map(({ label, value, color, bg, sub }) => (
-            <div key={label} style={{ ...styles.statCard, borderTop: `3px solid ${color}` }}>
-              <p style={{ fontSize: '0.7rem', fontWeight: 800, color: '#a8a29e', textTransform: 'uppercase', margin: '0 0 0.3rem' }}>{label}</p>
-              <p style={{ fontSize: '2rem', fontWeight: 900, color, margin: 0, lineHeight: 1 }}>{value}</p>
-              <p style={{ fontSize: '0.75rem', color: '#78716c', margin: '0.3rem 0 0' }}>{sub}</p>
+            { label: t('marketPrice.commodities'), value: marketData.length, color: 'text-stone-900', border: 'border-t-stone-700', sub: t('marketPrice.commoditiesSub') },
+            { label: t('marketPrice.gainersToday'), value: gainers, color: 'text-green-600', border: 'border-t-green-500', sub: t('marketPrice.gainersSub') },
+            { label: t('marketPrice.losersToday'), value: losers, color: 'text-red-600', border: 'border-t-red-500', sub: t('marketPrice.losersSub') },
+            { label: t('marketPrice.activeMandis'), value: APMC_MANDIS.length, color: 'text-blue-600', border: 'border-t-blue-500', sub: t('marketPrice.activeMandisSub') },
+          ].map(({ label, value, color, border, sub }) => (
+            <div key={label} className={`bg-white rounded-2xl border-x border-b border-stone-100 border-t-4 ${border} p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow`}>
+              <div>
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">{label}</p>
+                <p className={`text-3xl font-black ${color} m-0 leading-none`}>{value}</p>
+              </div>
+              <p className="text-xs font-bold text-stone-400 mt-3 m-0">{sub}</p>
             </div>
           ))}
         </div>
 
         {/* Mandi Filter */}
-        <div style={styles.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Store size={16} color="#16a34a" />
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1c1917', textTransform: 'uppercase' }}>Filter by Mandi</span>
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-4 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-3 min-w-max">
+            <div className="flex items-center gap-2 pr-4 border-r border-stone-200">
+              <Store size={18} className="text-green-600" />
+              <span className="text-xs font-black text-stone-900 uppercase">{t('marketPrice.filterByMandi')}</span>
             </div>
-            {['All Mandis', ...APMC_MANDIS.map(m => m.name)].map(mandi => (
-              <button
-                key={mandi}
-                onClick={() => setSelectedMandi(mandi)}
-                style={{
-                  padding: '0.4rem 1rem', borderRadius: 10, fontSize: '0.75rem', fontWeight: 800,
-                  cursor: 'pointer', border: 'none',
-                  background: selectedMandi === mandi ? '#16a34a' : '#f3f4f6',
-                  color: selectedMandi === mandi ? '#fff' : '#4b5563'
-                }}
-              >
-                {mandi}
-              </button>
-            ))}
+            {['All Mandis', ...APMC_MANDIS.map(m => m.name)].map(mandi => {
+              const isActive = selectedMandi === mandi;
+              return (
+                <button
+                  key={mandi}
+                  onClick={() => setSelectedMandi(mandi)}
+                  className={`px-4 py-2 rounded-xl text-xs font-black cursor-pointer border-none transition-all duration-300 ${isActive ? 'bg-green-600 text-white shadow-md' : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-900'}`}
+                >
+                  {mandi === 'All Mandis' ? t('common.allMandis') : (t(`dynamic.mandis.${mandi}`) || mandi)}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Price Table */}
-        <div style={styles.card}>
-          <div style={styles.sectionHeader}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-              <div style={styles.sectionIcon}><BarChart3 size={18} color="#16a34a" /></div>
+        <div className="bg-white rounded-3xl border border-stone-100 shadow-sm overflow-hidden flex flex-col relative">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-stone-100 gap-4 bg-white z-20">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center border border-green-100 shrink-0">
+                <BarChart3 size={24} className="text-green-600" />
+              </div>
               <div>
-                <h3 style={styles.sectionTitle}>Consolidated Market Feed</h3>
-                <p style={{ fontSize: '0.7rem', color: '#a8a29e', margin: 0, fontWeight: 700 }}>
-                  {filteredData.length} commodities Â· {selectedMandi}
+                <h3 className="text-lg font-black text-stone-900 m-0">{t('marketPrice.consolidatedFeed')}</h3>
+                <p className="text-xs text-stone-500 m-0 font-bold mt-1">
+                  {filteredData.length} {t('marketPrice.commodities').toLowerCase()} · {selectedMandi === 'All Mandis' ? t('common.allMandis') : (t(`dynamic.mandis.${selectedMandi}`) || selectedMandi)}
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 800, color: '#16a34a', background: '#dcfce7', padding: '0.3rem 0.8rem', borderRadius: 99 }}>
-              <TrendingUp size={12} /> LIVE
+            <div className="inline-flex items-center self-start sm:self-auto gap-1.5 text-[10px] font-black text-green-700 bg-green-100 border border-green-200 px-3 py-1.5 rounded-full uppercase tracking-widest">
+              <TrendingUp size={14} /> {t('marketPrice.live')}
             </div>
           </div>
 
           {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '1rem' }}>
-              <Loader2 size={36} color="#16a34a" className="animate-spin" />
-              <p style={{ fontSize: '0.8rem', fontWeight: 800, color: '#a8a29e', textTransform: 'uppercase' }}>Fetching LIVE APMC data...</p>
+            <div className="p-6 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-6 animate-pulse">
+                  <div className="w-10 h-10 rounded-full bg-stone-100 shrink-0"></div>
+                  <div className="h-6 bg-stone-100 rounded w-1/4"></div>
+                  <div className="hidden sm:block h-6 bg-stone-100 rounded w-1/6"></div>
+                  <div className="hidden md:block h-4 bg-stone-100 rounded w-1/3"></div>
+                  <div className="hidden lg:block h-6 bg-stone-100 rounded w-1/6"></div>
+                </div>
+              ))}
             </div>
           ) : filteredData.length === 0 ? (
-            <div style={styles.emptyBox}>
-              <div style={styles.emptyIcon}>ðŸª</div>
-              <h3 style={styles.emptyTitle}>Market Offline</h3>
-              <p style={styles.emptySub}>Could not connect to live APMC servers. Please try again later.</p>
-              <button onClick={fetchData} style={styles.actionBtn}>Retry Connection</button>
+            <div className="text-center p-10 sm:p-16 bg-[#fafaf9] m-6 rounded-2xl border-2 border-dashed border-stone-200">
+              <div className="text-5xl mb-4 opacity-50">🛒</div>
+              <h3 className="text-xl font-black text-stone-900 m-0 mb-2">{t('marketPrice.marketOffline')}</h3>
+              <p className="text-sm text-stone-500 m-0 mb-6">{t('marketPrice.marketOfflineDesc')}</p>
+              <button onClick={fetchData} className="inline-flex items-center gap-2 bg-green-600 text-white border-none rounded-xl px-6 py-3 font-black text-sm cursor-pointer hover:bg-green-700 transition-colors shadow-sm">
+                {t('marketPrice.retryConnection')}
+              </button>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #f3f4f6', background: '#fafaf9' }}>
-                    {['Commodity', 'Avg Rate', 'Change', 'Low / High', 'Volume', 'MSP', 'Mandi'].map(h => (
-                      <th key={h} style={{ padding: '0.8rem 1rem', fontSize: '0.7rem', fontWeight: 900, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead className="bg-stone-50 sticky top-0 z-10">
+                  <tr className="border-b border-stone-200">
+                    {[
+                      t('marketPrice.thCommodity'),
+                      t('marketPrice.thAvgRate'),
+                      t('marketPrice.thChange'),
+                      t('marketPrice.thLowHigh'),
+                      t('marketPrice.thVolume'),
+                      t('marketPrice.thMSP'),
+                      t('marketPrice.thMandi')
+                    ].map((h, i) => (
+                      <th key={h} className={`px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap ${i === 1 ? 'text-right' : ''}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredData.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f9fafb' }}>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                          <span style={{ fontSize: '1.3rem' }}>{COMMODITY_ICONS[item.name] || 'ðŸŒ±'}</span>
-                          <span style={{ fontWeight: 900, color: '#1c1917', fontSize: '0.9rem' }}>{item.name}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem', fontWeight: 900, color: '#1c1917', fontSize: '1.1rem' }}>{item.price}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                          fontWeight: 900, fontSize: '0.8rem', padding: '0.3rem 0.7rem', borderRadius: 10,
-                          background: item.up ? '#dcfce7' : '#fee2e2',
-                          color: item.up ? '#16a34a' : '#dc2626'
-                        }}>
-                          {item.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                          {item.change}
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#a8a29e', width: 36 }}>{item.low}</span>
-                          <div style={{ flex: 1, height: 4, background: '#f3f4f6', borderRadius: 2, minWidth: 50, position: 'relative' }}>
-                            <div style={{ position: 'absolute', top: 0, bottom: 0, left: '20%', right: '20%', background: item.up ? '#22c55e' : '#f43f5e', borderRadius: 2 }} />
+                <tbody className="divide-y divide-stone-100">
+                  {filteredData.map((item, idx) => {
+                    const Icon = COMMODITY_ICONS[item.name] || Sprout;
+                    
+                    const low = parseFloat(String(item.low).replace(/[^0-9.]/g, '')) || 0;
+                    const high = parseFloat(String(item.high).replace(/[^0-9.]/g, '')) || 0;
+                    const price = parseFloat(String(item.price).replace(/[^0-9.]/g, '')) || 0;
+                    
+                    let rangePercent = 50;
+                    if (high > low) {
+                       rangePercent = ((price - low) / (high - low)) * 100;
+                       rangePercent = Math.max(0, Math.min(100, rangePercent));
+                    }
+
+                    return (
+                      <tr key={idx} className="hover:bg-stone-50 transition-colors group">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 group-hover:bg-white group-hover:shadow-sm border border-transparent group-hover:border-stone-200 transition-all shrink-0">
+                               <Icon size={20} />
+                            </div>
+                            <span className="font-black text-stone-900 text-sm">{t(`dynamic.crops.${item.name}`) || item.name}</span>
                           </div>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#4b5563', width: 36 }}>{item.high}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 600, color: '#78716c' }}>{item.volume}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <span style={{
-                          fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 8,
-                          background: item.msp && item.msp !== 'â€”' && item.msp !== '-' ? '#dbeafe' : 'transparent',
-                          color: item.msp && item.msp !== 'â€”' && item.msp !== '-' ? '#1d4ed8' : '#d1d5db'
-                        }}>
-                          {item.msp || 'â€”'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 600, color: '#78716c' }}>
-                          <MapPin size={11} color="#16a34a" />
-                          {item.mandi || 'â€”'}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap font-black text-stone-900 text-lg text-right">{item.price}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className={`inline-flex items-center gap-1.5 font-black text-xs px-2.5 py-1.5 rounded-lg ${item.up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {item.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                            {item.change}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-stone-400 w-10 text-right">{item.low}</span>
+                            <div className="flex-1 h-2 bg-stone-100 rounded-full relative overflow-hidden">
+                              <div 
+                                className={`absolute top-0 bottom-0 left-0 rounded-full ${item.up ? 'bg-gradient-to-r from-[#86efac] to-[#16a34a]' : 'bg-gradient-to-r from-[#fca5a5] to-[#f43f5e]'}`} 
+                                style={{ width: `${rangePercent}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-bold text-stone-600 w-10">{item.high}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-stone-500">{item.volume}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-xs font-black px-2.5 py-1 rounded-md ${item.msp && item.msp !== '—' && item.msp !== '-' ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-400'}`}>
+                            {item.msp || '—'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-stone-500">
+                            <MapPin size={12} className="text-green-600" />
+                            {t(`dynamic.mandis.${item.mandi}`) || item.mandi || '—'}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -226,109 +270,44 @@ const MarketPricePage = () => {
         </div>
 
         {/* Advisory Cards */}
-        <div style={styles.grid2}>
-          <div style={{ ...styles.card, background: '#fffbeb', borderColor: '#fde68a' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
-              <h5 style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400e', textTransform: 'uppercase', margin: 0 }}>Expert Advisory</h5>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-amber-50 rounded-3xl border border-amber-200 p-6 flex flex-col gap-4 border-l-[6px] border-l-amber-500 shadow-sm transition-transform hover:-translate-y-1">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                <Info size={20} />
+              </div>
+              <h5 className="text-xs font-black text-amber-900 uppercase tracking-widest m-0">{t('marketPrice.expertAdvisory')}</h5>
             </div>
-            <p style={{ color: '#78350f', fontWeight: 700, lineHeight: 1.6, fontSize: '0.9rem', margin: 0 }}>
-              Onion and Tomato prices showing high volatility due to seasonal demand shifts. Farmers with cold storage should consider holding stock 7â€“10 days for a projected 12â€“18% premium.
+            <p className="text-amber-900 font-bold leading-relaxed text-sm m-0 pl-1">
+              {t('marketPrice.expertAdvisoryText')}
             </p>
           </div>
-          <div style={{ ...styles.card, background: '#ecfdf5', borderColor: '#a7f3d0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-              <h5 style={{ fontSize: '0.65rem', fontWeight: 900, color: '#065f46', textTransform: 'uppercase', margin: 0 }}>Market Sentiment</h5>
+          <div className="bg-emerald-50 rounded-3xl border border-emerald-200 p-6 flex flex-col gap-4 border-l-[6px] border-l-emerald-500 shadow-sm transition-transform hover:-translate-y-1">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+                <TrendingUp size={20} />
+              </div>
+              <h5 className="text-xs font-black text-emerald-900 uppercase tracking-widest m-0">{t('marketPrice.marketSentiment')}</h5>
             </div>
-            <p style={{ color: '#064e3b', fontWeight: 700, lineHeight: 1.6, fontSize: '0.9rem', margin: 0 }}>
-              Strong buyer demand across all Bengaluru, Mysuru, and Tumkur mandis for staples. Grade-A quality produce commanding a 15â€“25% premium over market average.
+            <p className="text-emerald-900 font-bold leading-relaxed text-sm m-0 pl-1">
+              {t('marketPrice.marketSentimentText')}
             </p>
           </div>
         </div>
 
         {/* Disclaimer */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.8rem', padding: '1rem 1.5rem', background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 16 }}>
-          <Info size={16} color="#3b82f6" style={{ flexShrink: 0, marginTop: 2 }} />
-          <p style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600, lineHeight: 1.6, margin: 0 }}>
-            <strong>Data Source:</strong> Prices fetched from vegetablemarketprice.com for Karnataka mandis. MSP rates are from the Government of India's Agricultural Price Policy for 2025â€“26. Always verify with your local APMC before making sales decisions.
+        <div className="flex items-start gap-4 p-5 sm:p-6 bg-blue-50 border border-blue-200 rounded-2xl shadow-sm">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+            <Info size={16} />
+          </div>
+          <p className="text-xs text-blue-900 font-medium leading-relaxed m-0 pt-1">
+            <strong className="font-black text-blue-950 uppercase tracking-wider mr-1">{t('marketPrice.dataSource')}</strong> 
+            {t('marketPrice.dataSourceText')}
           </p>
         </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  layout: {
-    maxWidth: 1200, margin: '0 auto',
-    padding: '0 5% 8rem',
-    background: '#fafaf9',
-    minHeight: '100vh',
-  },
-  header: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '1.5rem 0',
-    marginBottom: '2rem',
-    borderBottom: '1.5px solid #f3f4f6'
-  },
-  contentStack: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
-  card: {
-    background: '#fff', borderRadius: 20,
-    border: '1.5px solid #f3f4f6',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-    padding: '1.8rem',
-  },
-  badge: {
-    display: 'inline-flex', alignItems: 'center',
-    background: '#dcfce7', color: '#16a34a',
-    borderRadius: 99, padding: '0.3rem 0.8rem',
-    fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
-    marginBottom: '0.8rem'
-  },
-  pageTitle: {
-    fontSize: '2rem', fontWeight: 900, color: '#1c1917', margin: '0 0 0.5rem',
-    letterSpacing: '-0.03em'
-  },
-  subtitle: {
-    fontSize: '0.95rem', color: '#57534e', margin: 0, lineHeight: 1.5
-  },
-  grid4: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' },
-  grid2: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' },
-  statCard: {
-    background: '#fff', borderRadius: 16, border: '1.5px solid #f3f4f6',
-    padding: '1.2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-  },
-  sectionHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: '1.5rem'
-  },
-  sectionIcon: {
-    width: 36, height: 36, borderRadius: 10, background: '#f0fdf4',
-    display: 'flex', alignItems: 'center', justifyContent: 'center'
-  },
-  sectionTitle: { fontSize: '1.1rem', fontWeight: 800, color: '#1c1917', margin: 0 },
-  backBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-    background: 'none', border: 'none', color: '#78716c',
-    fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer',
-    textTransform: 'uppercase'
-  },
-  emptyBox: {
-    textAlign: 'center', padding: '4rem 2rem',
-    background: '#fafaf9', borderRadius: 16,
-    border: '2px dashed #e7e5e4',
-  },
-  emptyIcon: { fontSize: '3rem', marginBottom: '1rem' },
-  emptyTitle: { fontSize: '1.3rem', fontWeight: 800, color: '#1c1917', margin: '0 0 0.5rem' },
-  emptySub: { fontSize: '0.9rem', color: '#78716c', margin: 0 },
-  actionBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-    background: '#16a34a', color: '#fff', border: 'none',
-    borderRadius: 12, padding: '0.7rem 1.5rem',
-    fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer',
-    marginTop: '1rem'
-  },
 };
 
 export default MarketPricePage;

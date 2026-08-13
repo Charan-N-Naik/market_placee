@@ -30,8 +30,10 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import schemeRoutes from './routes/schemeRoutes.js';
 
 import agriChatRoutes from './routes/agriChatRoutes.js';
+import assistantRoutes from './routes/assistantRoutes.js';
 import agriChatOrchestrator from './services/agriChat/agriChatOrchestrator.js';
 import productVerificationRoutes from './routes/productVerificationRoutes.js';
+import cropVerificationRoutes from './routes/cropVerificationRoutes.js';
 import { seedAgriData } from './utils/seedAgriData.js';
 
 // Initialize Express app
@@ -80,8 +82,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/agri-chat', agriChatRoutes);
+app.use('/api/assistant', assistantRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/product', productVerificationRoutes); // CropVerify AI — report proxy
+app.use('/api/crop-verification', cropVerificationRoutes); // Real 3-photo AI verification
 app.use('/api/schemes', schemeRoutes);
 app.use('/api', marketRoutes);
 

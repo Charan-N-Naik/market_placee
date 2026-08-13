@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import { cropOptions, locations } from '../data/mockData';
 
 export default function EditListingModal({ listing, onClose, onSave }) {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     cropName: '',
     variety: '',

@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider } from './context/AuthContext';
 import { ListingProvider } from './context/ListingContext';
 import { CartProvider } from './context/CartContext';
@@ -52,7 +51,6 @@ function ThemeWrapper({ children }) {
 function App() {
   return (
     <Router>
-      <LanguageProvider>
         <AuthProvider>
           <ListingProvider>
             <CartProvider>
@@ -88,6 +86,7 @@ function App() {
                       <Route path="/chat" element={<AIChatbot />} />
                       <Route path="/intelligence" element={<IntelligenceHub />} />
                       <Route path="/weather" element={<WeatherPage />} />
+                      <Route path="/market-prices" element={<MarketPricePage />} />
                       <Route path="/listing/:id" element={<ListingDetails />} />
                       <Route path="/crop/:id" element={<ListingDetails />} />
                     </Route>
@@ -99,7 +98,6 @@ function App() {
             </CartProvider>
           </ListingProvider>
         </AuthProvider>
-      </LanguageProvider>
     </Router>
   );
 }

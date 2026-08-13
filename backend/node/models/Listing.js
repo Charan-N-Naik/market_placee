@@ -56,18 +56,31 @@ const listingSchema = new mongoose.Schema(
     },
     premiumVerified: { type: Boolean, default: false },
     verificationReport: {
-      confidenceScore: Number,
-      healthScore: Number,
-      diseaseSigns: [String],
-      pestDetection: Boolean,
-      estimatedPrice: Number,
-      storageRecommendation: String,
+      cropName:              String,
+      variety:               String,
+      confidenceScore:       Number,
+      healthScore:           Number,
+      // New fields from multi-angle Gemini pipeline
+      trustScore:            Number,
       qualityGrade: {
         type: String,
         enum: ['A', 'B', 'C', 'Unknown'],
-        default: 'Unknown'
+        default: 'Unknown',
       },
-      overallAssessment: String,
+      ripeness:              String,
+      freshness:             String,
+      defects:               [String],
+      pestDetection:         Boolean,
+      estimatedShelfLife:    String,
+      estimatedPricePerKg:   Number,
+      storageRecommendation: String,
+      summary:               String,
+      analyzedAngles:        [String],
+      analysisTimestamp:     Date,
+      // Legacy fields kept for backwards compat
+      diseaseSigns:          [String],
+      estimatedPrice:        Number,
+      overallAssessment:     String,
     },
     // CropVerify AI — full verification result from FastAPI microservice (port 5002)
     verification: {

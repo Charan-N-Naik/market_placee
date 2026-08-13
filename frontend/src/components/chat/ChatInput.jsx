@@ -1,5 +1,5 @@
 import { Mic, MicOff, Send, Sparkles, Sprout, TrendingUp, Bug, CloudSun, X, ShieldCheck } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 
 export default function ChatInput({ 
   input, 
@@ -10,10 +10,11 @@ export default function ChatInput({
   onSend,
   inputRef 
 }) {
-  const { t, lang } = useLanguage();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || 'en';
 
   const handleQuickTopic = (knText, enText) => {
-    const textToSet = lang === 'kn' ? knText : enText;
+    const textToSet = lang.startsWith('kn') ? knText : enText;
     setInput(textToSet);
     if (inputRef.current) {
       inputRef.current.focus();
@@ -26,52 +27,52 @@ export default function ChatInput({
       {/* Quick Prompt Quick-Tabs */}
       <div className="flex items-center justify-start sm:justify-center gap-1.5 overflow-x-auto pb-1 no-scrollbar px-1">
         <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 shrink-0 hidden md:inline">
-          {lang === 'kn' ? 'ತ್ವರಿತ ವಿಷಯಗಳು:' : 'Topics:'}
+          {t('aiAssistant.quickTopics')}
         </span>
         
         <button
           type="button"
-          onClick={() => handleQuickTopic('ಇಂದಿನ ಟೊಮೆಟೊ ಮಂಡಿ ಬೆಲೆ ಎಷ್ಟು?', 'What is the price of Tomato today?')}
+          onClick={() => handleQuickTopic(t('aiAssistant.tomatoPriceQuery', { lng: 'kn' }), t('aiAssistant.tomatoPriceQuery', { lng: 'en' }))}
           className="text-xs font-bold px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200/80 shrink-0 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
         >
           <TrendingUp size={12} className="text-emerald-600" />
-          <span>{lang === 'kn' ? 'ಟೊಮೆಟೊ ಬೆಲೆ' : 'Tomato Prices'}</span>
+          <span>{t('aiAssistant.tomatoPrices')}</span>
         </button>
 
         <button
           type="button"
-          onClick={() => handleQuickTopic('ರಾಗಿ ಬೆಳೆಯುವ ಉತ್ತಮ ಕೃಷಿ ವಿಧಾನ ಯಾವುದು?', 'Best cultivation practices for Ragi crop')}
+          onClick={() => handleQuickTopic(t('aiAssistant.ragiQuery', { lng: 'kn' }), t('aiAssistant.ragiQuery', { lng: 'en' }))}
           className="text-xs font-bold px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200/80 shrink-0 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
         >
           <Sprout size={12} className="text-emerald-600" />
-          <span>{lang === 'kn' ? 'ರಾಗಿ ಕೃಷಿ' : 'Ragi Cultivation'}</span>
+          <span>{t('aiAssistant.ragiCultivation')}</span>
         </button>
 
         <button
           type="button"
-          onClick={() => handleQuickTopic('ಬೆಳೆ ಕೀಟ ನಿಯಂತ್ರಣ ಮತ್ತು ಔಷಧಿ ಯಾವುದು?', 'Pest control for yellow leaf disease')}
+          onClick={() => handleQuickTopic(t('aiAssistant.pestQuery', { lng: 'kn' }), t('aiAssistant.pestQuery', { lng: 'en' }))}
           className="text-xs font-bold px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-full border border-amber-200/80 shrink-0 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
         >
           <Bug size={12} className="text-amber-600" />
-          <span>{lang === 'kn' ? 'ಕೀಟ ನಿಯಂತ್ರಣ' : 'Pest Control'}</span>
+          <span>{t('aiAssistant.pestControl')}</span>
         </button>
 
         <button
           type="button"
-          onClick={() => handleQuickTopic('ಕರ್ನಾಟಕದಲ್ಲಿ ಈ ವಾರದ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ', 'Agri weather forecast for Karnataka')}
+          onClick={() => handleQuickTopic(t('aiAssistant.weatherQuery', { lng: 'kn' }), t('aiAssistant.weatherQuery', { lng: 'en' }))}
           className="text-xs font-bold px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-900 rounded-full border border-teal-200/80 shrink-0 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
         >
           <CloudSun size={12} className="text-teal-600" />
-          <span>{lang === 'kn' ? 'ಹವಾಮಾನ' : 'Weather'}</span>
+          <span>{t('aiAssistant.weather')}</span>
         </button>
 
         <button
           type="button"
-          onClick={() => handleQuickTopic('ರೈತರಿಗೆ ಲಭ್ಯವಿರುವ ಪ್ರಮುಖ ಸರ್ಕಾರಿ ಯೋಜನೆಗಳು ಯಾವುವು?', 'Major government subsidies and schemes for farmers')}
+          onClick={() => handleQuickTopic(t('aiAssistant.schemesQuery', { lng: 'kn' }), t('aiAssistant.schemesQuery', { lng: 'en' }))}
           className="text-xs font-bold px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-full border border-blue-200/80 shrink-0 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
         >
           <ShieldCheck size={12} className="text-blue-600" />
-          <span>{lang === 'kn' ? 'ಸರ್ಕಾರಿ ಯೋಜನೆ' : 'Govt Schemes'}</span>
+          <span>{t('aiAssistant.govtSchemes')}</span>
         </button>
       </div>
 
@@ -105,8 +106,8 @@ export default function ChatInput({
             onChange={(e) => setInput(e.target.value)}
             placeholder={
               isListening 
-                ? (lang === 'kn' ? "🎙️ ಧ್ವನಿ ಗ್ರಹಿಸಲಾಗುತ್ತಿದೆ... ಮಾತನಾಡಿ" : "🎙️ Listening... Speak your query live") 
-                : (t('typeMessage') || (lang === 'kn' ? "ಬೆಳೆಗಳು, ಬೆಲೆಗಳು, ರೋಗಗಳ ಬಗ್ಗೆ ಕಿಸಾನ್‌ಮಿತ್ರ ಬಳಿ ಕೇಳಿ..." : "Ask KisanMitra about crops, prices, pests..."))
+                ? t('aiAssistant.listeningPlaceholder') 
+                : t('aiAssistant.typeMessage')
             }
             disabled={isLoading}
             className={`w-full pl-4 pr-24 py-3 sm:py-3.5 border-2 rounded-2xl outline-none transition-all text-sm sm:text-base
@@ -149,11 +150,10 @@ export default function ChatInput({
       {/* Footer Branding */}
       <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider px-2 max-w-2xl mx-auto pt-0.5">
         <span className="flex items-center gap-1 text-emerald-700">
-          <Sparkles size={11} /> Realtime Voice AI (Kannada & English)
+          <Sparkles size={11} /> {t('aiAssistant.realtimeVoice')}
         </span>
-        <span className="hidden sm:inline">KisanBazaar Intelligence Engine</span>
+        <span className="hidden sm:inline">{t('aiAssistant.brandEngine')}</span>
       </div>
     </div>
   );
 }
-
