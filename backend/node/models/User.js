@@ -38,6 +38,7 @@ const userSchema = new mongoose.Schema(
       state: String,
     },
     avatar: String,
+    coverImage: String,
     
     // Authentication fields
     isVerified: {

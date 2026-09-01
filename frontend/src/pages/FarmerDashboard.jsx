@@ -23,7 +23,7 @@ import {
   TrendingUp, ChevronRight, Pencil, Save, Check, ShoppingCart, Trash2, ArrowUpRight, ArrowDownRight,
   Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, Calendar, Star, Sparkles,
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
-  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck
+  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera
 } from 'lucide-react';
 
 export default function FarmerDashboard() {
@@ -143,7 +143,8 @@ export default function FarmerDashboard() {
         console.warn('API seller orders fetch failed:', e.message);
       }
 
-      const localOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
       const combined = [...apiOrders, ...localOrders];
 
       // De-duplicate by _id
@@ -271,9 +272,10 @@ export default function FarmerDashboard() {
       setSellerOrders(prev =>
         prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: newStatus } : o)
       );
-      const localOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
       const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: newStatus } : o);
-      localStorage.setItem('kisan_orders', JSON.stringify(updatedLocal));
+      localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
 
       alert(`Order status updated to ${newStatus}`);
     } catch (err) {
@@ -1318,11 +1320,43 @@ export default function FarmerDashboard() {
             <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-xl overflow-hidden">
 
               {/* Cover Banner */}
-              <div className="h-52 bg-gradient-to-br from-[#052e16] via-[#166534] to-[#15803d] relative overflow-hidden">
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1.5px,transparent_1.5px)] [background-size:18px_18px]" />
-                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
-                <div className="absolute top-5 right-6 flex items-center gap-2 text-emerald-300/80 text-xs font-black uppercase tracking-widest">
-                  <ShieldCheck size={14} /> Kisan Verified Portal
+              <div className="h-52 bg-gradient-to-br from-[#052e16] via-[#166534] to-[#15803d] relative overflow-hidden group">
+                {(editForm.coverPreview || user?.coverImage) ? (
+                  <img
+                    src={editForm.coverPreview || user.coverImage}
+                    alt="Cover Banner"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1.5px,transparent_1.5px)] [background-size:18px_18px]" />
+                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
+                  </>
+                )}
+                
+                <div className="absolute top-5 right-6 flex items-center gap-3">
+                  {/* Upload Cover Background Button */}
+                  <label className="flex items-center gap-2 px-3.5 py-1.5 bg-black/50 hover:bg-black/75 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/20 cursor-pointer shadow-md transition-all hover:scale-105 active:scale-95">
+                    <Camera size={14} className="text-emerald-400" />
+                    <span>{editForm.coverPreview || user?.coverImage ? 'Change Cover' : 'Upload Cover'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const previewUrl = URL.createObjectURL(file);
+                          setEditForm(prev => ({
+                            ...prev,
+                            coverImageFile: file,
+                            coverPreview: previewUrl
+                          }));
+                          if (!isEditing) setIsEditing(true);
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
 
@@ -1332,13 +1366,37 @@ export default function FarmerDashboard() {
 
                   {/* Avatar */}
                   <div className="flex items-end gap-5">
-                    <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-[#22C55E] to-[#166534] border-4 border-white shadow-2xl flex items-center justify-center text-4xl font-black text-white relative z-10 shrink-0">
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt="Profile" className="w-full h-full object-cover rounded-3xl" />
+                    <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-[#22C55E] to-[#166534] border-4 border-white shadow-2xl flex items-center justify-center text-4xl font-black text-white relative z-10 shrink-0 group overflow-hidden">
+                      {(editForm.avatarPreview || user?.avatar) ? (
+                        <img src={editForm.avatarPreview || user.avatar} alt="Profile" className="w-full h-full object-cover rounded-3xl" />
                       ) : (
                         <span>{user?.name?.charAt(0)?.toUpperCase() || 'F'}</span>
                       )}
+                      
+                      {/* Upload Profile Picture Overlay */}
+                      <label className="absolute inset-0 bg-black/60 backdrop-blur-xs text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1">
+                        <Camera size={22} className="text-emerald-400 mb-1" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Upload Pic</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const previewUrl = URL.createObjectURL(file);
+                              setEditForm(prev => ({
+                                ...prev,
+                                avatarFile: file,
+                                avatarPreview: previewUrl
+                              }));
+                              if (!isEditing) setIsEditing(true);
+                            }
+                          }}
+                        />
+                      </label>
                     </div>
+
                     <div className="pb-2 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-2xl font-black text-gray-900 tracking-tight">{user?.name}</h2>
@@ -1525,10 +1583,12 @@ export default function FarmerDashboard() {
                               name: editForm.name,
                               phone: editForm.phone,
                               email: editForm.email,
+                              avatarFile: editForm.avatarFile,
+                              coverImageFile: editForm.coverImageFile,
                               location: { district: editForm.district, state: editForm.state },
                               farmerProfile: {
                                 farmSize: editForm.farmSize,
-                                primaryCrops: editForm.primaryCrops.split(',').map(c => c.trim()).filter(Boolean),
+                                primaryCrops: editForm.primaryCrops ? editForm.primaryCrops.split(',').map(c => c.trim()).filter(Boolean) : [],
                                 experience: editForm.experience,
                                 bio: editForm.bio,
                               },
@@ -1637,23 +1697,9 @@ export default function FarmerDashboard() {
                   </div>
                 </div>
 
-                {/* Verification Badge Card */}
-                <div className="bg-gradient-to-br from-[#052e16] to-[#166534] rounded-3xl border-2 border-emerald-700 p-7 text-white space-y-3 shadow-xl">
-                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
-                    <ShieldCheck size={26} className="text-emerald-300" />
-                  </div>
-                  <h4 className="font-black text-base">Verified Farmer</h4>
-                  <p className="text-xs text-emerald-200 font-medium leading-relaxed">
-                    Your account is verified on the KisanBazaar Direct-to-Buyer platform. Buyers trust your listings.
-                  </p>
-                  <div className="pt-2 border-t border-white/15 text-[10px] font-black text-emerald-300 uppercase tracking-widest">
-                    ✓ Identity Verified &nbsp;|&nbsp; ✓ Active Seller
-                  </div>
-                </div>
               </div>
 
             </div>
-
           </div>
         )}
 

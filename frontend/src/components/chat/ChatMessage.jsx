@@ -124,29 +124,29 @@ export default function ChatMessage({ msg, onSpeak, isSpeaking, activeSpeakingId
       </div>
 
       {/* Message Content Card */}
-      <div className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 sm:p-5 shadow-sm border transition-all relative group ${
+      <div className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 sm:p-5 shadow-sm transition-all relative group ${
         isAssistant
           ? msg.isError
-            ? 'bg-rose-50/90 border-rose-200 text-rose-950 rounded-tl-none shadow-rose-900/5'
-            : 'bg-white border-emerald-100/90 text-gray-800 rounded-tl-none shadow-emerald-900/5 hover:shadow-emerald-900/10'
-          : 'bg-gradient-to-r from-emerald-700 to-teal-800 text-white border-emerald-600 rounded-tr-none shadow-emerald-900/10'
+            ? 'bg-rose-50/80 border border-rose-200 text-rose-950 rounded-tl-sm'
+            : 'bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-slate-100'
+          : 'bg-emerald-700 text-white rounded-tr-sm shadow-emerald-900/10'
       }`}>
         {/* Header tag */}
-        <div className="flex items-center justify-between gap-3 mb-2 pb-1.5 border-b border-gray-100/60">
-          <span className={`text-[11px] font-black uppercase tracking-wider ${
+        <div className="flex items-center justify-between gap-3 mb-2 pb-1 border-b border-gray-100/60">
+          <span className={`text-[11px] font-bold uppercase tracking-wider ${
             isAssistant 
-              ? msg.isError ? 'text-rose-700 flex items-center gap-1.5' : 'text-emerald-700 flex items-center gap-1.5' 
-              : 'text-emerald-200'
+              ? msg.isError ? 'text-rose-700 flex items-center gap-1.5' : 'text-emerald-800 flex items-center gap-1.5' 
+              : 'text-emerald-100'
           }`}>
             {isAssistant ? (
-              <><Sparkles size={12} className={msg.isError ? "text-rose-500" : "text-amber-500"} /> KisanMitra AI</>
+              <><Sparkles size={12} className={msg.isError ? "text-rose-500" : "text-emerald-600"} /> KisanMitra AI</>
             ) : (
               'You (Farmer)'
             )}
           </span>
           
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-semibold ${isAssistant ? 'text-gray-400' : 'text-emerald-200/70'}`}>
+            <span className={`text-[10px] font-medium ${isAssistant ? 'text-slate-400' : 'text-emerald-200/80'}`}>
               {formattedTime}
             </span>
 
@@ -154,9 +154,9 @@ export default function ChatMessage({ msg, onSpeak, isSpeaking, activeSpeakingId
             <button
               type="button"
               onClick={handleCopy}
-              className={`p-1 rounded-md transition-all cursor-pointer ${
+              className={`p-1 rounded transition-all cursor-pointer ${
                 isAssistant 
-                  ? 'text-gray-400 hover:text-emerald-700 hover:bg-emerald-50' 
+                  ? 'text-slate-400 hover:text-emerald-700 hover:bg-slate-50' 
                   : 'text-emerald-200/80 hover:text-white hover:bg-white/10'
               }`}
               title="Copy message"
@@ -169,33 +169,27 @@ export default function ChatMessage({ msg, onSpeak, isSpeaking, activeSpeakingId
         {/* Text Body */}
         <FormattedContent text={msg.content} isAssistant={isAssistant} />
 
-        {/* Footer controls for Assistant */}
+        {/* Footer controls for Assistant - Light, unboxed row */}
         {isAssistant && !msg.isError && (
-          <div className="mt-3.5 pt-2.5 border-t border-gray-100/80 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-              <CheckCheck size={13} /> Verified Agri Insights
+          <div className="mt-3 pt-2 flex items-center justify-between gap-2 border-t border-slate-100 text-xs text-slate-500">
+            <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+              <CheckCheck size={13} className="text-emerald-600" /> Verified Agri Insights
             </span>
             
             <button 
               type="button"
               onClick={() => onSpeak && onSpeak(msg.content, msg.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer active:scale-95 shadow-xs ${
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 isCurrentlySpeaking
-                  ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/20 animate-pulse'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                  ? 'bg-amber-100 text-amber-900 font-bold'
+                  : 'hover:bg-slate-100 text-slate-600 hover:text-emerald-700'
               }`}
               title={isCurrentlySpeaking ? "Stop Reading" : "Read Aloud"}
             >
               {isCurrentlySpeaking ? (
                 <>
-                  <VolumeX size={14} />
+                  <VolumeX size={14} className="text-amber-700" />
                   <span>Stop</span>
-                  {/* Waveform bars */}
-                  <span className="flex items-center gap-0.5 h-3 ml-0.5">
-                    <span className="w-0.5 h-full bg-white rounded-full animate-[bounce_1s_infinite_100ms]" />
-                    <span className="w-0.5 h-2 bg-white rounded-full animate-[bounce_1s_infinite_200ms]" />
-                    <span className="w-0.5 h-full bg-white rounded-full animate-[bounce_1s_infinite_300ms]" />
-                  </span>
                 </>
               ) : (
                 <>

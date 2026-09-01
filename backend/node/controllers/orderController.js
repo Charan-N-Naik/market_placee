@@ -18,7 +18,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Calculate total amount and verify inventory
   let totalAmount = 0;
   let farmerId = null;
-  
+
   for (const item of items) {
     const listing = await Listing.findById(item.listing);
     if (!listing) {
@@ -30,7 +30,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: `Insufficient stock for ${listing.cropName}. Available: ${availableQty}` });
     }
     totalAmount += listing.pricePerUnit * item.quantity;
-    
+
     // Get farmer ID from the first listing (assuming single farmer per order for now)
     if (!farmerId) {
       farmerId = listing.farmer;
@@ -99,16 +99,16 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
     order.paymentId = payment._id;
     await order.save();
-    return res.status(201).json({ 
-      orderId: order._id, 
+    return res.status(201).json({
+      orderId: order._id,
       paymentId: payment._id,
-      chatId: chat._id 
+      chatId: chat._id
     });
   }
 
-  res.status(201).json({ 
+  res.status(201).json({
     orderId: order._id,
-    chatId: chat._id 
+    chatId: chat._id
   });
 });
 
@@ -129,23 +129,18 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
   const farmerListings = await Listing.find({ farmer: req.user._id }).select('_id');
   const listingIds = farmerListings.map(l => l._id);
 
-  let orders = await Order.find({
-    $or: [
-      { farmer: req.user._id },
-      { 'items.listing': { $in: listingIds } },
-    ]
-  })
+  // Build query: always match by farmer field, only add listing filter if farmer has listings
+  // (MongoDB { $in: [] } with empty array matches nothing but adds unnecessary overhead)
+  const query = listingIds.length > 0
+    ? { $or: [{ farmer: req.user._id }, { 'items.listing': { $in: listingIds } }] }
+    : { farmer: req.user._id };
+
+  const orders = await Order.find(query)
     .populate('items.listing')
     .populate('buyer', 'name email phone')
     .sort({ createdAt: -1 });
 
-  if (!orders || orders.length === 0) {
-    orders = await Order.find({})
-      .populate('items.listing')
-      .populate('buyer', 'name email phone')
-      .sort({ createdAt: -1 });
-  }
-
+  // NEVER fall back to Order.find({}) — return empty array for farmers with no orders
   res.json(orders);
 });
 
@@ -161,7 +156,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
   const isFarmer = order.farmer && order.farmer.toString() === req.user._id.toString();
   const isBuyer = order.buyer && order.buyer.toString() === req.user._id.toString();
-  
+
   let ownsListing = isFarmer;
   if (!ownsListing) {
     const listings = await Listing.find({ _id: { $in: order.items.map(i => i.listing) }, farmer: req.user._id });
@@ -280,7 +275,7 @@ export const markOrderAsReceived = asyncHandler(async (req, res) => {
   try {
     const listing = await Listing.findById(order.items[0].listing);
     const farmerId = listing.farmer;
-    
+
     await sendNotification({
       recipientId: farmerId,
       senderId: req.user._id,
@@ -302,7 +297,7 @@ export const markOrderAsReceived = asyncHandler(async (req, res) => {
 // @access  Private (buyer)
 export const rateOrder = asyncHandler(async (req, res) => {
   const { rating, ratingComment } = req.body;
-  
+
   if (!rating || rating < 1 || rating > 5) {
     return res.status(400).json({ message: 'Rating must be between 1 and 5' });
   }
@@ -334,11 +329,11 @@ export const rateOrder = asyncHandler(async (req, res) => {
       { $match: { 'items.listing': listing._id, rating: { $exists: true, $ne: null } } },
       { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
     ]);
-    
+
     const stats = ratingStats[0] || { avgRating: 0, count: 0 };
     await Listing.findByIdAndUpdate(
       listing._id,
-      { 
+      {
         rating: stats.avgRating,
         numReviews: stats.count
       },
@@ -350,7 +345,7 @@ export const rateOrder = asyncHandler(async (req, res) => {
   try {
     const listing = await Listing.findById(order.items[0].listing);
     const farmerId = listing.farmer;
-    
+
     await sendNotification({
       recipientId: farmerId,
       senderId: req.user._id,
@@ -370,7 +365,7 @@ export const rateOrder = asyncHandler(async (req, res) => {
 // @route   GET /api/orders/pending
 // @access  Private (buyer)
 export const getPendingOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find({ 
+  const orders = await Order.find({
     buyer: req.user._id,
     status: 'pending'
   })

@@ -120,7 +120,8 @@ export default function BuyerOrdersPage() {
         console.warn('API get orders failed, falling back to local storage orders:', e);
       }
 
-      const localOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
       
       // Combine API & Local orders, removing duplicates by ID
       // API orders take priority (they have the latest DB status from farmer actions)
@@ -144,7 +145,7 @@ export default function BuyerOrdersPage() {
           const apiVersion = apiMap.get(key);
           return apiVersion ? { ...lo, status: apiVersion.status } : lo;
         });
-        localStorage.setItem('kisan_orders', JSON.stringify(updatedLocal));
+        localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
       }
 
       setOrders(uniqueOrders);
@@ -285,9 +286,10 @@ export default function BuyerOrdersPage() {
       setOrders(prev =>
         prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o)
       );
-      const localOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
       const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o);
-      localStorage.setItem('kisan_orders', JSON.stringify(updatedLocal));
+      localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
 
       showToast('Order cancelled successfully.');
     } catch (err) {

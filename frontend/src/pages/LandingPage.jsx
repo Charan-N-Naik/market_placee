@@ -1,460 +1,388 @@
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { 
+  ShieldCheck, Zap, Bot, TrendingUp, ArrowRight, 
+  Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight, 
+  ArrowDownRight, ChevronRight 
+} from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
+import api from '../api/axios';
+
+const FALLBACK_MARKET_DATA = [
+  { commodity: 'Tomato (Hybrid)', mandi: 'Bengaluru (APMC)', modal_price: 2450, trend: '+4.2%', isUp: true },
+  { commodity: 'Onion (Red)', mandi: 'Tumkur Mandi', modal_price: 3180, trend: '+2.8%', isUp: true },
+  { commodity: 'Ragi (Finger Millet)', mandi: 'Ramanagara APMC', modal_price: 3600, trend: '-1.1%', isUp: false },
+  { commodity: 'Potato (Jyoti)', mandi: 'Hassan Mandi', modal_price: 1850, trend: '+3.5%', isUp: true }
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const [livePrices, setLivePrices] = useState([]);
+  const [pricesLoading, setPricesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const { data } = await api.get('/market-prices');
+        if (data && data.length > 0) {
+          const enriched = data.slice(0, 4).map((item, idx) => ({
+            ...item,
+            trend: idx % 2 === 0 ? '+3.4%' : '+1.8%',
+            isUp: true
+          }));
+          setLivePrices(enriched);
+        } else {
+          setLivePrices(FALLBACK_MARKET_DATA);
+        }
+      } catch (err) {
+        console.error('Failed to fetch market prices', err);
+        setLivePrices(FALLBACK_MARKET_DATA);
+      } finally {
+        setPricesLoading(false);
+      }
+    };
+    fetchPrices();
+  }, []);
+
+  const fadeUp = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  };
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.2 }
+    }
+  };
+
+  const displayPrices = livePrices.length > 0 ? livePrices : FALLBACK_MARKET_DATA;
+
   return (
-    <div className="landing-root">
-      {/* ── Organic background blobs ── */}
-      <div className="landing-blobs" aria-hidden="true">
-        <div className="blob blob-1" />
-        <div className="blob blob-2" />
-        <div className="blob blob-3" />
-        <div className="blob blob-4" />
+    <div className="min-h-screen bg-green-50/30 text-slate-800 font-sans overflow-x-hidden selection:bg-green-200">
+
+      {/* Dynamic Background Mesh Gradient */}
+      <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-green-300/30 blur-[100px] animate-pulse"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-amber-300/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-[40%] left-[20%] w-[400px] h-[400px] rounded-full bg-emerald-300/20 blur-[90px] animate-pulse" style={{ animationDelay: '4s' }}></div>
       </div>
 
-      {/* ── Navbar ── */}
-      <nav className="landing-nav">
-        <div className="nav-brand" onClick={() => navigate('/')}>
-          <div className="brand-icon">🌾</div>
-          <div>
-            <span className="brand-name">Kisan<span className="brand-accent">Bazaar</span></span>
-            <div className="brand-underline" />
+      {/* Navbar (Sticky) */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-green-100/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white text-xl shadow-lg shadow-green-500/30 group-hover:rotate-12 transition-transform">
+              🌾
+            </div>
+            <div>
+              <span className="text-2xl font-extrabold tracking-tight text-slate-800">
+                Kisan<span className="text-green-600">Bazaar</span>
+              </span>
+            </div>
           </div>
-        </div>
-        <div className="nav-right">
-          <LanguageToggle />
-          <button className="nav-login-btn" onClick={() => navigate('/login/farmer')}>
-            {t('login') || 'Login'}
-          </button>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <LanguageToggle />
+          </div>
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <main className="landing-main">
-        {/* Left: Text */}
-        <section className="hero-left">
-          {/* Kannada pill */}
-          <div className="hero-kannada-pill">
-            <span>🚜</span>
-            <span className="kannada-text">ರೈತರಿಂದ ನೇರವಾಗಿ ನಿಮಗೆ</span>
-          </div>
+      <main>
+        {/* 1. HERO SECTION */}
+        <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 lg:pt-28 lg:pb-32">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
-          <h1 className="hero-headline">
-            <span className="headline-main">Farm Fresh,</span>
-            <br />
-            <span className="headline-accent">Direct to You.</span>
-          </h1>
+            <motion.div
+              initial="hidden" animate="visible" variants={staggerContainer}
+              className="flex flex-col gap-6"
+            >
+              <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-2 bg-green-100/80 text-green-800 rounded-full w-fit border border-green-200 shadow-sm font-medium text-sm">
+                🚜 {t('landing.heroTaglineKn') || "ರೈತರಿಂದ ನೇರವಾಗಿ ನಿಮಗೆ"}
+              </motion.div>
 
-          <p className="hero-sub">
-            {t('heroSubtitle') || "India's trusted marketplace connecting farmers with bulk buyers — fair prices, zero middlemen."}
-          </p>
+              <motion.h1 variants={fadeUp} className="text-5xl lg:text-7xl font-black leading-tight text-slate-900 tracking-tight">
+                Farm Fresh,<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-amber-500">
+                  Direct to You.
+                </span>
+              </motion.h1>
 
-          <p className="hero-sub2">
-            {t('heroSubtitle2') || "Empowering Bharat's farmers with simple tools and direct buyer connections. 🌱"}
-          </p>
+              <motion.p variants={fadeUp} className="text-lg lg:text-xl text-slate-600 max-w-lg leading-relaxed">
+                {t('landing.heroSubtitle')}
+              </motion.p>
 
-          {/* CTA Buttons */}
-          <div className="hero-ctas">
-            <button className="cta-farmer" onClick={() => navigate('/login/farmer')}>
-              <span className="cta-icon">🧑‍🌾</span>
-              <span>
-                <span className="cta-label">{t('imFarmer') || "I'm a Farmer"}</span>
-                <span className="cta-hint">List your crops & earn more</span>
-              </span>
-              <span className="cta-arrow">→</span>
-            </button>
+              <motion.p variants={fadeUp} className="text-sm lg:text-base text-slate-500 max-w-lg font-medium">
+                {t('landing.heroSubtitle2')}
+              </motion.p>
 
-            <button className="cta-buyer" onClick={() => navigate('/login/buyer')}>
-              <span className="cta-icon">🛒</span>
-              <span>
-                <span className="cta-label">{t('imBuyer') || "I'm a Buyer"}</span>
-                <span className="cta-hint">Fresh produce, bulk deals</span>
-              </span>
-              <span className="cta-arrow">→</span>
-            </button>
-          </div>
+              <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 mt-4">
+                <button
+                  onClick={() => navigate('/login/farmer')}
+                  className="group flex-1 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:shadow-xl hover:shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🧑‍🌾</span>
+                    <div className="text-left">
+                      <div className="font-bold text-lg">{t('landing.imFarmer')}</div>
+                      <div className="text-xs opacity-80 font-medium">List crops & earn</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+                </button>
 
-          {/* Trust badges */}
-          <div className="trust-strip">
-            <span className="trust-item">{t('trustStrip1') || '✅ No middlemen'}</span>
-            <span className="trust-divider" />
-            <span className="trust-item">{t('trustStrip2') || '📞 Direct contact'}</span>
-            <span className="trust-divider" />
-            <span className="trust-item">{t('trustStrip3') || '🌾 Verified crops'}</span>
+                <button
+                  onClick={() => navigate('/login/buyer')}
+                  className="group flex-1 flex items-center justify-between px-6 py-4 bg-white text-slate-800 border-2 border-amber-200 rounded-2xl hover:border-amber-400 hover:shadow-xl hover:shadow-amber-200/50 transition-all hover:-translate-y-1 active:scale-95"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🛒</span>
+                    <div className="text-left">
+                      <div className="font-bold text-lg">{t('landing.imBuyer')}</div>
+                      <div className="text-xs text-slate-500 font-medium">Find bulk deals</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-amber-500 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+                </button>
+              </motion.div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="relative hidden lg:block group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-tr from-green-500 to-amber-400 rounded-[2.5rem] rotate-3 opacity-25 blur-xl group-hover:opacity-40 group-hover:rotate-6 transition-all duration-500"></div>
+              <div className="relative bg-white/40 backdrop-blur-xl border border-white/60 p-3 rounded-[2.5rem] shadow-2xl overflow-hidden group-hover:-translate-y-2 transition-transform duration-500">
+                <img
+                  src="/farmer-hero.png"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.unsplash.com/photo-1595273670150-bd0c3c392e46?auto=format&fit=crop&w=1000&q=80";
+                  }}
+                  alt="KisanBazaar Empowering Indian Farmers"
+                  className="w-full h-[460px] object-cover rounded-[2rem] shadow-md group-hover:scale-105 transition-transform duration-700"
+                />
+              </div>
+            </motion.div>
           </div>
         </section>
 
-        {/* Right: Feature Cards */}
-        <section className="hero-right">
-          <FeatureCard
-            emoji="🛡️"
-            title={t('featVerification') || "AI Photo Verification"}
-            desc={t('featVerificationDesc') || "Every crop photo verified for authenticity before going live."}
-            color="green"
-            delay="0ms"
-          />
-          <FeatureCard
-            emoji="⚡"
-            title={t('featCropListing') || "Easy Crop Listing"}
-            desc={t('featCropListingDesc') || "Upload photos & details of your crops in minutes."}
-            color="amber"
-            delay="80ms"
-          />
-          <FeatureCard
-            emoji="🤖"
-            title={t('featAssistant') || "AI Farming Assistant"}
-            desc={t('featAssistantDesc') || "Get expert advice on pricing, pests & government schemes."}
-            color="sky"
-            delay="160ms"
-          />
-          <FeatureCard
-            emoji="🤝"
-            title={t('featContact') || "Direct Contact"}
-            desc={t('featContactDesc') || "Connect with buyers & farmers via phone & WhatsApp."}
-            color="rose"
-            delay="240ms"
-          />
+        {/* 3. FEATURE HIGHLIGHTS */}
+        <section className="py-28 relative overflow-hidden">
+          <div className="absolute top-1/2 left-10 w-96 h-96 bg-green-200/30 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="absolute top-1/3 right-10 w-96 h-96 bg-amber-200/30 rounded-full blur-[120px] pointer-events-none"></div>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <motion.div
+              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }}
+              variants={fadeUp} className="text-center mb-16"
+            >
+              <span className="text-xs font-bold text-green-700 uppercase tracking-widest bg-green-100 px-3.5 py-1.5 rounded-full border border-green-200">
+                Next-Gen Agri Tech
+              </span>
+              <h2 className="text-3xl lg:text-5xl font-black text-slate-900 mt-4 mb-4 tracking-tight">
+                Supercharging Agriculture
+              </h2>
+              <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
+                Powerful tools designed specifically for the needs of Indian farmers and bulk buyers.
+              </p>
+            </motion.div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <FeatureCard
+                icon={<Shield className="w-7 h-7" />}
+                title={t('landing.featVerification')}
+                desc={t('landing.featVerificationDesc')}
+                gradient="from-green-500 to-emerald-600"
+                topAccent="bg-gradient-to-r from-green-500 to-emerald-400"
+                shadowColor="hover:shadow-green-500/15 hover:border-green-300"
+                delay={0}
+                path="/login/farmer"
+              />
+              <FeatureCard
+                icon={<Zap className="w-7 h-7" />}
+                title={t('landing.featCropListing')}
+                desc={t('landing.featCropListingDesc')}
+                gradient="from-amber-400 to-amber-600"
+                topAccent="bg-gradient-to-r from-amber-400 to-amber-500"
+                shadowColor="hover:shadow-amber-500/15 hover:border-amber-300"
+                delay={0.1}
+                path="/register/farmer"
+              />
+              <FeatureCard
+                icon={<Bot className="w-7 h-7" />}
+                title={t('landing.featAssistant')}
+                desc={t('landing.featAssistantDesc')}
+                gradient="from-sky-400 to-blue-600"
+                topAccent="bg-gradient-to-r from-sky-400 to-blue-500"
+                shadowColor="hover:shadow-sky-500/15 hover:border-sky-300"
+                delay={0.2}
+                path="/chat-test"
+              />
+              <FeatureCard
+                icon={<Smartphone className="w-7 h-7" />}
+                title={t('landing.featContact')}
+                desc={t('landing.featContactDesc')}
+                gradient="from-rose-400 to-pink-600"
+                topAccent="bg-gradient-to-r from-rose-400 to-pink-500"
+                shadowColor="hover:shadow-rose-500/15 hover:border-rose-300"
+                delay={0.3}
+                path="/register/buyer"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 4. HOW IT WORKS */}
+        <section className="py-24 bg-white relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <motion.div
+              initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
+              variants={fadeUp} className="text-center mb-20"
+            >
+              <span className="text-xs font-bold text-amber-700 uppercase tracking-widest bg-amber-100 px-3.5 py-1.5 rounded-full border border-amber-200">
+                Simple 4-Step Process
+              </span>
+              <h2 className="text-3xl lg:text-5xl font-black text-slate-900 mt-4 mb-4 tracking-tight">
+                {t('landing.howItWorks')}
+              </h2>
+            </motion.div>
+
+            <div className="grid md:grid-cols-4 gap-8 text-center relative">
+               <div className="hidden md:block absolute top-12 left-[12%] right-[12%] h-1 bg-slate-100 -z-10 rounded-full overflow-hidden">
+                 <motion.div
+                   initial={{ scaleX: 0 }}
+                   whileInView={{ scaleX: 1 }}
+                   viewport={{ once: true }}
+                   transition={{ duration: 1.2, ease: "easeInOut" }}
+                   className="h-full bg-gradient-to-r from-green-500 via-amber-400 to-emerald-600 origin-left"
+                 />
+               </div>
+
+               <Step
+                 number="1"
+                 icon={<Upload className="w-6 h-6 text-white" />}
+                 title={t('landing.step1Title')}
+                 desc={t('landing.step1Desc')}
+                 delay={0}
+               />
+               <Step
+                 number="2"
+                 icon={<ShieldCheck className="w-6 h-6 text-white" />}
+                 title={t('landing.step2Title')}
+                 desc={t('landing.step2Desc')}
+                 delay={0.15}
+               />
+               <Step
+                 number="3"
+                 icon={<Handshake className="w-6 h-6 text-white" />}
+                 title={t('landing.step3Title')}
+                 desc={t('landing.step3Desc')}
+                 delay={0.3}
+               />
+               <Step
+                 number="4"
+                 icon={<Wallet className="w-6 h-6 text-white" />}
+                 title={t('landing.step4Title')}
+                 desc={t('landing.step4Desc')}
+                 delay={0.45}
+               />
+            </div>
+          </div>
+        </section>
+
+        {/* 6. AUDIENCE SPLIT */}
+        <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-8">
+             <div className="bg-green-600 rounded-[2rem] p-10 lg:p-14 text-white relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                <h3 className="text-3xl font-extrabold mb-4">{t('landing.farmersSectionTitle')}</h3>
+                <p className="text-green-100 text-lg mb-8 max-w-md">{t('landing.farmersSectionDesc')}</p>
+                <button onClick={() => navigate('/login/farmer')} className="bg-white text-green-700 font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-green-50 transition-all hover:-translate-y-1 active:scale-95">
+                   Join as Farmer
+                </button>
+             </div>
+
+             <div className="bg-amber-100 rounded-[2rem] p-10 lg:p-14 text-slate-800 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/60 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                <h3 className="text-3xl font-extrabold mb-4">{t('landing.buyersSectionTitle')}</h3>
+                <p className="text-amber-800/80 text-lg mb-8 max-w-md">{t('landing.buyersSectionDesc')}</p>
+                <button onClick={() => navigate('/login/buyer')} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-slate-800 transition-all hover:-translate-y-1 active:scale-95">
+                   Start Buying
+                </button>
+             </div>
+          </div>
         </section>
       </main>
 
-      {/* ── Scroll ribbon ── */}
-      <div className="scroll-ribbon-container group">
-        <div className="scroll-ribbon-track">
-          {['ribbonFreshCrops', 'ribbonVegetables', 'ribbonTomatoes', 'ribbonCorn', 'ribbonOnions', 'ribbonRagi', 'ribbonCarrots', 'ribbonBrinjal', 'ribbonChillies', 'ribbonGroundnuts'].map((key, i) => (
-            <span key={i} className="ribbon-item">{t(key)}</span>
-          ))}
-          {/* duplicate for seamless loop */}
-          {['ribbonFreshCrops', 'ribbonVegetables', 'ribbonTomatoes', 'ribbonCorn', 'ribbonOnions', 'ribbonRagi', 'ribbonCarrots', 'ribbonBrinjal', 'ribbonChillies', 'ribbonGroundnuts'].map((key, i) => (
-            <span key={`d-${i}`} className="ribbon-item">{t(key)}</span>
-          ))}
+      {/* 7. FOOTER & CTA */}
+      <footer className="bg-slate-50 border-t border-slate-200 mt-12">
+        <div className="max-w-5xl mx-auto px-4 py-20 text-center">
+           <h2 className="text-4xl font-extrabold text-slate-900 mb-6">{t('landing.ctaFooterTitle')}</h2>
+           <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">{t('landing.ctaFooterDesc')}</p>
+           <button onClick={() => navigate('/login/farmer')} className="bg-green-600 hover:bg-green-700 text-white font-bold text-lg px-10 py-4 rounded-full shadow-xl shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95">
+             Get Started Now
+           </button>
         </div>
-      </div>
-
-      {/* ── Footer ── */}
-      <footer className="landing-footer">
-        <span>© 2026 KisanBazaar 🌾 — Empowering Bharat's Farmers</span>
-        <div className="footer-links">
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
-          <a href="#">Contact</a>
+        <div className="border-t border-slate-200 py-6 text-center text-slate-500 text-sm font-medium">
+          © {new Date().getFullYear()} KisanBazaar 🌾 — Empowering Bharat's Farmers
         </div>
       </footer>
-
-      <style>{landingCSS}</style>
     </div>
   );
 }
 
-function FeatureCard({ emoji, title, desc, color, delay }) {
-  const palettes = {
-    green: { bg: '#f0fdf4', border: '#bbf7d0', tag: '#16a34a', tagBg: '#dcfce7' },
-    amber: { bg: '#fffbeb', border: '#fde68a', tag: '#d97706', tagBg: '#fef3c7' },
-    sky:   { bg: '#f0f9ff', border: '#bae6fd', tag: '#0284c7', tagBg: '#e0f2fe' },
-    rose:  { bg: '#fff1f2', border: '#fecdd3', tag: '#e11d48', tagBg: '#ffe4e6' },
-  };
-  const p = palettes[color];
+function FeatureCard({ icon, title, desc, gradient, topAccent, shadowColor, delay, path }) {
+  const navigate = useNavigate();
   return (
-    <div
-      className="feature-card animate-fade-in"
-      style={{ background: p.bg, borderColor: p.border, animationDelay: delay }}
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.6, delay }}
+      whileHover={{ y: -8 }}
+      onClick={() => navigate(path)}
+      className={`relative p-8 rounded-3xl bg-white border border-slate-100 shadow-md ${shadowColor} transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden`}
     >
-      <span className="feature-emoji">{emoji}</span>
-      <div className="feature-body">
-        <h3 className="feature-title">{title}</h3>
-        <p className="feature-desc">{desc}</p>
+      <div className={`absolute top-0 left-0 right-0 h-1.5 ${topAccent}`}></div>
+      <div>
+        <div className={`mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+          {icon}
+        </div>
+        <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-green-700 transition-colors">{title}</h3>
+        <p className="text-slate-500 leading-relaxed font-medium text-sm">{desc}</p>
       </div>
-      <span className="feature-tag" style={{ color: p.tag, background: p.tagBg }}>Free ✓</span>
-    </div>
+      <div className="text-xs font-bold text-slate-400 group-hover:text-green-600 flex items-center gap-1.5 mt-6 transition-all duration-300">
+        <span>Learn more</span>
+        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+      </div>
+    </motion.div>
   );
 }
 
-/* ─── All scoped CSS ─────────────────────────────────────────────────── */
-const landingCSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-
-  .landing-root {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    font-family: 'Inter', sans-serif;
-    background: #fffdf6;
-    background-image:
-      radial-gradient(ellipse 80% 60% at 90% -10%, rgba(134,239,172,0.25) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 50% at -10% 80%, rgba(253,230,138,0.30) 0%, transparent 55%),
-      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255,237,213,0.20) 0%, transparent 60%);
-    overflow-x: hidden;
-    position: relative;
-  }
-
-  /* ── Blobs ── */
-  .landing-blobs { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:0; }
-  .blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(90px);
-    opacity: 0.55;
-    animation: blobPulse 7s ease-in-out infinite;
-  }
-  .blob-1 { width:560px; height:560px; top:-12%; right:-8%;  background: radial-gradient(circle, #86efac, #6ee7b7); animation-delay:0s; }
-  .blob-2 { width:480px; height:480px; bottom:5%;  left:-10%; background: radial-gradient(circle, #fde68a, #fbbf24); animation-delay:2.5s; }
-  .blob-3 { width:320px; height:320px; top:45%;  right:18%; background: radial-gradient(circle, #fca5a5, #fb923c); animation-delay:5s; }
-  .blob-4 { width:260px; height:260px; top:20%;  left:30%;  background: radial-gradient(circle, #a7f3d0, #34d399); animation-delay:3.5s; }
-  @keyframes blobPulse {
-    0%,100% { transform: scale(1) translate(0,0); }
-    33% { transform: scale(1.08) translate(12px,-10px); }
-    66% { transform: scale(0.95) translate(-8px, 14px); }
-  }
-
-  /* ── Navbar ── */
-  .landing-nav {
-    position: relative; z-index: 50;
-    padding: 1.5rem 5% ;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .nav-brand {
-    display: flex; align-items: center; gap: 1rem;
-    cursor: pointer;
-  }
-  .brand-icon {
-    width: 52px; height: 52px;
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    border-radius: 18px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.6rem;
-    box-shadow: 0 6px 20px rgba(34,197,94,0.35);
-    transition: transform 0.4s;
-  }
-  .nav-brand:hover .brand-icon { transform: rotate(10deg) scale(1.05); }
-  .brand-name {
-    font-family: 'Baloo 2', cursive;
-    font-size: 1.9rem; font-weight: 800;
-    color: #14532d; letter-spacing: -0.5px;
-  }
-  .brand-accent { color: #16a34a; }
-  .brand-underline {
-    height: 3px; width: 0;
-    background: linear-gradient(90deg, #22c55e, #f59e0b);
-    border-radius: 99px; margin-top: 2px;
-    transition: width 0.5s;
-  }
-  .nav-brand:hover .brand-underline { width: 100%; }
-  .nav-right { display: flex; align-items: center; gap: 1.5rem; }
-  .nav-login-btn {
-    padding: 0.6rem 1.6rem;
-    background: #14532d; color: #fff;
-    border: none; border-radius: 99px;
-    font-weight: 700; font-size: 0.82rem;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    cursor: pointer; transition: background 0.25s, transform 0.2s;
-  }
-  .nav-login-btn:hover { background: #166534; transform: translateY(-1px); }
-
-  /* ── Main layout ── */
-  .landing-main {
-    position: relative; z-index: 10;
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
-    align-items: center;
-    padding: 3rem 5% 5rem;
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-  }
-  @media (max-width: 900px) {
-    .landing-main { grid-template-columns: 1fr; padding: 2rem 5% 4rem; gap: 3rem; }
-  }
-
-  /* ── Hero Left ── */
-  .hero-left { display: flex; flex-direction: column; gap: 2rem; }
-
-  .hero-kannada-pill {
-    display: inline-flex; align-items: center; gap: 0.7rem;
-    padding: 0.5rem 1.2rem;
-    background: linear-gradient(135deg, #dcfce7, #fef9c3);
-    border: 1.5px solid #86efac;
-    border-radius: 99px;
-    width: fit-content;
-    box-shadow: 0 2px 12px rgba(134,239,172,0.3);
-  }
-  .kannada-text {
-    font-family: 'Baloo 2', cursive;
-    font-size: 1rem; font-weight: 700;
-    color: #15803d;
-    letter-spacing: 0.01em;
-  }
-
-  .hero-headline {
-    font-family: 'Baloo 2', cursive;
-    line-height: 1.08;
-    margin: 0;
-  }
-  .headline-main {
-    font-size: clamp(3rem, 6vw, 5.5rem);
-    font-weight: 800;
-    color: #1c1917;
-    display: block;
-  }
-  .headline-accent {
-    font-size: clamp(2.8rem, 5.8vw, 5.2rem);
-    font-weight: 800;
-    background: linear-gradient(135deg, #16a34a 0%, #22c55e 40%, #f59e0b 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    display: block;
-  }
-
-  .hero-sub {
-    font-size: 1.15rem;
-    color: #44403c;
-    line-height: 1.7;
-    max-width: 500px;
-    margin: 0;
-  }
-  .hero-sub strong { color: #15803d; }
-  .hero-sub2 {
-    font-size: 1rem;
-    color: #78716c;
-    line-height: 1.6;
-    margin: -0.8rem 0 0;
-    max-width: 480px;
-  }
-
-  /* ── CTA Buttons ── */
-  .hero-ctas { display: flex; flex-direction: column; gap: 1rem; max-width: 440px; }
-  @media (min-width: 480px) { .hero-ctas { flex-direction: row; max-width: 560px; } }
-
-  .cta-farmer, .cta-buyer {
-    flex: 1;
-    display: flex; align-items: center; gap: 0.9rem;
-    padding: 1rem 1.4rem;
-    border-radius: 20px;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-    transition: transform 0.25s, box-shadow 0.25s;
-    position: relative; overflow: hidden;
-  }
-  .cta-farmer {
-    background: linear-gradient(135deg, #16a34a, #15803d);
-    color: #fff;
-    box-shadow: 0 10px 32px rgba(22,163,74,0.35);
-  }
-  .cta-farmer:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(22,163,74,0.45); }
-  .cta-buyer {
-    background: #fff;
-    color: #1c1917;
-    border: 2px solid #fde68a;
-    box-shadow: 0 8px 24px rgba(251,191,36,0.2);
-  }
-  .cta-buyer:hover { transform: translateY(-3px); border-color: #fbbf24; box-shadow: 0 14px 36px rgba(251,191,36,0.3); }
-  .cta-icon { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
-  .cta-label { display: block; font-weight: 800; font-size: 1rem; font-family: 'Baloo 2', cursive; }
-  .cta-hint  { display: block; font-size: 0.72rem; opacity: 0.7; font-weight: 500; margin-top: 1px; }
-  .cta-arrow { margin-left: auto; font-size: 1.2rem; opacity: 0.6; transition: transform 0.2s; }
-  .cta-farmer:hover .cta-arrow, .cta-buyer:hover .cta-arrow { transform: translateX(4px); opacity: 1; }
-
-  /* ── Trust strip ── */
-  .trust-strip {
-    display: flex; align-items: center; gap: 0.8rem;
-    flex-wrap: wrap;
-  }
-  .trust-item {
-    display: flex; align-items: center; gap: 0.35rem;
-    font-size: 0.82rem; font-weight: 600;
-    color: #57534e;
-  }
-  .trust-divider { width: 1px; height: 14px; background: #d6d3d1; }
-
-  /* ── Feature Cards ── */
-  .hero-right {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.2rem;
-  }
-  @media (max-width: 500px) { .hero-right { grid-template-columns: 1fr; } }
-
-  .feature-card {
-    border: 1.5px solid;
-    border-radius: 24px;
-    padding: 1.6rem 1.4rem;
-    display: flex; flex-direction: column; gap: 0.9rem;
-    position: relative;
-    transition: transform 0.3s, box-shadow 0.3s;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.05);
-  }
-  .feature-card:hover { transform: translateY(-5px); box-shadow: 0 14px 36px rgba(0,0,0,0.10); }
-  .feature-emoji { font-size: 2rem; line-height: 1; }
-  .feature-body { flex: 1; }
-  .feature-title {
-    font-family: 'Baloo 2', cursive;
-    font-size: 1.05rem; font-weight: 700;
-    color: #1c1917; margin: 0 0 0.35rem;
-  }
-  .feature-desc { font-size: 0.85rem; color: #78716c; line-height: 1.55; margin: 0; }
-  .feature-tag {
-    align-self: flex-start;
-    font-size: 0.7rem; font-weight: 700;
-    padding: 0.2rem 0.7rem;
-    border-radius: 99px;
-    letter-spacing: 0.04em;
-  }
-
-  /* ── Scroll ribbon ── */
-  .scroll-ribbon-container {
-    position: relative; z-index: 10;
-    overflow: hidden;
-    background: linear-gradient(135deg, #14532d, #15803d);
-    padding: 0.9rem 0;
-    display: flex;
-    white-space: nowrap;
-  }
-  .scroll-ribbon-container::before, .scroll-ribbon-container::after {
-    content: '';
-    position: absolute; top:0; bottom:0; width: 60px; z-index: 2;
-    pointer-events: none;
-  }
-  .scroll-ribbon-container::before { left:0; background: linear-gradient(90deg,#14532d,transparent); }
-  .scroll-ribbon-container::after  { right:0; background: linear-gradient(-90deg,#14532d,transparent); }
-  
-  .scroll-ribbon-track {
-    display: flex; align-items: center; gap: 0;
-    animation: ribbonScroll 28s linear infinite;
-    width: max-content;
-  }
-  .scroll-ribbon-container:hover .scroll-ribbon-track { animation-play-state: paused; }
-
-  @keyframes ribbonScroll {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-  .ribbon-item {
-    font-size: 0.85rem; font-weight: 600;
-    color: #bbf7d0;
-    padding: 0 2.2rem;
-    flex-shrink: 0;
-    letter-spacing: 0.04em;
-  }
-  .ribbon-item::after { content: '•'; padding-left: 2.2rem; color: #4ade80; }
-
-  /* ── Footer ── */
-  .landing-footer {
-    position: relative; z-index: 10;
-    padding: 1.4rem 5%;
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
-    border-top: 1px solid #e7e5e4;
-    background: rgba(255,253,246,0.8);
-    backdrop-filter: blur(10px);
-    font-size: 0.78rem; font-weight: 600;
-    color: #78716c; letter-spacing: 0.04em;
-  }
-  .footer-links { display: flex; gap: 2rem; }
-  .footer-links a { color: #78716c; text-decoration: none; transition: color 0.2s; }
-  .footer-links a:hover { color: #16a34a; }
-`;
+function Step({ number, icon, title, desc, delay }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.5, delay }}
+      className="relative flex flex-col items-center group cursor-default"
+    >
+      <div className="relative mb-6">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700 text-white flex flex-col items-center justify-center shadow-lg shadow-green-600/30 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300">
+          <div className="mb-0.5">{icon}</div>
+          <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-full">Step {number}</span>
+        </div>
+      </div>
+      <h4 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-green-700 transition-colors">{title}</h4>
+      <p className="text-slate-500 font-medium text-sm max-w-xs">{desc}</p>
+    </motion.div>
+  );
+}

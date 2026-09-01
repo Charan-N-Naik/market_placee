@@ -273,9 +273,10 @@ export default function CheckoutPage() {
         };
       }
 
-      // Save order locally so it instantly shows in Buyer Pending Orders
-      const existingOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
-      localStorage.setItem('kisan_orders', JSON.stringify([orderData, ...existingOrders]));
+      // Save order locally so it instantly shows in Buyer Pending Orders (scoped per user)
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const existingOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+      localStorage.setItem(ordersKey, JSON.stringify([orderData, ...existingOrders]));
 
       // Create Farmer Notification so farmer sees order alert
       const cropNamesStr = cartItems.map(i => i.listing?.cropName || 'Crop').join(', ');

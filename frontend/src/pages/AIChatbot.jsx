@@ -68,14 +68,14 @@ export default function AIChatbot() {
 
         {/* Suggestions chips */}
         {!isLoading && (messages || []).length <= 2 && (
-          <div className="px-4 py-2.5 bg-slate-50/80 border-t border-gray-100 flex flex-wrap items-center justify-center gap-2 shrink-0">
-            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 shrink-0">Suggested Questions:</span>
+          <div className="px-4 py-3 bg-white border-t border-slate-100 flex flex-wrap items-center justify-center gap-2 shrink-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0">Suggested Questions:</span>
             {(suggestions || []).map((suggestion, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => sendSuggestion && sendSuggestion(suggestion)}
-                className="px-3 py-1 bg-white hover:bg-emerald-600 hover:text-white text-gray-700 text-xs font-bold rounded-full border border-gray-200 hover:border-emerald-600 shadow-2xs transition-all cursor-pointer active:scale-95"
+                className="text-xs font-semibold px-3 py-1.5 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 rounded-full border border-slate-200/70 hover:border-emerald-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
               >
                 {suggestion}
               </button>

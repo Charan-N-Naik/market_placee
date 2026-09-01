@@ -423,7 +423,36 @@ export const updateUserProfile = async (req, res, next) => {
       throw new Error('User not found');
     }
 
-    const { name, phone, email, location, farmerProfile, buyerProfile } = req.body;
+    let { name, phone, email, location, farmerProfile, buyerProfile } = req.body;
+
+    // Handle JSON stringified bodies when sent via FormData
+    if (typeof location === 'string') {
+      try { location = JSON.parse(location); } catch (e) {}
+    }
+    if (typeof farmerProfile === 'string') {
+      try { farmerProfile = JSON.parse(farmerProfile); } catch (e) {}
+    }
+    if (typeof buyerProfile === 'string') {
+      try { buyerProfile = JSON.parse(buyerProfile); } catch (e) {}
+    }
+
+    // Handle Cloudinary image uploads if files were uploaded
+    if (req.files) {
+      if (req.files.avatar && req.files.avatar[0]) {
+        const file = req.files.avatar[0];
+        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        user.avatar = uploaded.secure_url;
+      }
+      if (req.files.coverImage && req.files.coverImage[0]) {
+        const file = req.files.coverImage[0];
+        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        user.coverImage = uploaded.secure_url;
+      }
+    } else if (req.body.avatar) {
+      user.avatar = req.body.avatar;
+    } else if (req.body.coverImage) {
+      user.coverImage = req.body.coverImage;
+    }
 
     if (name) user.name = name;
     if (phone) user.phone = phone;
@@ -459,6 +488,7 @@ export const updateUserProfile = async (req, res, next) => {
       role: updatedUser.role,
       isVerified: updatedUser.isVerified,
       avatar: updatedUser.avatar,
+      coverImage: updatedUser.coverImage,
       location: updatedUser.location,
       farmerProfile: updatedUser.farmerProfile,
       buyerProfile: updatedUser.buyerProfile,

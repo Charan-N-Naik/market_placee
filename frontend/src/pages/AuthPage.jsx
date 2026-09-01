@@ -381,6 +381,9 @@ export default function AuthPage({ mode = 'login' }) {
                   <div style={fieldWrap}>
                     <Mail size={16} style={iconStyle} />
                     <input
+                      id="email"
+                      type={isLogin ? "text" : "email"}
+                      autoComplete={isLogin ? "username email" : "email"}
                       {...formRegister(isLogin ? 'loginId' : 'email')}
                       style={inputStyle(errors.loginId || errors.email)}
                       placeholder={isLogin ? 'Enter email or phone' : 'you@example.com'}
@@ -391,7 +394,7 @@ export default function AuthPage({ mode = 'login' }) {
 
                 {/* Password */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <div className="flex items-center justify-between mb-2">
                     <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
                     {isLogin && (
                       <Link to="/forgot-password" style={{ fontSize: '0.72rem', fontWeight: 800, color: primary, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -402,7 +405,9 @@ export default function AuthPage({ mode = 'login' }) {
                   <div style={{ ...fieldWrap }}>
                     <Lock size={16} style={iconStyle} />
                     <input
+                      id="password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete={isLogin ? "current-password" : "new-password"}
                       {...formRegister('password')}
                       style={{ ...inputStyle(errors.password), paddingRight: '3rem' }}
                       placeholder="••••••••"
@@ -424,7 +429,9 @@ export default function AuthPage({ mode = 'login' }) {
                     <div style={fieldWrap}>
                       <Lock size={16} style={iconStyle} />
                       <input
+                        id="confirmPassword"
                         type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         {...formRegister('confirmPassword')}
                         style={{ ...inputStyle(errors.confirmPassword), paddingRight: '3rem' }}
                         placeholder="••••••••"
