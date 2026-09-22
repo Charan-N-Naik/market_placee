@@ -306,7 +306,7 @@ export default function BuyerOrdersPage() {
     if (tab === 'approved') return status === 'accepted' || status === 'approved';
     if (tab === 'pending') return status === 'pending';
     if (tab === 'confirmed') return ['paid', 'packed'].includes(status);
-    if (tab === 'shipped') return status === 'shipped';
+    if (tab === 'collected') return ['collected', 'shipped'].includes(status);
     if (tab === 'delivered') return ['delivered', 'received'].includes(status);
     if (tab === 'cancelled') return ['cancelled', 'refunded'].includes(status);
     return false;
@@ -404,7 +404,7 @@ export default function BuyerOrdersPage() {
             { id: 'approved', label: 'Approved (Pay Now) 💳', color: 'border-emerald-600 text-emerald-700 bg-emerald-50' },
             { id: 'pending', label: 'Pending Approval', color: 'border-amber-600 text-amber-600 bg-amber-50/50' },
             { id: 'confirmed', label: 'Paid & Processing', color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
-            { id: 'shipped', label: 'Shipped', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
+            { id: 'collected', label: 'Collected by Agent 🚛', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
             { id: 'delivered', label: 'Delivered', color: 'border-emerald-600 text-emerald-600 bg-emerald-50/50' },
             { id: 'cancelled', label: 'Cancelled', color: 'border-red-600 text-red-600 bg-red-50/50' },
           ].map(tab => {
@@ -607,13 +607,13 @@ export default function BuyerOrdersPage() {
                       )}
 
                       {/* Receive confirmation */}
-                      {['shipped', 'delivered'].includes(order.status) && (
+                      {['collected', 'shipped', 'delivered', 'packed'].includes(order.status) && (
                         <button 
                           onClick={() => handleMarkAsReceived(order._id || order.id)}
                           className="min-h-[44px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         >
                           <CheckCircle size={15} className="shrink-0" />
-                          <span>Mark Received</span>
+                          <span>Confirm Crop Delivered</span>
                         </button>
                       )}
 
