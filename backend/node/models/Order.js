@@ -19,8 +19,8 @@ const orderSchema = new mongoose.Schema(
     farmer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Denormalized for fast farmer queries
     paymentMethod: {
       type: String,
-      enum: ['online', 'cod', 'wallet'],
-      default: 'online',
+      enum: ['online', 'cod', 'wallet', 'pending_farmer_approval', 'upi', 'card', 'netbanking'],
+      default: 'pending_farmer_approval',
     },
     paymentId: { type: String },
     invoiceUrl: { type: String },

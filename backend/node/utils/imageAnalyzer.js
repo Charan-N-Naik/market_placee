@@ -47,27 +47,49 @@ export function computeImageProfile(buffer) {
 }
 
 /**
- * Compare profiles of 3 images to detect crop mismatches or AI generation.
+ * Compare profiles and raw buffers of 3 images to detect duplicate photos, crop mismatches, or AI generation.
  */
 export function verifyImageBatchLocally(images) {
   if (!images || images.length < 3) return null;
 
+  // 1. Check for Duplicate Photos (User uploaded the exact same file / buffer for multiple angles)
+  for (let i = 0; i < images.length; i++) {
+    for (let j = i + 1; j < images.length; j++) {
+      const bufA = images[i].buffer;
+      const bufB = images[j].buffer;
+
+      // Exact buffer equality check
+      if (Buffer.isBuffer(bufA) && Buffer.isBuffer(bufB)) {
+        if (bufA.length === bufB.length && bufA.equals(bufB)) {
+          const angle1 = images[i].angle || `Photo ${i + 1}`;
+          const angle2 = images[j].angle || `Photo ${j + 1}`;
+          return {
+            rejected: true,
+            rejectionType: 'duplicate_images',
+            reason: `Duplicate photo detected! "${angle1}" and "${angle2}" are the exact same image. Please upload 3 distinct photos taken from Front, Left, and Right angles of your harvest.`,
+            angle: angle2,
+          };
+        }
+      }
+    }
+  }
+
   const profiles = images.map(img => computeImageProfile(img.buffer));
 
-  // 1. Check for AI / Digital Art (extreme unnatural color saturation ratio > 0.35)
+  // 2. Check for AI / Digital Art (extreme unnatural color saturation ratio > 0.35)
   for (let i = 0; i < images.length; i++) {
     const p = profiles[i];
     if (p && p.satRatio > 0.35) {
       return {
         rejected: true,
         rejectionType: 'ai_generated',
-        reason: `The photo uploaded for "${images[i].angle}" view shows unnatural neon saturation (${(p.satRatio * 100).toFixed(0)}% synthetic color range). Please upload real camera photos of your crop.`,
+        reason: `The photo uploaded for "${images[i].angle}" view shows unnatural synthetic saturation (${(p.satRatio * 100).toFixed(0)}% neon color range). Please upload real camera photos of your farm harvest.`,
         angle: images[i].angle,
       };
     }
   }
 
-  // 2. Check for Crop Mismatch (drastic difference in R/G/B dominant ratios across images)
+  // 3. Check for Crop Mismatch (drastic difference in R/G/B dominant ratios across images)
   const normRatios = profiles.map(p => {
     const total = p.avgR + p.avgG + p.avgB || 1;
     return {
@@ -106,6 +128,7 @@ export function verifyImageBatchLocally(images) {
 
   return null; // Local check passed!
 }
+
 
 /**
  * Generate an authentic visual assessment report from the 3 photo profiles

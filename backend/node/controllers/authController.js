@@ -455,8 +455,25 @@ export const updateUserProfile = async (req, res, next) => {
     }
 
     if (name) user.name = name;
-    if (phone) user.phone = phone;
-    if (email) user.email = email.toLowerCase().trim();
+
+    if (phone && phone.trim() !== user.phone) {
+      const existingPhone = await User.findOne({ phone: phone.trim(), _id: { $ne: user._id } });
+      if (existingPhone) {
+        res.status(400);
+        throw new Error('This phone number is already registered to another account.');
+      }
+      user.phone = phone.trim();
+    }
+
+    if (email && email.toLowerCase().trim() !== user.email) {
+      const targetEmail = email.toLowerCase().trim();
+      const existingEmail = await User.findOne({ email: targetEmail, _id: { $ne: user._id } });
+      if (existingEmail) {
+        res.status(400);
+        throw new Error('This email address is already registered to another account.');
+      }
+      user.email = targetEmail;
+    }
     if (location) {
       user.location = {
         ...user.location?.toObject?.() || user.location || {},

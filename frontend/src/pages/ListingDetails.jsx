@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import VerificationBadge from '../components/VerificationBadge';
 import VerificationReport from '../components/VerificationReport';
+import CheckoutModal from '../components/CheckoutModal';
 import api from '../api/axios';
 import {
   ArrowLeft, Star, ShoppingCart, Minus, Plus, Bookmark,
@@ -34,6 +35,7 @@ export default function ListingDetails() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -144,10 +146,10 @@ export default function ListingDetails() {
     try {
       setAddingToCart(true);
       await addToCart(listingId, quantity, listing);
-      navigate('/checkout');
+      setShowCheckoutModal(true);
     } catch (error) {
       console.error('Buy Now failed:', error);
-      navigate('/checkout');
+      setShowCheckoutModal(true);
     } finally {
       setAddingToCart(false);
     }
@@ -798,6 +800,18 @@ export default function ListingDetails() {
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {/* CHECKOUT MODAL FOR DIRECT BUY REQUEST */}
+      {showCheckoutModal && (
+        <CheckoutModal 
+          crop={{
+            ...listing,
+            quantityNeeded: quantity,
+            totalPrice: (price * quantity)
+          }} 
+          onClose={() => setShowCheckoutModal(false)} 
+        />
       )}
 
     </div>

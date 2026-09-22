@@ -291,12 +291,12 @@ function OrderSummary({ cartItems, onCheckout, itemsCount }) {
       </div>
 
       <button onClick={onCheckout} style={checkoutBtnStyle}>
-        Proceed to Checkout
+        Proceed to Send Buy Request
         <ChevronRight size={18} />
       </button>
 
       <div style={summaryTrustStyle}>
-        <div style={trustItemStyle}><ShieldCheck size={14} color="#16a34a" /> Secure Checkout</div>
+        <div style={trustItemStyle}><ShieldCheck size={14} color="#16a34a" /> 2-Stage Farmer Approval (No Immediate Payment)</div>
       </div>
     </div>
   );

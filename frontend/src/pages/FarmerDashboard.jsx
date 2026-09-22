@@ -13,6 +13,7 @@ import EditListingModal from '../components/EditListingModal';
 import DashboardLayout from '../components/DashboardLayout';
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
+import GmailNotificationInbox from '../components/GmailNotificationInbox';
 import api from '../api/axios';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -1205,54 +1206,16 @@ export default function FarmerDashboard() {
         )}
 
         {/* ========================================================== */}
-        {/* NOTIFICATIONS TAB */}
+        {/* NOTIFICATIONS TAB (Gmail Style Inbox) */}
         {/* ========================================================== */}
         {activeTab === 'notifications' && (
-          <div className="bg-white rounded-[24px] border border-[#e5e7d0] p-6 shadow-sm space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-black text-[#166534]">Farmer Notifications</h2>
-                <p className="text-xs text-gray-500 font-semibold mt-1">Real-time alerts, orders, and quality verification approvals</p>
-              </div>
-              <button
-                onClick={markAllAsRead}
-                className="text-xs font-black text-[#166534] hover:underline"
-              >
-                Mark all as read
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {notifications.map((n) => (
-                <div
-                  key={n._id}
-                  className={`p-4 rounded-2xl border flex items-start gap-3.5 transition-all
-                    ${n.isRead
-                      ? 'bg-gray-50 border-gray-200 opacity-70'
-                      : 'bg-[#FFFDF5] border-[#e5e7d0] shadow-sm'
-                    }
-                  `}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0
-                    ${n.isRead ? 'bg-gray-200 text-gray-500' : 'bg-[#f0fdf4] text-[#166534] border border-[#dcfce7]'}
-                  `}>
-                    <Bell size={16} />
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <p className={`text-xs leading-relaxed ${n.isRead ? 'text-gray-600' : 'text-gray-900 font-bold'}`}>
-                      {n.message}
-                    </p>
-                    <p className="text-[10px] text-gray-400 font-medium">
-                      {new Date(n.createdAt).toLocaleDateString('en-IN', { hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short' })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {notifications.length === 0 && (
-                <div className="text-center py-12 text-gray-400 italic">No notifications found</div>
-              )}
-            </div>
-          </div>
+          <GmailNotificationInbox
+            notifications={notifications}
+            sellerOrders={sellerOrders}
+            onUpdateOrderStatus={handleUpdateOrderStatus}
+            onMarkAsRead={markAllAsRead}
+            onRefresh={fetchDashboardData}
+          />
         )}
 
         {/* ========================================================== */}

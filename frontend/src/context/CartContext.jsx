@@ -31,7 +31,14 @@ export function CartProvider({ children }) {
     fetchCart();
   }, [fetchCart]);
 
-  const addToCart = async (listingId, quantity, listingObj = null) => {
+  const addToCart = async (rawListing, quantity = 1, optionalObj = null) => {
+    const listingId = (typeof rawListing === 'object' && rawListing !== null) 
+      ? (rawListing._id || rawListing.id) 
+      : rawListing;
+    const listingObj = (typeof rawListing === 'object' && rawListing !== null) 
+      ? rawListing 
+      : optionalObj;
+
     try {
       console.log('Adding to cart:', { listingId, quantity });
       const { data } = await api.post('/cart/add', { listingId, quantity });
@@ -44,16 +51,19 @@ export function CartProvider({ children }) {
       // Fallback local state update
       setCart(prevCart => {
         const currentItems = prevCart?.items ? [...prevCart.items] : [];
-        const existingIndex = currentItems.findIndex(item => (item.listing?._id || item.listing?.id || item.listing) === listingId);
+        const existingIndex = currentItems.findIndex(item => {
+          const id = item.listing?._id || item.listing?.id || item.listing;
+          return String(id) === String(listingId);
+        });
         
         if (existingIndex > -1) {
           currentItems[existingIndex] = {
             ...currentItems[existingIndex],
-            quantity: currentItems[existingIndex].quantity + quantity
+            quantity: (currentItems[existingIndex].quantity || 0) + quantity
           };
         } else {
           currentItems.push({
-            listing: listingObj || listingId,
+            listing: listingObj || { _id: listingId },
             quantity,
             priceAtAdd: listingObj?.pricePerUnit || listingObj?.price || 0
           });

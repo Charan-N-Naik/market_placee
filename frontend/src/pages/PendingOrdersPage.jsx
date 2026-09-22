@@ -4,12 +4,13 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
+import PaymentModal from '../components/PaymentModal';
 import api from '../api/axios';
 import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
   CheckCircle, Truck, Package, Clock, ShieldCheck, Download, AlertTriangle,
   RefreshCw, X, ChevronRight, MessageCircle, ExternalLink, Calendar, Receipt,
-  Check, PhoneCall
+  Check, PhoneCall, CreditCard
 } from 'lucide-react';
 
 /* ─── Invoice HTML generator ─── */
@@ -96,6 +97,7 @@ export default function BuyerOrdersPage() {
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [contactingOrder, setContactingOrder] = useState(null);
   const [ratingOrder, setRatingOrder] = useState(null);
+  const [approvedPayOrder, setApprovedPayOrder] = useState(null);
   
   // Rating states
   const [ratingVal, setRatingVal] = useState(5);
@@ -301,8 +303,9 @@ export default function BuyerOrdersPage() {
   /* ─── Status Filter Mapping ─── */
   const matchesTab = (order, tab) => {
     const status = order.status;
+    if (tab === 'approved') return status === 'accepted' || status === 'approved';
     if (tab === 'pending') return status === 'pending';
-    if (tab === 'confirmed') return ['paid', 'accepted', 'packed'].includes(status);
+    if (tab === 'confirmed') return ['paid', 'packed'].includes(status);
     if (tab === 'shipped') return status === 'shipped';
     if (tab === 'delivered') return ['delivered', 'received'].includes(status);
     if (tab === 'cancelled') return ['cancelled', 'refunded'].includes(status);
@@ -398,8 +401,9 @@ export default function BuyerOrdersPage() {
         {/* Tab Controls */}
         <div className="flex border-b border-zinc-200 gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
           {[
-            { id: 'pending', label: 'Pending', color: 'border-blue-600 text-blue-600 bg-blue-50/50' },
-            { id: 'confirmed', label: 'Confirmed', color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
+            { id: 'approved', label: 'Approved (Pay Now) 💳', color: 'border-emerald-600 text-emerald-700 bg-emerald-50' },
+            { id: 'pending', label: 'Pending Approval', color: 'border-amber-600 text-amber-600 bg-amber-50/50' },
+            { id: 'confirmed', label: 'Paid & Processing', color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
             { id: 'shipped', label: 'Shipped', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
             { id: 'delivered', label: 'Delivered', color: 'border-emerald-600 text-emerald-600 bg-emerald-50/50' },
             { id: 'cancelled', label: 'Cancelled', color: 'border-red-600 text-red-600 bg-red-50/50' },
@@ -560,8 +564,19 @@ export default function BuyerOrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                      {/* Track Order — only show button for non-shipped (shipped shows map inline) */}
-                      {!['shipped'].includes(order.status) && (
+                      {/* PAY NOW for farmer-approved orders */}
+                      {['accepted', 'approved'].includes(order.status) && (
+                        <button 
+                          onClick={() => setApprovedPayOrder(order)}
+                          className="min-h-[44px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-md shadow-emerald-600/20 cursor-pointer whitespace-nowrap animate-pulse"
+                        >
+                          <CreditCard size={16} className="shrink-0" />
+                          <span>PAY NOW (₹{order.totalAmount?.toLocaleString('en-IN')})</span>
+                        </button>
+                      )}
+
+                      {/* Track Order — only show for accepted/paid/shipped orders, not pending farmer approval */}
+                      {['accepted', 'approved', 'paid', 'processing', 'delivered'].includes(order.status) && (
                         <button 
                           onClick={() => setTrackingOrder(order)}
                           className="min-h-[44px] px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
@@ -632,6 +647,17 @@ export default function BuyerOrdersPage() {
         )}
 
       </div>
+
+      {/* ─── PAYMENT MODAL FOR APPROVED ORDERS ─── */}
+      {approvedPayOrder && (
+        <PaymentModal 
+          order={approvedPayOrder} 
+          onClose={() => setApprovedPayOrder(null)} 
+          onPaymentSuccess={() => {
+            fetchOrders();
+          }}
+        />
+      )}
 
       {/* ─── TRACK ORDER MODAL ─── */}
       {trackingOrder && (
