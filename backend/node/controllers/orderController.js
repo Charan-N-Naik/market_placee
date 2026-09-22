@@ -198,12 +198,21 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       if (status === 'accepted') {
         title = '🌾 Order Accepted!';
         message = 'Farmer has accepted your crop order and is preparing for fulfillment.';
+      } else if (status === 'paid') {
+        title = '💳 Payment Received!';
+        message = `Buyer has completed payment of ₹${order.totalAmount}. Please start packing the order.`;
+      } else if (status === 'packed') {
+        title = '📦 Order Packed!';
+        message = `Order #${order._id.toString().slice(-6).toUpperCase()} is packed and awaiting delivery agent pickup.`;
+      } else if (status === 'collected') {
+        title = '🚛 Order Collected by Agent!';
+        message = 'Your crop order has been picked up by the delivery agent and is now en route to you.';
       } else if (status === 'shipped') {
         title = '🚚 Order Shipped!';
         message = 'Your crop shipment is out for delivery.';
       } else if (status === 'delivered') {
         title = '🎉 Order Delivered!';
-        message = 'Your crop order has been delivered.';
+        message = 'Your crop order has been delivered successfully.';
       } else if (status === 'cancelled') {
         title = '❌ Order Cancelled';
         message = isBuyer ? 'Buyer cancelled the order.' : 'Farmer cancelled the order.';

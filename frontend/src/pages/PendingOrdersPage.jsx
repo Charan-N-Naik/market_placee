@@ -10,8 +10,83 @@ import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
   CheckCircle, Truck, Package, Clock, ShieldCheck, Download, AlertTriangle,
   RefreshCw, X, ChevronRight, MessageCircle, ExternalLink, Calendar, Receipt,
-  Check, PhoneCall, CreditCard
+  Check, PhoneCall, CreditCard, CheckCircle2
 } from 'lucide-react';
+
+/* ─── Order Progress Stepper ─── */
+function OrderStepper({ status }) {
+  const steps = [
+    { key: 'pending',   label: 'Requested',  icon: '📋' },
+    { key: 'accepted',  label: 'Approved',   icon: '✅' },
+    { key: 'paid',      label: 'Paid',       icon: '💳' },
+    { key: 'packed',    label: 'Packed',     icon: '📦' },
+    { key: 'collected', label: 'In Transit', icon: '🚛' },
+    { key: 'delivered', label: 'Delivered',  icon: '🎉' },
+  ];
+
+  // Map backend statuses to stepper index
+  const statusIndex = {
+    pending: 0, accepted: 1, approved: 1,
+    paid: 2, processing: 2,
+    packed: 3,
+    collected: 4, shipped: 4,
+    delivered: 5, received: 5,
+    cancelled: -1, refunded: -1,
+  };
+
+  const currentIdx = statusIndex[status] ?? 0;
+  const isCancelled = status === 'cancelled' || status === 'refunded';
+
+  if (isCancelled) {
+    return (
+      <div className="px-5 sm:px-6 pb-4">
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+          <X size={14} className="text-red-500 shrink-0" />
+          <span className="text-xs font-black text-red-700 uppercase tracking-wider">Order Cancelled</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-5 sm:px-6 pb-4">
+      <div className="flex items-center gap-0 overflow-x-auto no-scrollbar">
+        {steps.map((step, idx) => {
+          const isCompleted = idx < currentIdx;
+          const isActive = idx === currentIdx;
+          const isLast = idx === steps.length - 1;
+          return (
+            <div key={step.key} className="flex items-center shrink-0">
+              {/* Step Node */}
+              <div className="flex flex-col items-center gap-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${
+                  isCompleted ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' :
+                  isActive    ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/30 ring-4 ring-orange-100' :
+                                'bg-white border-zinc-300 text-zinc-400'
+                }`}>
+                  {isCompleted ? <CheckCircle2 size={14} /> : <span className="text-[11px]">{step.icon}</span>}
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${
+                  isCompleted ? 'text-emerald-600' :
+                  isActive    ? 'text-orange-600' :
+                                'text-zinc-400'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+              {/* Connector */}
+              {!isLast && (
+                <div className={`h-0.5 w-8 sm:w-10 mx-1 shrink-0 rounded-full ${
+                  isCompleted ? 'bg-emerald-500' : 'bg-zinc-200'
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* ─── Invoice HTML generator ─── */
 function generateInvoiceHTML(order, listingCache) {
@@ -575,8 +650,8 @@ export default function BuyerOrdersPage() {
                         </button>
                       )}
 
-                      {/* Track Order — ONLY show after payment is complete */}
-                      {['paid', 'processing', 'shipped', 'delivered'].includes(order.status) && (
+                      {/* Track Order — show after payment or during delivery */}
+                      {['paid', 'processing', 'packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
                         <button 
                           onClick={() => setTrackingOrder(order)}
                           className="min-h-[44px] px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
@@ -606,8 +681,8 @@ export default function BuyerOrdersPage() {
                         </button>
                       )}
 
-                      {/* Receive confirmation */}
-                      {['collected', 'shipped', 'delivered', 'packed'].includes(order.status) && (
+                      {/* Receive confirmation — only after delivery agent has collected */}
+                      {['collected', 'shipped', 'delivered'].includes(order.status) && (
                         <button 
                           onClick={() => handleMarkAsReceived(order._id || order.id)}
                           className="min-h-[44px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
@@ -633,8 +708,13 @@ export default function BuyerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* ─── INLINE MAP TRACKER for shipped orders ─── */}
-                  {order.status === 'shipped' && (
+                  {/* ─── ORDER PROGRESS STEPPER ─── */}
+                  <div className="border-t border-zinc-100 pt-4">
+                    <OrderStepper status={order.status} />
+                  </div>
+
+                  {/* ─── INLINE MAP TRACKER for collected/shipped orders ─── */}
+                  {['collected', 'shipped'].includes(order.status) && (
                     <div className="border-t border-zinc-100 p-5 sm:p-6">
                       <LiveDeliveryTracker order={order} onClose={() => {}} />
                     </div>
