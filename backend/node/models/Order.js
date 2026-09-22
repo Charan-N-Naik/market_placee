@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'packed', 'paid', 'shipped', 'delivered', 'received', 'cancelled', 'refunded'],
+      enum: ['pending', 'accepted', 'packed', 'paid', 'shipped', 'collected', 'delivered', 'received', 'cancelled', 'refunded'],
       default: 'pending',
     },
     farmer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Denormalized for fast farmer queries

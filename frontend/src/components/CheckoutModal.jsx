@@ -7,7 +7,8 @@ import {
   CheckCircle2, Scale, Calendar, Sparkles, Receipt, Download, RefreshCw, Send, AlertCircle
 } from 'lucide-react';
 
-export default function CheckoutModal({ listing, onClose, onSuccess }) {
+export default function CheckoutModal({ listing: rawListing, crop, onClose, onSuccess }) {
+  const listing = rawListing || crop || {};
   const { user } = useAuth();
   const { fetchCart } = useCart();
   const listingId = listing._id || listing.id;
@@ -180,34 +181,14 @@ export default function CheckoutModal({ listing, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Delivery Option Selection */}
-              <div className="space-y-2">
-                <label className="text-xs font-black text-gray-900 uppercase tracking-wider block">2. Select Delivery Mode</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div 
-                    onClick={() => setDeliveryOption('express')}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                      deliveryOption === 'express' 
-                        ? 'bg-[#E8F7EE] border-[#1F7A4D] ring-2 ring-[#1F7A4D]/20' 
-                        : 'bg-white border-gray-200 hover:border-[#1F7A4D]/50'
-                    }`}
-                  >
-                    <Truck size={20} className={deliveryOption === 'express' ? 'text-[#1F7A4D]' : 'text-gray-400'} />
-                    <p className="font-black text-xs text-gray-900 mt-2">Express Farm Logistics</p>
-                    <p className="text-[10px] text-gray-500 font-semibold mt-0.5">Delivered in 24-48 hrs</p>
-                  </div>
-                  <div 
-                    onClick={() => setDeliveryOption('pickup')}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                      deliveryOption === 'pickup' 
-                        ? 'bg-[#E8F7EE] border-[#1F7A4D] ring-2 ring-[#1F7A4D]/20' 
-                        : 'bg-white border-gray-200 hover:border-[#1F7A4D]/50'
-                    }`}
-                  >
-                    <MapPin size={20} className={deliveryOption === 'pickup' ? 'text-[#1F7A4D]' : 'text-gray-400'} />
-                    <p className="font-black text-xs text-gray-900 mt-2">Direct Farm Pickup</p>
-                    <p className="text-[10px] text-gray-500 font-semibold mt-0.5">Collect from farmer location</p>
-                  </div>
+              {/* Logistics & Delivery Agent Note */}
+              <div className="p-4 bg-[#E8F7EE] rounded-2xl border border-[#1F7A4D]/20 flex items-start gap-3">
+                <Truck size={20} className="text-[#1F7A4D] shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-black text-xs text-gray-900">Logistics & Delivery Agent Selection</h5>
+                  <p className="text-[11px] text-gray-600 font-medium mt-0.5">
+                    Delivery agent options and contact details will be selected by you after the farmer accepts your purchase request.
+                  </p>
                 </div>
               </div>
 

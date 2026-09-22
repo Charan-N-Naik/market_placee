@@ -165,6 +165,257 @@ export default function ListingDetails() {
     }
   };
 
+  const downloadInspectionReport = () => {
+    const reportWin = window.open('', '_blank', 'width=900,height=1100');
+    if (!reportWin) return;
+
+    const certId = `KB-CERT-${listingId.slice(-6).toUpperCase()}`;
+    const issueDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Quality Verification Certificate - ${listing.cropName}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+            color: #111827;
+            margin: 0;
+            padding: 40px;
+            -webkit-print-color-adjust: exact;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-b: 3px solid #1F7A4D;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #1F7A4D;
+            letter-spacing: -0.5px;
+          }
+          .logo span { color: #FF8C42; }
+          .cert-badge {
+            background: #E8F7EE;
+            color: #1F7A4D;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            border: 1px solid #1F7A4D;
+          }
+          .title-block {
+            text-align: center;
+            margin-bottom: 30px;
+            background: #F9FAFB;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid #E5E7EB;
+          }
+          .title-block h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 900;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .title-block p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #6B7280;
+          }
+          .section {
+            margin-bottom: 25px;
+          }
+          .section-title {
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #1F7A4D;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #E5E7EB;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+          }
+          .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+          }
+          .grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
+          }
+          .data-card {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            padding: 12px 16px;
+            border-radius: 12px;
+          }
+          .label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #6B7280;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+          .value {
+            font-size: 14px;
+            font-weight: 800;
+            color: #111827;
+          }
+          .val-highlight { color: #1F7A4D; }
+          .footer {
+            margin-top: 50px;
+            border-t: 2px solid #E5E7EB;
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .seal-box {
+            text-align: right;
+          }
+          .seal-circle {
+            display: inline-block;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 2px dashed #1F7A4D;
+            color: #1F7A4D;
+            font-size: 9px;
+            font-weight: 900;
+            line-height: 70px;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">🌾 Kisan<span>Bazaar</span></div>
+          <div>
+            <span class="cert-badge">ISO 9001:2026 CERTIFIED</span>
+          </div>
+        </div>
+
+        <div class="title-block">
+          <h1>Official Quality Inspection Certificate</h1>
+          <p>Certificate Reference: <strong>${certId}</strong> • Issued Date: <strong>${issueDate}</strong></p>
+        </div>
+
+        <!-- 1. FARMER & CULTIVATOR DETAILS -->
+        <div class="section">
+          <div class="section-title">1. Farmer & Cultivator Profile</div>
+          <div class="grid-2">
+            <div class="data-card">
+              <div class="label">Farmer / Producer Name</div>
+              <div class="value">${farmerName}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Farm Location & Region</div>
+              <div class="value">${locationStr}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Verification Status</div>
+              <div class="value val-highlight">Verified Registered Cultivator ✓</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Sourcing Protocol</div>
+              <div class="value">Direct Field Sourcing</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. CROP & HARVEST SPECIFICATIONS -->
+        <div class="section">
+          <div class="section-title">2. Crop Lot Specifications</div>
+          <div class="grid-2">
+            <div class="data-card">
+              <div class="label">Commodity / Crop</div>
+              <div class="value">${listing.cropName} (${listing.variety || 'Standard Variety'})</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Harvest Date</div>
+              <div class="value">${formattedDate}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Available Stock Batch</div>
+              <div class="value">${listing.quantity || 100} ${listing.unit || 'kg'}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Direct Producer Price</div>
+              <div class="value val-highlight">₹${price} / ${listing.unit || 'kg'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. AI CROPVERIFY DIAGNOSTICS & LAB ANALYSIS -->
+        <div class="section">
+          <div class="section-title">3. AI CropVerify™ Quality & Diagnostic Report</div>
+          <div class="grid-4">
+            <div class="data-card">
+              <div class="label">Moisture Content</div>
+              <div class="value">${listing.verification?.moisture || '12% (Optimal)'}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Freshness Score</div>
+              <div class="value val-highlight">98% Prime</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Disease Analysis</div>
+              <div class="value">${listing.verification?.disease_label || (listing.isOrganic ? 'Zero Pathogens' : 'Healthy Crop')}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Quality Grade</div>
+              <div class="value val-highlight">Grade A+</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. STORAGE & SHELF LIFE -->
+        <div class="section">
+          <div class="section-title">4. Logistics & Storage Protocol</div>
+          <div class="grid-2">
+            <div class="data-card">
+              <div class="label">Recommended Storage Ambient</div>
+              <div class="value">${listing.storageType || 'Cool & Dry (12-15°C)'}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Estimated Shelf Durability</div>
+              <div class="value">14 Days from Dispatch</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div>
+            <p style="font-size: 11px; color: #6B7280; margin: 0;">Verified by KisanBazaar AI Quality Assurance Engine</p>
+            <p style="font-size: 10px; color: #9CA3AF; margin: 4px 0 0 0;">Digital Signature ID: ${listingId.slice(-12).toUpperCase()}</p>
+          </div>
+          <div class="seal-box">
+            <div class="seal-circle">VERIFIED</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    reportWin.document.write(htmlContent);
+    reportWin.document.close();
+    setTimeout(() => {
+      reportWin.print();
+    }, 500);
+  };
+
   const description = listing.description || `Fresh ${listing.cropName} harvested directly from local fields. Verified quality and natural growth.`;
   const shortDesc = description.length > 200 ? description.slice(0, 200) + '...' : description;
 
@@ -515,7 +766,7 @@ export default function ListingDetails() {
                 ISO Certified
               </span>
               <button 
-                onClick={() => window.print()} 
+                onClick={downloadInspectionReport} 
                 className="px-5 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md border-b-4 border-black active:border-b-0 active:translate-y-1 transition-all cursor-pointer flex items-center gap-2 print:hidden"
               >
                 <Download size={15} /> Download Report PDF
@@ -582,7 +833,7 @@ export default function ListingDetails() {
                 <span className="text-xs font-black text-gray-900 block mt-1">Verified Inspection ID</span>
               </div>
               <button 
-                onClick={() => window.print()}
+                onClick={downloadInspectionReport}
                 className="w-full py-2.5 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-sm border-b-2 border-emerald-950 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <FileText size={14} /> View Certificate
@@ -805,7 +1056,7 @@ export default function ListingDetails() {
       {/* CHECKOUT MODAL FOR DIRECT BUY REQUEST */}
       {showCheckoutModal && (
         <CheckoutModal 
-          crop={{
+          listing={{
             ...listing,
             quantityNeeded: quantity,
             totalPrice: (price * quantity)

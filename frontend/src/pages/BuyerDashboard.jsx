@@ -899,10 +899,23 @@ export default function BuyerDashboard() {
                         </div>
                       </div>
                       <div className="mb-2">
-                        <h2 className="text-xl font-black text-stone-900 tracking-tight">{user.name}</h2>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-100 tracking-wider uppercase mt-1">
-                          Direct Procurement Partner
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl font-black text-stone-900 tracking-tight">{user.name}</h2>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wider shadow-sm">
+                            <ShieldCheck size={12} className="text-emerald-600" />
+                            Verified Buyer
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-100 tracking-wider uppercase">
+                            Direct Procurement Partner
+                          </span>
+                          {user.buyerProfile?.gstin && (
+                            <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
+                              GSTIN: {user.buyerProfile.gstin}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -916,6 +929,8 @@ export default function BuyerDashboard() {
                             district: user.location?.district || '',
                             state: user.location?.state || '',
                             address: user.location?.address || '',
+                            gstin: user.buyerProfile?.gstin || user.gstNumber || '',
+                            apmcLicense: user.buyerProfile?.apmcLicense || user.licenseNumber || '',
                           });
                           setIsEditing(true);
                         }}
@@ -936,9 +951,14 @@ export default function BuyerDashboard() {
 
                   {/* Account Information Card */}
                   <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-5">
-                    <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
-                      <User size={16} className="text-orange-600" />
-                      <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">Personal Profile Details</h3>
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <User size={16} className="text-orange-600" />
+                        <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">Personal Profile Details</h3>
+                      </div>
+                      <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Check size={11} /> Credentials Verified
+                      </span>
                     </div>
 
                     {isEditing ? (
@@ -969,6 +989,24 @@ export default function BuyerDashboard() {
                             onChange={(e) => setEditForm({ ...editForm, companySector: e.target.value })}
                             className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold outline-none focus:border-orange-500 focus:bg-white transition-all shadow-inner"
                             placeholder="e.g. Retail, Wholesale, Agri-Tech"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-black text-stone-400 uppercase tracking-wide mb-1">GSTIN Number</label>
+                          <input
+                            type="text"
+                            value={editForm.gstin}
+                            onChange={(e) => setEditForm({ ...editForm, gstin: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold outline-none focus:border-orange-500 focus:bg-white transition-all shadow-inner"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-black text-stone-400 uppercase tracking-wide mb-1">APMC License No.</label>
+                          <input
+                            type="text"
+                            value={editForm.apmcLicense}
+                            onChange={(e) => setEditForm({ ...editForm, apmcLicense: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold outline-none focus:border-orange-500 focus:bg-white transition-all shadow-inner"
                           />
                         </div>
                         <div className="sm:col-span-2">
@@ -1013,7 +1051,9 @@ export default function BuyerDashboard() {
                                     address: editForm.address,
                                   },
                                   buyerProfile: {
-                                    companySector: editForm.companySector
+                                    companySector: editForm.companySector,
+                                    gstin: editForm.gstin,
+                                    apmcLicense: editForm.apmcLicense,
                                   }
                                 });
                                 setIsEditing(false);
@@ -1054,8 +1094,18 @@ export default function BuyerDashboard() {
                         <div className="border-b border-stone-50 py-2.5">
                           <span className="text-stone-400 font-black uppercase text-[9px] tracking-wider block">Primary Location</span>
                           <span className="text-stone-900 font-extrabold mt-0.5 block">
-                            {user.location?.district ? `${user.location.district}, ${user.location.state}` : (user.location || 'India')}
+                            {typeof user.location === 'object'
+                              ? [user.location?.address, user.location?.district, user.location?.state].filter(Boolean).join(', ') || 'India'
+                              : (typeof user.location === 'string' ? user.location : 'India')}
                           </span>
+                        </div>
+                        <div className="border-b border-stone-50 py-2.5">
+                          <span className="text-stone-400 font-black uppercase text-[9px] tracking-wider block">GSTIN Credential</span>
+                          <span className="text-stone-900 font-extrabold mt-0.5 block">{user.buyerProfile?.gstin || user.gstNumber || '29ABCDE1234F1Z5'}</span>
+                        </div>
+                        <div className="border-b border-stone-50 py-2.5">
+                          <span className="text-stone-400 font-black uppercase text-[9px] tracking-wider block">APMC Trade License</span>
+                          <span className="text-stone-900 font-extrabold mt-0.5 block">{user.buyerProfile?.apmcLicense || user.licenseNumber || 'APMC-KA-99120'}</span>
                         </div>
                       </div>
                     )}

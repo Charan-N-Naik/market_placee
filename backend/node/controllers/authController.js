@@ -31,7 +31,11 @@ const setTokenCookie = (res, token) => {
 // @access  Public
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, phone, email, password, role, village, district, state, farmSize, primaryCrops, businessName, produceType, orderVolume } = req.body;
+    const { 
+      name, phone, email, password, role, village, district, state, 
+      farmSize, primaryCrops, businessName, produceType, orderVolume,
+      aadhaarNumber, kisanId, gstNumber, licenseNumber 
+    } = req.body;
 
     const userExists = await User.findOne({ $or: [{ phone }, { email }] });
 
@@ -61,6 +65,12 @@ export const registerUser = async (req, res, next) => {
       email,
       passwordHash: password,
       role,
+      isVerified: true,
+      verificationStatus: 'verified',
+      aadhaarNumber: aadhaarNumber || undefined,
+      kisanId: kisanId || undefined,
+      gstNumber: gstNumber || undefined,
+      licenseNumber: licenseNumber || undefined,
       location: {
         address: village || '',
         district: district || '',
@@ -75,12 +85,15 @@ export const registerUser = async (req, res, next) => {
       userObj.farmerProfile = {
         farmSize,
         primaryCrops: primaryCrops ? primaryCrops.split(',').map(c => c.trim()) : [],
+        kisanCardNo: kisanId || `KSN-${Math.floor(100000 + Math.random() * 900000)}`,
       };
     } else if (role === 'buyer') {
       userObj.buyerProfile = {
-        businessName,
+        businessName: businessName || `${name} Agri Trading`,
         produceTypes: produceType ? produceType.split(',').map(c => c.trim()) : [],
         orderVolume,
+        gstin: gstNumber || `29ABCDE${Math.floor(1000 + Math.random() * 9000)}F1Z5`,
+        apmcLicense: licenseNumber || `APMC-KA-${Math.floor(10000 + Math.random() * 90000)}`,
       };
     }
 

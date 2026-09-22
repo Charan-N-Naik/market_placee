@@ -341,35 +341,64 @@ export default function AuthPage({ mode = 'login' }) {
 
                     {/* Farmer-specific */}
                     {isFarmer && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <div>
-                          <label style={labelStyle}>Farm Size</label>
-                          <div style={fieldWrap}>
-                            <MapPin size={16} style={iconStyle} />
-                            <input {...formRegister('farmSize')} style={inputStyle(errors.farmSize)} placeholder="e.g. 5 acres" />
+                      <div className="space-y-3">
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                          <div>
+                            <label style={labelStyle}>Farm Size</label>
+                            <div style={fieldWrap}>
+                              <MapPin size={16} style={iconStyle} />
+                              <input {...formRegister('farmSize')} style={inputStyle(errors.farmSize)} placeholder="e.g. 5 acres" />
+                            </div>
+                            {errors.farmSize && <p style={errorStyle}>{errors.farmSize.message}</p>}
                           </div>
-                          {errors.farmSize && <p style={errorStyle}>{errors.farmSize.message}</p>}
+                          <div>
+                            <label style={labelStyle}>Primary Crops</label>
+                            <div style={fieldWrap}>
+                              <Sprout size={16} style={iconStyle} />
+                              <input {...formRegister('primaryCrops')} style={inputStyle(errors.primaryCrops)} placeholder="Wheat, Rice..." />
+                            </div>
+                            {errors.primaryCrops && <p style={errorStyle}>{errors.primaryCrops.message}</p>}
+                          </div>
                         </div>
+
                         <div>
-                          <label style={labelStyle}>Primary Crops</label>
+                          <label style={labelStyle}>Kisan Card ID / Aadhaar No. (Verification)</label>
                           <div style={fieldWrap}>
-                            <Sprout size={16} style={iconStyle} />
-                            <input {...formRegister('primaryCrops')} style={inputStyle(errors.primaryCrops)} placeholder="Wheat, Rice..." />
+                            <Leaf size={16} style={iconStyle} />
+                            <input {...formRegister('kisanId')} style={inputStyle(errors.kisanId)} placeholder="e.g. KSN-882190 or Aadhaar 12-digit" />
                           </div>
-                          {errors.primaryCrops && <p style={errorStyle}>{errors.primaryCrops.message}</p>}
                         </div>
                       </div>
                     )}
 
                     {/* Buyer-specific */}
                     {!isFarmer && (
-                      <div>
-                        <label style={labelStyle}>Business Name</label>
-                        <div style={fieldWrap}>
-                          <Building size={16} style={iconStyle} />
-                          <input {...formRegister('businessName')} style={inputStyle(errors.businessName)} placeholder="Your Company Ltd." />
+                      <div className="space-y-3">
+                        <div>
+                          <label style={labelStyle}>Business Name</label>
+                          <div style={fieldWrap}>
+                            <Building size={16} style={iconStyle} />
+                            <input {...formRegister('businessName')} style={inputStyle(errors.businessName)} placeholder="Your Company Ltd." />
+                          </div>
+                          {errors.businessName && <p style={errorStyle}>{errors.businessName.message}</p>}
                         </div>
-                        {errors.businessName && <p style={errorStyle}>{errors.businessName.message}</p>}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                          <div>
+                            <label style={labelStyle}>GSTIN Number (Optional)</label>
+                            <div style={fieldWrap}>
+                              <Building size={16} style={iconStyle} />
+                              <input {...formRegister('gstNumber')} style={inputStyle(errors.gstNumber)} placeholder="29ABCDE1234F1Z5" />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={labelStyle}>APMC Trade License No.</label>
+                            <div style={fieldWrap}>
+                              <Building size={16} style={iconStyle} />
+                              <input {...formRegister('licenseNumber')} style={inputStyle(errors.licenseNumber)} placeholder="APMC-KA-99120" />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </motion.div>

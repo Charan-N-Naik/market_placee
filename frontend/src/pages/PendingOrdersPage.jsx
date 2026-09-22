@@ -575,8 +575,8 @@ export default function BuyerOrdersPage() {
                         </button>
                       )}
 
-                      {/* Track Order — only show for accepted/paid/shipped orders, not pending farmer approval */}
-                      {['accepted', 'approved', 'paid', 'processing', 'delivered'].includes(order.status) && (
+                      {/* Track Order — ONLY show after payment is complete */}
+                      {['paid', 'processing', 'shipped', 'delivered'].includes(order.status) && (
                         <button 
                           onClick={() => setTrackingOrder(order)}
                           className="min-h-[44px] px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
