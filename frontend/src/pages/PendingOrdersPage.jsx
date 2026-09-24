@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
-import PaymentModal from '../components/PaymentModal';
+import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import api from '../api/axios';
 import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
@@ -173,6 +173,7 @@ export default function BuyerOrdersPage() {
   const [contactingOrder, setContactingOrder] = useState(null);
   const [ratingOrder, setRatingOrder] = useState(null);
   const [approvedPayOrder, setApprovedPayOrder] = useState(null);
+  const [activeChatOrder, setActiveChatOrder] = useState(null);
   
   // Rating states
   const [ratingVal, setRatingVal] = useState(5);
@@ -326,19 +327,12 @@ export default function BuyerOrdersPage() {
     }
   };
 
-  const handleContactFarmer = async (farmerId) => {
-    if (!farmerId) return;
-    try {
-      const { data } = await api.post('/chat/chat', { participantId: farmerId });
-      setContactingOrder(null);
-      if (data?._id) {
-        navigate(`/chat-test`); // Renders AIChatbot test flow
-      } else {
-        showToast('Chat session initialized.', 'success');
-      }
-    } catch (err) {
-      console.error('Error starting chat:', err);
-      showToast('Could not initialize chat room.', 'error');
+  const handleContactFarmer = async (farmerId, order) => {
+    setContactingOrder(null);
+    if (order) {
+      setActiveChatOrder(order);
+    } else {
+      showToast('Opening live chat with farmer...', 'success');
     }
   };
 
@@ -886,6 +880,15 @@ export default function BuyerOrdersPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* ─── DIRECT FARMER CHAT MODAL ─── */}
+      {activeChatOrder && (
+        <DirectBuyerChatModal
+          buyerName={activeChatOrder.items?.[0]?.listing?.farmer?.name || 'Farmer'}
+          order={activeChatOrder}
+          onClose={() => setActiveChatOrder(null)}
+        />
       )}
 
     </div>

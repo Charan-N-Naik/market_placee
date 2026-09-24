@@ -234,31 +234,39 @@ export default function FarmerDashboard() {
 
   const handlePauseToggle = async (listing) => {
     try {
+      const listingId = listing._id || listing.id;
       const newStatus = listing.status === 'active' ? 'expired' : 'active';
-      await updateListing(listing._id || listing.id, { ...listing, status: newStatus });
-      alert(`Listing status updated to ${newStatus}`);
+      await updateListing(listingId, { ...listing, status: newStatus });
+      alert(`Listing status updated to ${newStatus === 'active' ? 'Active' : 'Paused'}`);
     } catch (err) {
+      console.error(err);
       alert('Failed to update listing status');
     }
   };
 
   const handleDuplicateListing = async (listing) => {
     try {
+      const locVal = typeof listing.location === 'object'
+        ? (listing.location?.address || listing.location?.district || listing.location?.state || '')
+        : (listing.location || '');
+
       const duplicateData = {
-        cropName: listing.cropName,
-        variety: listing.variety,
-        quantity: listing.quantity,
-        unit: listing.unit,
-        pricePerUnit: listing.pricePerUnit || listing.price,
-        price: listing.pricePerUnit || listing.price,
-        description: listing.description,
-        isOrganic: listing.isOrganic,
-        location: listing.location,
-        harvestDate: new Date(),
+        cropName: `${listing.cropName} (Copy)`,
+        variety: listing.variety || '',
+        quantity: listing.quantity || 1,
+        unit: listing.unit || 'kg',
+        pricePerUnit: listing.pricePerUnit || listing.price || 0,
+        price: listing.pricePerUnit || listing.price || 0,
+        description: listing.description || '',
+        isOrganic: listing.isOrganic || false,
+        location: locVal || 'Karnataka',
+        harvestDate: new Date().toISOString().split('T')[0],
+        photo: listing.images?.[0]?.url || listing.photo || null,
       };
       await addListing(duplicateData);
       alert('Listing duplicated successfully!');
     } catch (err) {
+      console.error(err);
       alert('Failed to duplicate listing');
     }
   };
@@ -756,7 +764,7 @@ export default function FarmerDashboard() {
                           <span className="flex items-center gap-1"><Star size={12} /> {listing.savedBy?.length || 0} wishlists</span>
                         </div>
 
-                        {/* Action buttons (6) */}
+                        {/* Action buttons */}
                         <div className="grid grid-cols-2 gap-2 pt-1.5">
                           <button
                             onClick={() => navigate(`/listing/${listing._id || listing.id}`)}
@@ -771,14 +779,8 @@ export default function FarmerDashboard() {
                             Edit
                           </button>
                           <button
-                            onClick={() => setActiveTab('analyzer')}
-                            className="py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <ShieldCheck size={12} className="text-emerald-600" /> Verify with AI
-                          </button>
-                          <button
                             onClick={() => handlePauseToggle(listing)}
-                            className={`py-2.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1
+                            className={`py-2.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1 col-span-2
                               ${listing.status === 'active'
                                 ? 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100'
                                 : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
@@ -795,9 +797,15 @@ export default function FarmerDashboard() {
                             <Copy size={10} /> Duplicate Listing
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm("Are you sure you want to delete this listing?")) {
-                                deleteListing(listing._id || listing.id);
+                                try {
+                                  await deleteListing(listing._id || listing.id);
+                                  alert("Listing deleted successfully!");
+                                } catch (err) {
+                                  console.error(err);
+                                  alert("Failed to delete listing.");
+                                }
                               }
                             }}
                             className="py-2.5 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer col-span-2 flex items-center justify-center gap-1"
@@ -1234,6 +1242,10 @@ export default function FarmerDashboard() {
             sellerOrders={sellerOrders}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onMarkAsRead={markAllAsRead}
+            onDeleteNotification={(id) => {
+              setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
+              api.delete(`/notifications/${id}`).catch(() => {});
+            }}
             onRefresh={fetchDashboardData}
           />
         )}

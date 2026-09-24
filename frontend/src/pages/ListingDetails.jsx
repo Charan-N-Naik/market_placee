@@ -23,7 +23,9 @@ export default function ListingDetails() {
   const { addToCart } = useCart();
   const { user, isAuthenticated } = useAuth();
 
-  const listing = listings.find(l => (l._id || l.id) === id);
+  const contextListing = listings.find(l => (l._id || l.id) === id);
+  const [apiListing, setApiListing] = useState(null);
+  const listing = contextListing || apiListing;
 
   const [quantity, setQuantity] = useState(1);
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -42,6 +44,14 @@ export default function ListingDetails() {
 
   // Live APMC Market Comparison state
   const [apmcPriceData, setApmcPriceData] = useState(null);
+
+  useEffect(() => {
+    if (!contextListing && id) {
+      api.get(`/listings/${id}`)
+        .then(res => setApiListing(res.data))
+        .catch(err => console.warn('API fetch listing failed:', err.message));
+    }
+  }, [id, contextListing]);
 
   useEffect(() => {
     if (listing) {
@@ -98,6 +108,7 @@ export default function ListingDetails() {
   const farmerName = listing.farmer?.name || listing.farmerName || 'Local Farmer';
   const farmerPhone = listing.farmer?.phone || listing.phone || '';
   const harvestDate = listing.harvestDate || listing.createdAt;
+  const isFarmer = user?.role === 'farmer' || user?.userType === 'farmer' || location.pathname.includes('/farmer');
   const formattedDate = harvestDate
     ? new Date(harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : 'Recent Harvest';
@@ -618,45 +629,59 @@ export default function ListingDetails() {
               </div>
 
               {/* Quantity Counter */}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Select Quantity ({listing.unit || 'kg'}):</span>
-                <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                  >
-                    <Plus size={16} />
-                  </button>
+              {!isFarmer && (
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Select Quantity ({listing.unit || 'kg'}):</span>
+                  <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
+                    <button 
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
+                    <button 
+                      onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                      className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* SLEEK ACTION BUTTONS */}
+              {/* ACTION BUTTONS / FARMER BANNER */}
               <div className="pt-3 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={handleBuyNow}
-                    className="min-h-[48px] py-3 px-6 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>Buy Now</span>
-                    <ChevronRight size={16} className="shrink-0" />
-                  </button>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={addingToCart}
-                    className="min-h-[48px] py-3 px-6 bg-[#1F7A4D] hover:bg-[#165b38] text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
-                    <ChevronRight size={16} className="shrink-0" />
-                  </button>
-                </div>
-                {cartError && (
+                {isFarmer ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center space-y-2">
+                    <p className="text-xs font-bold text-emerald-800">🌱 You are viewing your produce lot in Farmer Mode.</p>
+                    <button
+                      onClick={() => navigate('/farmer/dashboard')}
+                      className="w-full py-3 bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-sm"
+                    >
+                      Return to Farmer Dashboard
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleBuyNow}
+                      className="min-h-[48px] py-3 px-6 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <span>Buy Now</span>
+                      <ChevronRight size={16} className="shrink-0" />
+                    </button>
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={addingToCart}
+                      className="min-h-[48px] py-3 px-6 bg-[#1F7A4D] hover:bg-[#165b38] text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
+                      <ChevronRight size={16} className="shrink-0" />
+                    </button>
+                  </div>
+                )}
+                {!isFarmer && cartError && (
                   <p className="text-xs font-bold text-red-600 text-center">{cartError}</p>
                 )}
               </div>
@@ -907,51 +932,53 @@ export default function ListingDetails() {
 
       </div>
 
-      {/* STICKY BOTTOM ACTION CTA BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-              <button 
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-              >
-                <Minus size={16} />
-              </button>
-              <span className="w-10 text-center text-sm font-black text-gray-900">{quantity}</span>
-              <button 
-                onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-              >
-                <Plus size={16} />
-              </button>
+      {/* STICKY BOTTOM ACTION CTA BAR (BUYERS ONLY) */}
+      {!isFarmer && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
+                <button 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="w-10 text-center text-sm font-black text-gray-900">{quantity}</span>
+                <button 
+                  onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                  className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              <div className="hidden sm:block">
+                <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
+                <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
+              </div>
             </div>
 
-            <div className="hidden sm:block">
-              <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
-              <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
+            <div className="flex gap-3 flex-1 sm:flex-none">
+              <button
+                onClick={handleAddToCart}
+                disabled={addingToCart}
+                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
+                <ChevronRight size={16} className="shrink-0" />
+              </button>
+              <button
+                onClick={handleBuyNow}
+                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span>Buy Now</span>
+                <ChevronRight size={16} className="shrink-0" />
+              </button>
             </div>
-          </div>
-
-          <div className="flex gap-3 flex-1 sm:flex-none">
-            <button
-              onClick={handleAddToCart}
-              disabled={addingToCart}
-              className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
-              <ChevronRight size={16} className="shrink-0" />
-            </button>
-            <button
-              onClick={handleBuyNow}
-              className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              <span>Buy Now</span>
-              <ChevronRight size={16} className="shrink-0" />
-            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* FARMER CONTACT DETAILS MODAL */}
       {showContactModal && (

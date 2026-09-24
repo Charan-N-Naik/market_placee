@@ -4,13 +4,32 @@ import {
   Tag, ArrowLeft, CheckCircle2, XCircle, MessageSquare, Clock,
   MapPin, ShoppingBag, ShieldCheck, ChevronRight, Filter, AlertCircle
 } from 'lucide-react';
+import DirectBuyerChatModal from './DirectBuyerChatModal';
+import api from '../api/axios';
 
-export default function GmailNotificationInbox({ notifications = [], sellerOrders = [], onUpdateOrderStatus, onMarkAsRead, onRefresh }) {
+export default function GmailNotificationInbox({ notifications = [], sellerOrders = [], onUpdateOrderStatus, onMarkAsRead, onDeleteNotification, onRefresh }) {
   const [selectedTab, setSelectedTab] = useState('all'); // 'all' | 'orders' | 'unread' | 'starred'
   const [searchQuery, setSearchQuery] = useState('');
   const [activeNotificationId, setActiveNotificationId] = useState(null);
+  const [activeChatData, setActiveChatData] = useState(null);
   const [starredIds, setStarredIds] = useState(new Set());
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [seenIds, setSeenIds] = useState(() => {
+    try {
+      const s = localStorage.getItem('kb_seen_notifications');
+      return s ? new Set(JSON.parse(s)) : new Set();
+    } catch (_) {
+      return new Set();
+    }
+  });
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      const s = localStorage.getItem('kb_dismissed_notifications');
+      return s ? new Set(JSON.parse(s)) : new Set();
+    } catch (_) {
+      return new Set();
+    }
+  });
 
   // Merge backend notifications & seller orders into a rich Gmail inbox feed
   const rawFeed = [...notifications];
@@ -68,6 +87,18 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
 
   // Filter feed based on tab & search
   const filteredFeed = rawFeed.filter(item => {
+    const itemId = item._id || item.id;
+    const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+
+    const isDismissed = (itemId && dismissedIds.has(itemId)) ||
+                        (orderId && dismissedIds.has(orderId)) ||
+                        (orderId && dismissedIds.has(`order_notif_${orderId}`));
+
+    const isSeen = (itemId && seenIds.has(itemId)) ||
+                   (orderId && seenIds.has(orderId)) ||
+                   (orderId && seenIds.has(`order_notif_${orderId}`));
+
+    if (isDismissed || isSeen) return false;
     if (selectedTab === 'unread' && item.isRead) return false;
     if (selectedTab === 'starred' && !starredIds.has(item._id)) return false;
     if (selectedTab === 'orders' && item.type !== 'order_placed') return false;
@@ -217,7 +248,11 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                 return (
                   <div
                     key={item._id}
-                    onClick={() => setActiveNotificationId(item._id)}
+                    onClick={() => {
+                      setActiveNotificationId(item._id);
+                      setSeenIds(prev => new Set(prev).add(item._id));
+                      if (onMarkAsRead) onMarkAsRead(item._id);
+                    }}
                     className={`flex items-center gap-3 px-4 py-3 hover:shadow-sm cursor-pointer transition-colors group ${
                       !item.isRead ? 'bg-white font-bold' : 'bg-[#fcfcfc] text-gray-600 font-normal'
                     } ${isSelected ? 'bg-blue-50/60' : ''}`}
@@ -429,17 +464,75 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                       )}
 
                       <button
-                        onClick={() => alert(`Starting chat thread with buyer ${buyerName}...`)}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer"
+                        onClick={() => setActiveChatData({ buyerName, order })}
+                        className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-sm"
                       >
                         <MessageSquare size={15} /> Chat with Buyer
                       </button>
 
                       <button
-                        onClick={() => setActiveNotificationId(null)}
+                        onClick={() => {
+                          const targetId = item._id || item.id;
+                          const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+
+                          setDismissedIds(prev => {
+                            const next = new Set(prev);
+                            if (targetId) next.add(targetId);
+                            if (orderId) {
+                              next.add(orderId);
+                              next.add(`order_notif_${orderId}`);
+                            }
+                            try {
+                              localStorage.setItem('kb_dismissed_notifications', JSON.stringify(Array.from(next)));
+                            } catch (_) {}
+                            return next;
+                          });
+
+                          setSeenIds(prev => {
+                            const next = new Set(prev);
+                            if (targetId) next.add(targetId);
+                            if (orderId) {
+                              next.add(orderId);
+                              next.add(`order_notif_${orderId}`);
+                            }
+                            try {
+                              localStorage.setItem('kb_seen_notifications', JSON.stringify(Array.from(next)));
+                            } catch (_) {}
+                            return next;
+                          });
+
+                          if (onDeleteNotification) onDeleteNotification(targetId, orderId);
+                          if (targetId && !String(targetId).startsWith('order_notif_')) {
+                            api.delete(`/notifications/${targetId}`).catch(() => {});
+                          }
+                          setActiveNotificationId(null);
+                        }}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <Trash2 size={15} /> Dismiss & Remove Message
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const targetId = item._id || item.id;
+                          const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+                          setSeenIds(prev => {
+                            const next = new Set(prev);
+                            if (targetId) next.add(targetId);
+                            if (orderId) {
+                              next.add(orderId);
+                              next.add(`order_notif_${orderId}`);
+                            }
+                            try {
+                              localStorage.setItem('kb_seen_notifications', JSON.stringify(Array.from(next)));
+                            } catch (_) {}
+                            return next;
+                          });
+                          setActiveNotificationId(null);
+                        }}
                         className="ml-auto text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-2 cursor-pointer"
                       >
-                        Back to Inbox
+                        Done (Back to Inbox)
                       </button>
                     </div>
                   )}
@@ -452,6 +545,14 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
         </div>
       )}
 
+      {/* DIRECT REAL-TIME BUYER CHAT MODAL */}
+      {activeChatData && (
+        <DirectBuyerChatModal
+          buyerName={activeChatData.buyerName}
+          order={activeChatData.order}
+          onClose={() => setActiveChatData(null)}
+        />
+      )}
     </div>
   );
 }

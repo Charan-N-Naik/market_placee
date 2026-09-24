@@ -11,14 +11,13 @@ import AIChatbot from './AIChatbot';
 import AICropAnalyzer from '../components/AICropAnalyzer';
 import DashboardLayout from '../components/DashboardLayout';
 import IndiaCropMap from '../components/IndiaCropMap';
-import CropImage from '../components/CropImage';
-import api from '../api/axios';
+import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import {
   Search, Heart, Bot, Eye, User, Sparkles,
   ShoppingBag, Bookmark, Filter, X, ArrowRight, ShoppingCart, Pencil, Save, Check,
   CloudSun, TrendingUp, Bell, MapPin, ShieldCheck, RefreshCw, Star, Layers, Package,
   Phone, Info, CheckCircle2, ChevronRight, SlidersHorizontal, ArrowUpRight,
-  Trash2, Camera, Globe, Settings, CreditCard, Mic
+  Trash2, Camera, Globe, Settings, CreditCard, Mic, MessageSquare
 } from 'lucide-react';
 import { locations, cropOptions } from '../data/mockData';
 
@@ -168,6 +167,10 @@ export default function BuyerDashboard() {
   // Buyer orders & notification states
   const [buyerOrders, setBuyerOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [activeBuyerNotificationId, setActiveBuyerNotificationId] = useState(null);
+  const [seenNotificationIds, setSeenNotificationIds] = useState(new Set());
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState(new Set());
+  const [activeChatData, setActiveChatData] = useState(null);
 
   // Profile Edit states
   const [isEditing, setIsEditing] = useState(false);
@@ -855,24 +858,114 @@ export default function BuyerDashboard() {
           {activeTab === 'assistant' && <AIChatbot />}
           {activeTab === 'analyzer' && <AICropAnalyzer />}
 
-          {activeTab === 'notifications' && (
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">Buyer Notifications</h2>
-              <div className="space-y-3">
-                {notifications.map((n) => (
-                  <div key={n._id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 text-xs text-gray-700">
-                    <p className="font-semibold">{n.message}</p>
-                    <span className="text-[10px] text-gray-400 mt-1 block">
-                      {new Date(n.createdAt).toLocaleDateString('en-IN')}
-                    </span>
+          {activeTab === 'notifications' && (() => {
+            const visibleNotifications = notifications.filter(n => !dismissedNotificationIds.has(n._id) && !seenNotificationIds.has(n._id));
+            const activeNotif = notifications.find(n => n._id === activeBuyerNotificationId);
+
+            return (
+              <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-6">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">Buyer Notifications</h2>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">Click any alert to inspect message details</p>
                   </div>
-                ))}
-                {notifications.length === 0 && (
-                  <p className="text-xs text-gray-400 italic text-center py-8">No unread notifications</p>
+                  {visibleNotifications.length > 0 && (
+                    <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full">
+                      {visibleNotifications.length} New
+                    </span>
+                  )}
+                </div>
+
+                {activeNotif ? (
+                  /* INTERIOR MESSAGE READER VIEW */
+                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-5 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🔔</span>
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-900">{activeNotif.title || 'Order Update Notification'}</h3>
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            {new Date(activeNotif.createdAt).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full uppercase">
+                        Verified
+                      </span>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-4 border border-gray-200 space-y-2">
+                      <p className="text-xs text-gray-800 leading-relaxed font-semibold">{activeNotif.message}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <button
+                        onClick={() => navigate('/buyer/pending-orders')}
+                        className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-sm"
+                      >
+                        <Package size={15} /> View Pending Orders
+                      </button>
+
+                      <button
+                        onClick={() => setActiveChatData({ buyerName: activeNotif.sender?.name || 'Farmer', order: activeNotif.relatedOrder || activeNotif })}
+                        className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-sm"
+                      >
+                        <MessageSquare size={15} /> Chat with Farmer
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setDismissedNotificationIds(prev => new Set(prev).add(activeNotif._id));
+                          setActiveBuyerNotificationId(null);
+                        }}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <Trash2 size={15} /> Dismiss & Remove Notification
+                      </button>
+
+                      <button
+                        onClick={() => setActiveBuyerNotificationId(null)}
+                        className="ml-auto text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-2 cursor-pointer"
+                      >
+                        Done (Back to Notifications)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* NOTIFICATION LIST FEED */
+                  <div className="space-y-3">
+                    {visibleNotifications.map((n) => (
+                      <div
+                        key={n._id}
+                        onClick={() => {
+                          setActiveBuyerNotificationId(n._id);
+                          setSeenNotificationIds(prev => new Set(prev).add(n._id));
+                        }}
+                        className="p-4 rounded-2xl border border-gray-200 bg-white hover:bg-orange-50/50 hover:border-orange-200 text-xs text-gray-700 cursor-pointer transition-all shadow-xs flex items-start justify-between gap-4 group"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-bold text-gray-900 group-hover:text-orange-700 transition-colors">{n.message}</p>
+                          <span className="text-[10px] text-gray-400 block font-medium">
+                            {new Date(n.createdAt).toLocaleDateString('en-IN')}
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold text-orange-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          View details →
+                        </span>
+                      </div>
+                    ))}
+                    {visibleNotifications.length === 0 && (
+                      <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
+                        <span className="text-3xl block">🔔</span>
+                        <p className="text-xs text-gray-500 font-bold">No active unread notifications</p>
+                        <p className="text-[11px] text-gray-400">All notifications have been viewed or dismissed.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ========================================================== */}
           {/* REDESIGNED BUYER PROFILE TAB */}
@@ -1453,6 +1546,15 @@ export default function BuyerDashboard() {
               // Refresh orders list
               api.get('/orders/buyer').then(res => setBuyerOrders(res.data || [])).catch(() => { });
             }}
+          />
+        )}
+
+        {/* Direct Farmer/Buyer Chat Modal */}
+        {activeChatData && (
+          <DirectBuyerChatModal
+            buyerName={activeChatData.buyerName || 'Farmer'}
+            order={activeChatData.order}
+            onClose={() => setActiveChatData(null)}
           />
         )}
 
