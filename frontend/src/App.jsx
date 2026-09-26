@@ -21,6 +21,7 @@ import ListingDetails from './pages/ListingDetails';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import PendingOrdersPage from './pages/PendingOrdersPage';
+import DeliveryAgentDashboard from './pages/DeliveryAgentDashboard';
 import StateCropsPage from './pages/StateCropsPage';
 import GovernmentSchemesPage from './pages/GovernmentSchemesPage';
 
@@ -70,6 +71,9 @@ function App() {
                     <Route element={<ProtectedRoute roleRequired="farmer" />}>
                       <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
                     </Route>
+
+                    {/* Delivery Agent / Driver Routes */}
+                    <Route path="/delivery/dashboard" element={<DeliveryAgentDashboard />} />
 
                     {/* Protected Buyer Routes */}
                     <Route element={<ProtectedRoute roleRequired="buyer" />}>

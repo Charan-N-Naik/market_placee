@@ -88,6 +88,7 @@ export default function AuthPage({ mode = 'login' }) {
 
   const isLogin = mode === 'login';
   const isFarmer = role === 'farmer';
+  const isDeliveryAgent = role === 'delivery_agent' || role === 'driver';
 
   const schema = isLogin
     ? loginSchema
@@ -107,15 +108,21 @@ export default function AuthPage({ mode = 'login' }) {
     setIsSubmitting(true);
     try {
       if (isLogin) {
-        await login({ ...data, role });
-        navigate(isFarmer ? '/farmer/dashboard' : '/buyer/dashboard');
+        await login({ ...data, role: role || 'buyer' });
+        if (role === 'farmer') navigate('/farmer/dashboard');
+        else if (role === 'delivery_agent' || role === 'driver') navigate('/delivery/dashboard');
+        else navigate('/buyer/dashboard');
       } else {
-        const registerData = { ...data, role };
+        const registerData = { ...data, role: role || 'buyer' };
         if (avatarFile) {
           registerData.avatar = avatarFile;
         }
         await register(registerData);
-        navigate('/verify-email-pending');
+        if (role === 'delivery_agent' || role === 'driver') {
+          navigate('/delivery/dashboard');
+        } else {
+          navigate('/verify-email-pending');
+        }
       }
     } catch (error) {
       setApiError(error.message || 'Authentication failed. Please try again.');
@@ -127,7 +134,7 @@ export default function AuthPage({ mode = 'login' }) {
   const toggleMode = () => {
     reset();
     setApiError('');
-    navigate(`/${isLogin ? 'register' : 'login'}/${role}`);
+    navigate(`/${isLogin ? 'register' : 'login'}/${role || 'buyer'}`);
   };
 
   const autoDetectLocation = () => {
@@ -531,16 +538,21 @@ export default function AuthPage({ mode = 'login' }) {
             </div>
           </motion.div>
 
-          {/* Role toggle hint */}
-          <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.8rem', color: '#9ca3af', fontWeight: 600 }}>
-            {isFarmer ? 'A buyer? ' : 'A farmer? '}
-            <Link
-              to={`/${isLogin ? 'login' : 'register'}/${isFarmer ? 'buyer' : 'farmer'}`}
-              style={{ color: primary, fontWeight: 800, textDecoration: 'none' }}
-            >
-              Switch portal →
+          {/* Role toggle hints */}
+          <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.8rem', color: '#6b7280', fontWeight: 600 }} className="flex flex-wrap items-center justify-center gap-2">
+            <span>Switch portal:</span>
+            <Link to={`/${isLogin ? 'login' : 'register'}/farmer`} style={{ color: '#15803d', fontWeight: 800, textDecoration: 'none' }}>
+              🌾 Farmer
             </Link>
-          </p>
+            <span>•</span>
+            <Link to={`/${isLogin ? 'login' : 'register'}/buyer`} style={{ color: '#ea580c', fontWeight: 800, textDecoration: 'none' }}>
+              🛒 Buyer
+            </Link>
+            <span>•</span>
+            <Link to={`/${isLogin ? 'login' : 'register'}/delivery_agent`} style={{ color: '#1F7A4D', fontWeight: 800, textDecoration: 'none' }}>
+              🚚 Delivery Agent
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -5,8 +5,9 @@ import 'leaflet/dist/leaflet.css';
 import { 
   Truck, MapPin, ShieldCheck, CheckCircle2, Clock, Navigation, AlertTriangle, 
   PhoneCall, RefreshCw, Radio, Lock, Activity, Cpu, ChevronRight, PackageCheck,
-  Building2, UserCheck
+  Building2, UserCheck, MessageSquare, DollarSign
 } from 'lucide-react';
+import { calculateDistance, calculateTransportExpenditure, getAvailableDeliveryAgents, getDeliveryBooking, createDeliveryBooking } from '../utils/deliveryService';
 
 /* ─── Custom Crisp DivIcons for Leaflet ─── */
 const createCustomIcon = (type, label) => {
@@ -314,27 +315,59 @@ export default function LiveDeliveryTracker({ order, onClose }) {
             </div>
           </div>
 
-          {/* Delivery Agent Card */}
-          <div className="bg-white rounded-[20px] border border-zinc-100 p-5 shadow-[0_1px_8px_rgba(0,0,0,0.03)] space-y-3">
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block">COURIER & DRIVER</span>
+          {/* Delivery Agent & Transport Expenditure Card */}
+          <div className="bg-white rounded-[20px] border border-zinc-100 p-5 shadow-[0_1px_8px_rgba(0,0,0,0.03)] space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block">COURIER & TRANSPORT COST</span>
+              <button
+                onClick={() => {
+                  const agents = getAvailableDeliveryAgents();
+                  const nextIndex = (agents.findIndex(a => a.id === selectedAgent?.id) + 1) % agents.length;
+                  const newAgent = agents[nextIndex];
+                  setSelectedAgent(newAgent);
+                  createDeliveryBooking(order?._id || order?.orderId || 'KB-ORDER', newAgent, expenditure, originLoc, destLoc);
+                }}
+                className="text-[11px] font-bold text-[#1F7A4D] hover:underline cursor-pointer"
+              >
+                Change Driver 🔄
+              </button>
+            </div>
             
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-zinc-700 text-lg">
-                RK
+              <div className="w-12 h-12 rounded-2xl bg-[#E8F7EE] text-[#1F7A4D] border border-[#1F7A4D]/20 flex items-center justify-center font-black text-xl shrink-0">
+                🚚
               </div>
               <div className="flex-1 min-w-0">
-                <h5 className="text-xs font-black text-zinc-900 truncate">Ramesh Kumar</h5>
-                <p className="text-[11px] font-semibold text-zinc-500">Agri-Express Logistics Agent</p>
-                <p className="text-[10px] font-bold text-emerald-600 mt-0.5">★ 4.9 Rating (140+ Deliveries)</p>
+                <h5 className="text-xs font-black text-zinc-900 truncate">{selectedAgent?.name || 'Ramesh Gowda'}</h5>
+                <p className="text-[11px] font-bold text-zinc-600">{selectedAgent?.vehicleType || 'Mahindra Bolero Pickup 🚚'}</p>
+                <p className="text-[10px] font-semibold text-zinc-400">{selectedAgent?.vehicleNumber || 'KA-06-EA-4821'} • ★ {selectedAgent?.rating || 4.9}</p>
               </div>
             </div>
 
-            <a 
-              href="tel:9876543210" 
-              className="w-full py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
-            >
-              <PhoneCall size={14} /> Call Delivery Driver
-            </a>
+            {/* TRANSPORT EXPENDITURE COST BREAKDOWN */}
+            <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs space-y-1.5">
+              <div className="flex justify-between text-stone-600 font-semibold">
+                <span>Origin $\rightarrow$ Destination:</span>
+                <span className="font-bold text-stone-900">{originLoc} to {destLoc} ({distanceKm} km)</span>
+              </div>
+              <div className="flex justify-between text-stone-600 font-semibold">
+                <span>Driver Rate:</span>
+                <span className="font-bold text-stone-900">₹{selectedAgent?.ratePerKm || 18}/km + ₹100 Base</span>
+              </div>
+              <div className="pt-1.5 border-t border-stone-200 flex justify-between font-black text-[#1F7A4D]">
+                <span>Transport Expenditure:</span>
+                <span>₹{expenditure.totalExpenditure}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <a 
+                href={`tel:${selectedAgent?.phone || '9845012345'}`}
+                className="flex-1 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+              >
+                <PhoneCall size={14} /> Call Driver
+              </a>
+            </div>
           </div>
 
         </div>

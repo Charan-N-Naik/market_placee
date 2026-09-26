@@ -120,33 +120,47 @@ export default function LandingPage() {
                 {t('landing.heroSubtitle2')}
               </motion.p>
 
-              <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 mt-4">
+              <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
                 <button
                   onClick={() => navigate('/login/farmer')}
-                  className="group flex-1 flex items-center justify-between px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:shadow-xl hover:shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95"
+                  className="group flex items-center justify-between p-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:shadow-xl hover:shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">🧑‍🌾</span>
                     <div className="text-left">
-                      <div className="font-bold text-lg">{t('landing.imFarmer')}</div>
-                      <div className="text-xs opacity-80 font-medium">List crops & earn</div>
+                      <div className="font-bold text-base">{t('landing.imFarmer')}</div>
+                      <div className="text-[11px] opacity-80 font-medium">Farmer Portal</div>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+                  <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
                 </button>
 
                 <button
                   onClick={() => navigate('/login/buyer')}
-                  className="group flex-1 flex items-center justify-between px-6 py-4 bg-white text-slate-800 border-2 border-amber-200 rounded-2xl hover:border-amber-400 hover:shadow-xl hover:shadow-amber-200/50 transition-all hover:-translate-y-1 active:scale-95"
+                  className="group flex items-center justify-between p-4 bg-white text-slate-800 border-2 border-amber-200 rounded-2xl hover:border-amber-400 hover:shadow-xl hover:shadow-amber-200/50 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">🛒</span>
                     <div className="text-left">
-                      <div className="font-bold text-lg">{t('landing.imBuyer')}</div>
-                      <div className="text-xs text-slate-500 font-medium">Find bulk deals</div>
+                      <div className="font-bold text-base">{t('landing.imBuyer')}</div>
+                      <div className="text-[11px] text-slate-500 font-medium">Buyer Portal</div>
                     </div>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-amber-500 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+                  <ArrowRight className="w-4 h-4 text-amber-500 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
+                </button>
+
+                <button
+                  onClick={() => navigate('/login/delivery_agent')}
+                  className="group flex items-center justify-between p-4 bg-[#1F7A4D] text-white rounded-2xl hover:bg-[#165b38] hover:shadow-xl hover:shadow-emerald-700/30 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🚚</span>
+                    <div className="text-left">
+                      <div className="font-bold text-base">Delivery Agent</div>
+                      <div className="text-[11px] text-emerald-100 font-medium">Driver Portal</div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-emerald-100 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
                 </button>
               </motion.div>
             </motion.div>
