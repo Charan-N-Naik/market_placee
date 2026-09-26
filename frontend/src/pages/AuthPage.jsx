@@ -338,47 +338,55 @@ export default function AuthPage({ mode = 'login' }) {
                     <div>
                       <label style={labelStyle}>Phone Number</label>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
-                        {/* Country Code Select */}
-                        <div style={{ position: 'relative', width: '124px', flexShrink: 0 }}>
+
+                        {/* Country Code Button — shows flag + code, hides real select */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          {/* Visible face: flag + dial */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '4px',
+                            padding: '0.875rem 0.9rem',
+                            border: `1.5px solid ${errors.phone ? '#ef4444' : '#e5e7eb'}`,
+                            borderRadius: 12,
+                            background: '#f9fafb',
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            color: '#1c1917',
+                            pointerEvents: 'none',
+                            userSelect: 'none',
+                            whiteSpace: 'nowrap',
+                            minWidth: '100px',
+                            justifyContent: 'center',
+                          }}>
+                            <span style={{ fontSize: '1.45rem', lineHeight: 1 }}>
+                              {COUNTRY_CODES.find(c => c.dial === countryCode)?.flag || '🌐'}
+                            </span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#374151' }}>
+                              {countryCode}
+                            </span>
+                            <ChevronDown size={13} style={{ color: '#9ca3af', marginLeft: 2 }} />
+                          </div>
+
+                          {/* Actual invisible select on top */}
                           <select
                             value={countryCode}
                             onChange={(e) => setCountryCode(e.target.value)}
                             aria-label="Country Code"
                             style={{
+                              position: 'absolute',
+                              inset: 0,
                               width: '100%',
                               height: '100%',
-                              padding: '0.875rem 1.6rem 0.875rem 0.75rem',
-                              border: `1.5px solid ${errors.phone ? '#ef4444' : '#e5e7eb'}`,
-                              borderRadius: 12,
-                              outline: 'none',
-                              fontSize: '0.88rem',
-                              fontWeight: 700,
-                              color: '#1c1917',
-                              background: '#f9fafb',
+                              opacity: 0,
                               cursor: 'pointer',
-                              appearance: 'none',
-                              WebkitAppearance: 'none',
-                              transition: 'all 0.2s ease',
+                              fontSize: '1rem',
                             }}
                           >
                             {COUNTRY_CODES.map((c) => (
                               <option key={`${c.code}-${c.dial}`} value={c.dial}>
-                                {c.flag} {c.dial}
+                                {c.flag}  {c.name}  ({c.dial})
                               </option>
                             ))}
                           </select>
-                          <div style={{
-                            position: 'absolute',
-                            right: '0.55rem',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            pointerEvents: 'none',
-                            color: '#6b7280',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <ChevronDown size={14} />
-                          </div>
                         </div>
 
                         {/* Phone Digits Input */}
@@ -395,6 +403,7 @@ export default function AuthPage({ mode = 'login' }) {
                       </div>
                       {errors.phone && <p style={errorStyle}>{errors.phone.message}</p>}
                     </div>
+
 
                     {/* Location */}
                     <div>
