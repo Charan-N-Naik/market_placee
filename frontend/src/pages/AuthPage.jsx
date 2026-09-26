@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Mail, Lock, Phone, User as UserIcon, MapPin, Building, Sprout, ArrowRight, Leaf, Map, Camera, X, AlertCircle, ChevronDown } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Phone, User as UserIcon, MapPin, Building, Sprout, ArrowRight, ArrowLeft, Leaf, Map, Camera, X, AlertCircle, ChevronDown, Search } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -39,28 +39,43 @@ function LocationMarker({ onLocationSelected }) {
 import { loginSchema, farmerRegisterSchema, buyerRegisterSchema, deliveryAgentRegisterSchema } from '../lib/validations/authSchema';
 
 const COUNTRY_CODES = [
-  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳' },
-  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
-  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
-  { code: 'AE', name: 'UAE', dial: '+971', flag: '🇦🇪' },
-  { code: 'SA', name: 'Saudi Arabia', dial: '+966', flag: '🇸🇦' },
-  { code: 'BD', name: 'Bangladesh', dial: '+880', flag: '🇧🇩' },
-  { code: 'NP', name: 'Nepal', dial: '+977', flag: '🇳🇵' },
-  { code: 'LK', name: 'Sri Lanka', dial: '+94', flag: '🇱🇰' },
-  { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦' },
-  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺' },
-  { code: 'SG', name: 'Singapore', dial: '+65', flag: '🇸🇬' },
-  { code: 'MY', name: 'Malaysia', dial: '+60', flag: '🇲🇾' },
-  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
-  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
-  { code: 'KE', name: 'Kenya', dial: '+254', flag: '🇰🇪' },
-  { code: 'NG', name: 'Nigeria', dial: '+234', flag: '🇳🇬' },
-  { code: 'ZA', name: 'South Africa', dial: '+27', flag: '🇿🇦' },
-  { code: 'BR', name: 'Brazil', dial: '+55', flag: '🇧🇷' },
-  { code: 'JP', name: 'Japan', dial: '+81', flag: '🇯🇵' },
-  { code: 'QA', name: 'Qatar', dial: '+974', flag: '🇶🇦' },
-  { code: 'KW', name: 'Kuwait', dial: '+965', flag: '🇰🇼' },
-  { code: 'OM', name: 'Oman', dial: '+968', flag: '🇴🇲' },
+  { code: 'IN', name: 'India', dial: '+91' },
+  { code: 'BE', name: 'Belgium', dial: '+32' },
+  { code: 'AF', name: 'Afghanistan', dial: '+93' },
+  { code: 'AX', name: 'Aland Islands', dial: '+358' },
+  { code: 'AL', name: 'Albania', dial: '+355' },
+  { code: 'DZ', name: 'Algeria', dial: '+213' },
+  { code: 'AS', name: 'American Samoa', dial: '+1' },
+  { code: 'US', name: 'United States', dial: '+1' },
+  { code: 'GB', name: 'United Kingdom', dial: '+44' },
+  { code: 'AE', name: 'United Arab Emirates', dial: '+971' },
+  { code: 'SA', name: 'Saudi Arabia', dial: '+966' },
+  { code: 'BD', name: 'Bangladesh', dial: '+880' },
+  { code: 'NP', name: 'Nepal', dial: '+977' },
+  { code: 'LK', name: 'Sri Lanka', dial: '+94' },
+  { code: 'CA', name: 'Canada', dial: '+1' },
+  { code: 'AU', name: 'Australia', dial: '+61' },
+  { code: 'SG', name: 'Singapore', dial: '+65' },
+  { code: 'MY', name: 'Malaysia', dial: '+60' },
+  { code: 'DE', name: 'Germany', dial: '+49' },
+  { code: 'FR', name: 'France', dial: '+33' },
+  { code: 'KE', name: 'Kenya', dial: '+254' },
+  { code: 'NG', name: 'Nigeria', dial: '+234' },
+  { code: 'ZA', name: 'South Africa', dial: '+27' },
+  { code: 'BR', name: 'Brazil', dial: '+55' },
+  { code: 'JP', name: 'Japan', dial: '+81' },
+  { code: 'QA', name: 'Qatar', dial: '+974' },
+  { code: 'KW', name: 'Kuwait', dial: '+965' },
+  { code: 'OM', name: 'Oman', dial: '+968' },
+  { code: 'ID', name: 'Indonesia', dial: '+62' },
+  { code: 'PH', name: 'Philippines', dial: '+63' },
+  { code: 'TH', name: 'Thailand', dial: '+66' },
+  { code: 'VN', name: 'Vietnam', dial: '+84' },
+  { code: 'NL', name: 'Netherlands', dial: '+31' },
+  { code: 'CH', name: 'Switzerland', dial: '+41' },
+  { code: 'IT', name: 'Italy', dial: '+39' },
+  { code: 'ES', name: 'Spain', dial: '+34' },
+  { code: 'NZ', name: 'New Zealand', dial: '+64' }
 ];
 
 export default function AuthPage({ mode = 'login' }) {
@@ -246,6 +261,49 @@ export default function AuthPage({ mode = 'login' }) {
       }}>
         <div style={{ width: '100%', maxWidth: 480 }}>
 
+          {/* Top Back Navigation Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.55rem 0.95rem',
+                borderRadius: '12px',
+                background: '#fff',
+                border: `1.5px solid ${primaryLight}`,
+                color: '#374151',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = primary; e.currentTarget.style.color = primary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = primaryLight; e.currentTarget.style.color = '#374151'; }}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Home</span>
+            </button>
+
+            <span style={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: primary,
+              background: '#fff',
+              border: `1.5px solid ${primaryLight}`,
+              padding: '0.45rem 0.85rem',
+              borderRadius: '12px',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            }}>
+              {isFarmer ? '🌾 Farmer Portal' : isDeliveryAgent ? '🚚 Delivery Portal' : '🛒 Buyer Portal'}
+            </span>
+          </div>
+
           {/* Card */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -259,8 +317,34 @@ export default function AuthPage({ mode = 'login' }) {
             }}
           >
             {/* Card Header */}
-            <div style={{ padding: '2rem 2rem 1.5rem', borderBottom: `1px solid ${primaryLight}`, textAlign: 'center' }}>
-              <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem' }}>
+            <div style={{ padding: '2rem 2rem 1.5rem', borderBottom: `1px solid ${primaryLight}`, textAlign: 'center', position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                title="Back to Home"
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.75rem',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  border: `1px solid ${primaryLight}`,
+                  background: '#f9fafb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#4b5563',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = primaryLight; e.currentTarget.style.color = primary; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.color = '#4b5563'; }}
+              >
+                <ArrowLeft size={18} />
+              </button>
+
+              <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 12,
                   background: primaryLight, display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -362,33 +446,43 @@ export default function AuthPage({ mode = 'login' }) {
                             type="button"
                             onClick={() => { setShowDialDropdown(v => !v); setDialSearch(''); }}
                             style={{
-                              display: 'flex', alignItems: 'center', gap: '5px',
-                              padding: '0.875rem 0.85rem',
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '0.85rem 0.75rem',
                               border: `1.5px solid ${errors.phone ? '#ef4444' : showDialDropdown ? primary : '#e5e7eb'}`,
                               borderRadius: 12,
                               background: '#f9fafb',
                               cursor: 'pointer',
                               whiteSpace: 'nowrap',
-                              minWidth: '108px',
+                              minWidth: '105px',
                               justifyContent: 'center',
                               transition: 'border-color 0.2s',
                               outline: 'none',
                             }}
                           >
-                            <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>
-                              {COUNTRY_CODES.find(c => c.dial === countryCode)?.flag || '🌐'}
-                            </span>
-                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#374151' }}>
-                              {countryCode}
-                            </span>
-                            <ChevronDown
-                              size={13}
+                            <img
+                              src={`https://flagcdn.com/w40/${(COUNTRY_CODES.find(c => c.dial === countryCode)?.code || 'in').toLowerCase()}.png`}
+                              alt=""
+                              width="22"
+                              height="15"
                               style={{
-                                color: '#9ca3af',
+                                objectFit: 'cover',
+                                borderRadius: '2px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                                display: 'block'
+                              }}
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                            <ChevronDown
+                              size={12}
+                              style={{
+                                color: '#6b7280',
                                 transition: 'transform 0.2s',
                                 transform: showDialDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                               }}
                             />
+                            <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#1f2937' }}>
+                              {countryCode}
+                            </span>
                           </button>
 
                           {/* Dropdown List */}
@@ -401,39 +495,43 @@ export default function AuthPage({ mode = 'login' }) {
                               background: '#fff',
                               border: '1.5px solid #e5e7eb',
                               borderRadius: 14,
-                              boxShadow: '0 8px 32px rgba(0,0,0,0.13)',
-                              width: '260px',
+                              boxShadow: '0 12px 36px rgba(0,0,0,0.16)',
+                              width: '280px',
                               overflow: 'hidden',
                             }}>
                               {/* Search */}
-                              <div style={{ padding: '8px 10px', borderBottom: '1px solid #f3f4f6' }}>
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  placeholder="Search country..."
-                                  value={dialSearch}
-                                  onChange={e => setDialSearch(e.target.value)}
-                                  style={{
-                                    width: '100%',
-                                    padding: '7px 10px',
-                                    border: '1.5px solid #e5e7eb',
-                                    borderRadius: 8,
-                                    fontSize: '0.82rem',
-                                    fontWeight: 600,
-                                    outline: 'none',
-                                    background: '#f9fafb',
-                                    color: '#1c1917',
-                                    boxSizing: 'border-box',
-                                  }}
-                                />
+                              <div style={{ padding: '8px 10px', borderBottom: '1px solid #f3f4f6', background: '#fafafa' }}>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                  <Search size={14} style={{ position: 'absolute', left: 9, color: '#9ca3af' }} />
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Search country or code..."
+                                    value={dialSearch}
+                                    onChange={e => setDialSearch(e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '7px 8px 7px 28px',
+                                      border: '1.5px solid #e5e7eb',
+                                      borderRadius: 8,
+                                      fontSize: '0.82rem',
+                                      fontWeight: 600,
+                                      outline: 'none',
+                                      background: '#fff',
+                                      color: '#1c1917',
+                                      boxSizing: 'border-box',
+                                    }}
+                                  />
+                                </div>
                               </div>
 
                               {/* Options */}
-                              <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                              <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                                 {COUNTRY_CODES
                                   .filter(c =>
                                     c.name.toLowerCase().includes(dialSearch.toLowerCase()) ||
-                                    c.dial.includes(dialSearch)
+                                    c.dial.includes(dialSearch) ||
+                                    c.code.toLowerCase().includes(dialSearch.toLowerCase())
                                   )
                                   .map(c => (
                                     <button
@@ -449,26 +547,43 @@ export default function AuthPage({ mode = 'login' }) {
                                         alignItems: 'center',
                                         gap: '10px',
                                         width: '100%',
-                                        padding: '9px 14px',
+                                        padding: '9px 12px',
                                         background: c.dial === countryCode ? '#f0fdf4' : 'transparent',
                                         border: 'none',
                                         cursor: 'pointer',
                                         textAlign: 'left',
-                                        borderBottom: '1px solid #f9fafb',
+                                        borderBottom: '1px solid #f3f4f6',
                                         transition: 'background 0.1s',
                                       }}
-                                      onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
                                       onMouseLeave={e => e.currentTarget.style.background = c.dial === countryCode ? '#f0fdf4' : 'transparent'}
                                     >
-                                      <span style={{ fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>{c.flag}</span>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', flex: 1 }}>{c.name}</span>
-                                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#6b7280' }}>{c.dial}</span>
+                                      <img
+                                        src={`https://flagcdn.com/w40/${c.code.toLowerCase()}.png`}
+                                        alt=""
+                                        width="24"
+                                        height="16"
+                                        style={{
+                                          objectFit: 'cover',
+                                          borderRadius: '2px',
+                                          boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                                          flexShrink: 0
+                                        }}
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                      />
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1f2937', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {c.name}
+                                      </span>
+                                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#6b7280', flexShrink: 0 }}>
+                                        {c.dial}
+                                      </span>
                                     </button>
                                   ))
                                 }
                                 {COUNTRY_CODES.filter(c =>
                                   c.name.toLowerCase().includes(dialSearch.toLowerCase()) ||
-                                  c.dial.includes(dialSearch)
+                                  c.dial.includes(dialSearch) ||
+                                  c.code.toLowerCase().includes(dialSearch.toLowerCase())
                                 ).length === 0 && (
                                   <div style={{ padding: '14px', textAlign: 'center', fontSize: '0.82rem', color: '#9ca3af', fontWeight: 600 }}>
                                     No country found

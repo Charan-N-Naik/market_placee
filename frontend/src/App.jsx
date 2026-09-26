@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Pages
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
+import FeatureDetailPage from './pages/FeatureDetailPage';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword';
 import VerifyEmail from './pages/Auth/VerifyEmail';
@@ -60,6 +61,7 @@ function App() {
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<LandingPage />} />
+                    <Route path="/features/:featureId" element={<FeatureDetailPage />} />
                     <Route path="/chat-test" element={<ChatTest />} />
                     <Route path="/login/:role" element={<AuthPage mode="login" />} />
                     <Route path="/register/:role" element={<AuthPage mode="register" />} />

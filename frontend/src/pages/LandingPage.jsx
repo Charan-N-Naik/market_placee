@@ -217,7 +217,7 @@ export default function LandingPage() {
                 topAccent="bg-gradient-to-r from-green-500 to-emerald-400"
                 shadowColor="hover:shadow-green-500/15 hover:border-green-300"
                 delay={0}
-                path="/login/farmer"
+                path="/features/ai-verification"
               />
               <FeatureCard
                 icon={<Zap className="w-7 h-7" />}
@@ -227,7 +227,7 @@ export default function LandingPage() {
                 topAccent="bg-gradient-to-r from-amber-400 to-amber-500"
                 shadowColor="hover:shadow-amber-500/15 hover:border-amber-300"
                 delay={0.1}
-                path="/register/farmer"
+                path="/features/lightning-listing"
               />
               <FeatureCard
                 icon={<Bot className="w-7 h-7" />}
@@ -237,7 +237,7 @@ export default function LandingPage() {
                 topAccent="bg-gradient-to-r from-sky-400 to-blue-500"
                 shadowColor="hover:shadow-sky-500/15 hover:border-sky-300"
                 delay={0.2}
-                path="/chat-test"
+                path="/features/ai-agronomist"
               />
               <FeatureCard
                 icon={<Smartphone className="w-7 h-7" />}
@@ -247,7 +247,7 @@ export default function LandingPage() {
                 topAccent="bg-gradient-to-r from-rose-400 to-pink-500"
                 shadowColor="hover:shadow-rose-500/15 hover:border-rose-300"
                 delay={0.3}
-                path="/register/buyer"
+                path="/features/direct-contact"
               />
             </div>
           </div>

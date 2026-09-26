@@ -149,7 +149,14 @@ export default function AddListingPage({ onSuccess }) {
   const validateForm = () => {
     const errors = {};
     if (!formData.cropName.trim())                  errors.cropName = 'Crop name is required';
-    if (!formData.quantity || parseInt(formData.quantity) <= 0) errors.quantity = 'Please enter a valid quantity';
+    const qtyVal = parseInt(formData.quantity) || 0;
+    if (!formData.quantity || qtyVal <= 0) {
+      errors.quantity = 'Please enter a valid quantity';
+    } else if (formData.unit === 'kg' && qtyVal < 50) {
+      errors.quantity = 'KisanBazaar is a bulk marketplace. Minimum listing quantity is 50 kg.';
+    } else if (formData.unit === 'quintal' && qtyVal < 1) {
+      errors.quantity = 'KisanBazaar is a bulk marketplace. Minimum listing quantity is 1 quintal.';
+    }
     if (!formData.price    || parseInt(formData.price)    <= 0) errors.price    = 'Please enter a valid price';
     if (!formData.harvestDate)                       errors.harvestDate = 'Harvest date is required';
     if (!formData.location)                          errors.location   = 'Please select a location';
@@ -370,19 +377,43 @@ export default function AddListingPage({ onSuccess }) {
 
           {/* Quantity */}
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Quantity</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                Quantity <span className="text-emerald-700 font-extrabold">(Bulk Min: {formData.unit === 'quintal' ? '1 quintal' : '50 kg'})</span>
+              </label>
+              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                🌾 Wholesale Bulk
+              </span>
+            </div>
             <div className="flex gap-2">
               <input type="number" name="quantity" value={formData.quantity} onChange={handleChange}
-                placeholder="500"
+                placeholder={formData.unit === 'quintal' ? "10" : "500"}
+                min={formData.unit === 'quintal' ? 1 : 50}
                 className={`flex-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm font-semibold outline-none focus:bg-white transition-all ${formErrors.quantity ? 'border-red-500' : 'border-gray-200'}`}
               />
               <select name="unit" value={formData.unit} onChange={handleChange}
-                className="px-3 py-3 border border-gray-200 rounded-xl text-sm font-semibold bg-gray-50 outline-none">
-                <option value="kg">kg</option>
-                <option value="quintal">quintal</option>
+                className="px-3 py-3 border border-gray-200 rounded-xl text-sm font-semibold bg-gray-50 outline-none cursor-pointer">
+                <option value="kg">kg (min 50 kg)</option>
+                <option value="quintal">quintal (min 1 qtl)</option>
               </select>
             </div>
-            {formErrors.quantity && <span className="text-[10px] text-red-500 mt-1 block">{formErrors.quantity}</span>}
+
+            {/* Quick bulk presets */}
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className="text-[10px] text-gray-400 font-bold uppercase">Quick Bulk:</span>
+              {(formData.unit === 'quintal' ? ['1', '5', '10', '25', '50'] : ['50', '100', '250', '500', '1000']).map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setFormData(p => ({ ...p, quantity: val }))}
+                  className="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-emerald-100 hover:text-emerald-800 text-[11px] font-bold text-gray-600 transition-colors"
+                >
+                  +{val} {formData.unit}
+                </button>
+              ))}
+            </div>
+
+            {formErrors.quantity && <span className="text-[10px] text-red-500 mt-1 block font-bold">{formErrors.quantity}</span>}
           </div>
 
           {/* Price */}

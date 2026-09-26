@@ -10,6 +10,21 @@ import fetch from 'node-fetch';
 // @access  Private (farmer)
 export const createListing = asyncHandler(async (req, res) => {
   const { cropName, variety, quantity, unit, pricePerUnit, description, isOrganic, premiumVerified } = req.body;
+
+  // Enforce bulk marketplace quantity minimum
+  const numQty = Number(quantity);
+  const normalizedUnit = (unit || 'kg').toLowerCase();
+  let qtyInKg = numQty;
+  if (normalizedUnit.includes('quintal')) {
+    qtyInKg = numQty * 100;
+  } else if (normalizedUnit.includes('ton')) {
+    qtyInKg = numQty * 1000;
+  }
+  if (qtyInKg < 50) {
+    res.status(400);
+    throw new Error('KisanBazaar is a bulk marketplace. Minimum listing quantity is 50 kg or 1 quintal.');
+  }
+
   // images are uploaded via multipart/form-data; expecting field "images" array
   const imageFiles = req.files || [];
   const uploadResults = await Promise.all(imageFiles.map(f => uploadToCloudinary(f.buffer, f.originalname)));
