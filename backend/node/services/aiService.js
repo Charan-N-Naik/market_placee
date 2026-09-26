@@ -5,8 +5,8 @@ import { verifyImageBatchLocally, computeImageProfile } from '../utils/imageAnal
 
 dotenv.config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 // ─── Multi-Angle Crop Quality Analysis (Groq llama-3.3-70b-versatile Engine) ──
 /**

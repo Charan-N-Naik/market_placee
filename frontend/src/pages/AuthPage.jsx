@@ -108,20 +108,24 @@ export default function AuthPage({ mode = 'login' }) {
     setIsSubmitting(true);
     try {
       if (isLogin) {
-        await login({ ...data, role: role || 'buyer' });
-        if (role === 'farmer') navigate('/farmer/dashboard');
-        else if (role === 'delivery_agent' || role === 'driver') navigate('/delivery/dashboard');
+        const loggedUser = await login({ ...data, role: role || 'buyer' });
+        const userRole = loggedUser?.role || role || 'buyer';
+        if (userRole === 'farmer') navigate('/farmer/dashboard');
+        else if (userRole === 'delivery_agent' || userRole === 'driver') navigate('/delivery/dashboard');
         else navigate('/buyer/dashboard');
       } else {
         const registerData = { ...data, role: role || 'buyer' };
         if (avatarFile) {
           registerData.avatar = avatarFile;
         }
-        await register(registerData);
-        if (role === 'delivery_agent' || role === 'driver') {
+        const registeredUser = await register(registerData);
+        const userRole = registeredUser?.role || role || 'buyer';
+        if (userRole === 'farmer') {
+          navigate('/farmer/dashboard');
+        } else if (userRole === 'delivery_agent' || userRole === 'driver') {
           navigate('/delivery/dashboard');
         } else {
-          navigate('/verify-email-pending');
+          navigate('/buyer/dashboard');
         }
       }
     } catch (error) {
