@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
@@ -71,6 +71,21 @@ export default function AuthPage({ mode = 'login' }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [countryCode, setCountryCode] = useState('+91');
+  const [showDialDropdown, setShowDialDropdown] = useState(false);
+  const [dialSearch, setDialSearch] = useState('');
+  const dialDropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dialDropdownRef.current && !dialDropdownRef.current.contains(e.target)) {
+        setShowDialDropdown(false);
+        setDialSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
   const [apiError, setApiError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -339,54 +354,129 @@ export default function AuthPage({ mode = 'login' }) {
                       <label style={labelStyle}>Phone Number</label>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
 
-                        {/* Country Code Button — shows flag + code, hides real select */}
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                          {/* Visible face: flag + dial */}
-                          <div style={{
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                            padding: '0.875rem 0.9rem',
-                            border: `1.5px solid ${errors.phone ? '#ef4444' : '#e5e7eb'}`,
-                            borderRadius: 12,
-                            background: '#f9fafb',
-                            fontSize: '1.25rem',
-                            fontWeight: 700,
-                            color: '#1c1917',
-                            pointerEvents: 'none',
-                            userSelect: 'none',
-                            whiteSpace: 'nowrap',
-                            minWidth: '100px',
-                            justifyContent: 'center',
-                          }}>
-                            <span style={{ fontSize: '1.45rem', lineHeight: 1 }}>
+                        {/* Custom Country Code Dropdown */}
+                        <div ref={dialDropdownRef} style={{ position: 'relative', flexShrink: 0 }}>
+
+                          {/* Trigger Button */}
+                          <button
+                            type="button"
+                            onClick={() => { setShowDialDropdown(v => !v); setDialSearch(''); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '5px',
+                              padding: '0.875rem 0.85rem',
+                              border: `1.5px solid ${errors.phone ? '#ef4444' : showDialDropdown ? primary : '#e5e7eb'}`,
+                              borderRadius: 12,
+                              background: '#f9fafb',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              minWidth: '108px',
+                              justifyContent: 'center',
+                              transition: 'border-color 0.2s',
+                              outline: 'none',
+                            }}
+                          >
+                            <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>
                               {COUNTRY_CODES.find(c => c.dial === countryCode)?.flag || '🌐'}
                             </span>
                             <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#374151' }}>
                               {countryCode}
                             </span>
-                            <ChevronDown size={13} style={{ color: '#9ca3af', marginLeft: 2 }} />
-                          </div>
+                            <ChevronDown
+                              size={13}
+                              style={{
+                                color: '#9ca3af',
+                                transition: 'transform 0.2s',
+                                transform: showDialDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                              }}
+                            />
+                          </button>
 
-                          {/* Actual invisible select on top */}
-                          <select
-                            value={countryCode}
-                            onChange={(e) => setCountryCode(e.target.value)}
-                            aria-label="Country Code"
-                            style={{
+                          {/* Dropdown List */}
+                          {showDialDropdown && (
+                            <div style={{
                               position: 'absolute',
-                              inset: 0,
-                              width: '100%',
-                              height: '100%',
-                              opacity: 0,
-                              cursor: 'pointer',
-                              fontSize: '1rem',
-                            }}
-                          >
-                            {COUNTRY_CODES.map((c) => (
-                              <option key={`${c.code}-${c.dial}`} value={c.dial}>
-                                {c.flag}  {c.name}  ({c.dial})
-                              </option>
-                            ))}
-                          </select>
+                              top: 'calc(100% + 6px)',
+                              left: 0,
+                              zIndex: 999,
+                              background: '#fff',
+                              border: '1.5px solid #e5e7eb',
+                              borderRadius: 14,
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.13)',
+                              width: '260px',
+                              overflow: 'hidden',
+                            }}>
+                              {/* Search */}
+                              <div style={{ padding: '8px 10px', borderBottom: '1px solid #f3f4f6' }}>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  placeholder="Search country..."
+                                  value={dialSearch}
+                                  onChange={e => setDialSearch(e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    padding: '7px 10px',
+                                    border: '1.5px solid #e5e7eb',
+                                    borderRadius: 8,
+                                    fontSize: '0.82rem',
+                                    fontWeight: 600,
+                                    outline: 'none',
+                                    background: '#f9fafb',
+                                    color: '#1c1917',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </div>
+
+                              {/* Options */}
+                              <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                                {COUNTRY_CODES
+                                  .filter(c =>
+                                    c.name.toLowerCase().includes(dialSearch.toLowerCase()) ||
+                                    c.dial.includes(dialSearch)
+                                  )
+                                  .map(c => (
+                                    <button
+                                      key={`${c.code}-${c.dial}`}
+                                      type="button"
+                                      onClick={() => {
+                                        setCountryCode(c.dial);
+                                        setShowDialDropdown(false);
+                                        setDialSearch('');
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        width: '100%',
+                                        padding: '9px 14px',
+                                        background: c.dial === countryCode ? '#f0fdf4' : 'transparent',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        borderBottom: '1px solid #f9fafb',
+                                        transition: 'background 0.1s',
+                                      }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                                      onMouseLeave={e => e.currentTarget.style.background = c.dial === countryCode ? '#f0fdf4' : 'transparent'}
+                                    >
+                                      <span style={{ fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>{c.flag}</span>
+                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151', flex: 1 }}>{c.name}</span>
+                                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#6b7280' }}>{c.dial}</span>
+                                    </button>
+                                  ))
+                                }
+                                {COUNTRY_CODES.filter(c =>
+                                  c.name.toLowerCase().includes(dialSearch.toLowerCase()) ||
+                                  c.dial.includes(dialSearch)
+                                ).length === 0 && (
+                                  <div style={{ padding: '14px', textAlign: 'center', fontSize: '0.82rem', color: '#9ca3af', fontWeight: 600 }}>
+                                    No country found
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Phone Digits Input */}
