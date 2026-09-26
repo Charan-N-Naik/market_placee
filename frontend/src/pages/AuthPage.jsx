@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Mail, Lock, Phone, User as UserIcon, MapPin, Building, Sprout, ArrowRight, Leaf, Map, Camera, X, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Phone, User as UserIcon, MapPin, Building, Sprout, ArrowRight, Leaf, Map, Camera, X, AlertCircle, ChevronDown } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -36,7 +36,32 @@ function LocationMarker({ onLocationSelected }) {
     <Marker position={position}></Marker>
   );
 }
-import { loginSchema, farmerRegisterSchema, buyerRegisterSchema } from '../lib/validations/authSchema';
+import { loginSchema, farmerRegisterSchema, buyerRegisterSchema, deliveryAgentRegisterSchema } from '../lib/validations/authSchema';
+
+const COUNTRY_CODES = [
+  { code: 'IN', name: 'India', dial: '+91', flag: '🇮🇳' },
+  { code: 'US', name: 'United States', dial: '+1', flag: '🇺🇸' },
+  { code: 'GB', name: 'United Kingdom', dial: '+44', flag: '🇬🇧' },
+  { code: 'AE', name: 'UAE', dial: '+971', flag: '🇦🇪' },
+  { code: 'SA', name: 'Saudi Arabia', dial: '+966', flag: '🇸🇦' },
+  { code: 'BD', name: 'Bangladesh', dial: '+880', flag: '🇧🇩' },
+  { code: 'NP', name: 'Nepal', dial: '+977', flag: '🇳🇵' },
+  { code: 'LK', name: 'Sri Lanka', dial: '+94', flag: '🇱🇰' },
+  { code: 'CA', name: 'Canada', dial: '+1', flag: '🇨🇦' },
+  { code: 'AU', name: 'Australia', dial: '+61', flag: '🇦🇺' },
+  { code: 'SG', name: 'Singapore', dial: '+65', flag: '🇸🇬' },
+  { code: 'MY', name: 'Malaysia', dial: '+60', flag: '🇲🇾' },
+  { code: 'DE', name: 'Germany', dial: '+49', flag: '🇩🇪' },
+  { code: 'FR', name: 'France', dial: '+33', flag: '🇫🇷' },
+  { code: 'KE', name: 'Kenya', dial: '+254', flag: '🇰🇪' },
+  { code: 'NG', name: 'Nigeria', dial: '+234', flag: '🇳🇬' },
+  { code: 'ZA', name: 'South Africa', dial: '+27', flag: '🇿🇦' },
+  { code: 'BR', name: 'Brazil', dial: '+55', flag: '🇧🇷' },
+  { code: 'JP', name: 'Japan', dial: '+81', flag: '🇯🇵' },
+  { code: 'QA', name: 'Qatar', dial: '+974', flag: '🇶🇦' },
+  { code: 'KW', name: 'Kuwait', dial: '+965', flag: '🇰🇼' },
+  { code: 'OM', name: 'Oman', dial: '+968', flag: '🇴🇲' },
+];
 
 export default function AuthPage({ mode = 'login' }) {
   const { role } = useParams();
@@ -45,6 +70,7 @@ export default function AuthPage({ mode = 'login' }) {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [countryCode, setCountryCode] = useState('+91');
   const [apiError, setApiError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -92,7 +118,7 @@ export default function AuthPage({ mode = 'login' }) {
 
   const schema = isLogin
     ? loginSchema
-    : (isFarmer ? farmerRegisterSchema : buyerRegisterSchema);
+    : (isFarmer ? farmerRegisterSchema : (isDeliveryAgent ? deliveryAgentRegisterSchema : buyerRegisterSchema));
 
   const {
     register: formRegister,
@@ -114,7 +140,14 @@ export default function AuthPage({ mode = 'login' }) {
         else if (userRole === 'delivery_agent' || userRole === 'driver') navigate('/delivery/dashboard');
         else navigate('/buyer/dashboard');
       } else {
-        const registerData = { ...data, role: role || 'buyer' };
+        const cleanPhone = (data.phone || '').trim();
+        const fullPhone = `${countryCode}${cleanPhone.startsWith('0') ? cleanPhone.slice(1) : cleanPhone}`;
+        const registerData = {
+          ...data,
+          phone: fullPhone,
+          countryCode,
+          role: role || 'buyer'
+        };
         if (avatarFile) {
           registerData.avatar = avatarFile;
         }
@@ -304,13 +337,61 @@ export default function AuthPage({ mode = 'login' }) {
                     {/* Phone */}
                     <div>
                       <label style={labelStyle}>Phone Number</label>
-                      <div style={fieldWrap}>
-                        <Phone size={16} style={iconStyle} />
-                        <input
-                          {...formRegister('phone')}
-                          style={inputStyle(errors.phone)}
-                          placeholder="9876543210"
-                        />
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                        {/* Country Code Select */}
+                        <div style={{ position: 'relative', width: '124px', flexShrink: 0 }}>
+                          <select
+                            value={countryCode}
+                            onChange={(e) => setCountryCode(e.target.value)}
+                            aria-label="Country Code"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              padding: '0.875rem 1.6rem 0.875rem 0.75rem',
+                              border: `1.5px solid ${errors.phone ? '#ef4444' : '#e5e7eb'}`,
+                              borderRadius: 12,
+                              outline: 'none',
+                              fontSize: '0.88rem',
+                              fontWeight: 700,
+                              color: '#1c1917',
+                              background: '#f9fafb',
+                              cursor: 'pointer',
+                              appearance: 'none',
+                              WebkitAppearance: 'none',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            {COUNTRY_CODES.map((c) => (
+                              <option key={`${c.code}-${c.dial}`} value={c.dial}>
+                                {c.flag} {c.dial}
+                              </option>
+                            ))}
+                          </select>
+                          <div style={{
+                            position: 'absolute',
+                            right: '0.55rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none',
+                            color: '#6b7280',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            <ChevronDown size={14} />
+                          </div>
+                        </div>
+
+                        {/* Phone Digits Input */}
+                        <div style={{ ...fieldWrap, flex: 1 }}>
+                          <Phone size={16} style={iconStyle} />
+                          <input
+                            type="tel"
+                            {...formRegister('phone')}
+                            style={inputStyle(errors.phone)}
+                            placeholder="9876543210"
+                            maxLength={15}
+                          />
+                        </div>
                       </div>
                       {errors.phone && <p style={errorStyle}>{errors.phone.message}</p>}
                     </div>

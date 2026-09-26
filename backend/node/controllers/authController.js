@@ -37,7 +37,15 @@ export const registerUser = async (req, res, next) => {
       aadhaarNumber, kisanId, gstNumber, licenseNumber 
     } = req.body;
 
-    const userExists = await User.findOne({ $or: [{ phone }, { email }] });
+    const trimmedPhone = phone?.trim() || '';
+    const userExists = await User.findOne({
+      $or: [
+        { phone: trimmedPhone },
+        { phone: trimmedPhone.startsWith('+') ? trimmedPhone : `+91${trimmedPhone}` },
+        { phone: trimmedPhone.replace(/^\+91/, '') },
+        { email: email?.toLowerCase() }
+      ]
+    });
 
     if (userExists) {
       res.status(400);
@@ -154,7 +162,15 @@ export const registerUser = async (req, res, next) => {
 export const loginUser = async (req, res, next) => {
   try {
     const { loginId, password, role, rememberMe } = req.body;
-    const user = await User.findOne({ $or: [{ phone: loginId }, { email: loginId }] });
+    const cleanLoginId = loginId?.trim() || '';
+    const user = await User.findOne({
+      $or: [
+        { phone: cleanLoginId },
+        { phone: cleanLoginId.startsWith('+') ? cleanLoginId : `+91${cleanLoginId}` },
+        { phone: cleanLoginId.replace(/^\+91/, '') },
+        { email: cleanLoginId.toLowerCase() }
+      ]
+    });
 
     if (user && (await user.matchPassword(password))) {
       if (role && user.role !== role) {
