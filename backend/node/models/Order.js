@@ -13,14 +13,14 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'packed', 'paid', 'shipped', 'delivered', 'received', 'cancelled', 'refunded'],
+      enum: ['pending', 'accepted', 'packed', 'paid', 'shipped', 'collected', 'delivered', 'received', 'cancelled', 'refunded'],
       default: 'pending',
     },
     farmer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Denormalized for fast farmer queries
     paymentMethod: {
       type: String,
-      enum: ['online', 'cod', 'wallet'],
-      default: 'online',
+      enum: ['online', 'cod', 'wallet', 'pending_farmer_approval', 'upi', 'card', 'netbanking'],
+      default: 'pending_farmer_approval',
     },
     paymentId: { type: String },
     invoiceUrl: { type: String },

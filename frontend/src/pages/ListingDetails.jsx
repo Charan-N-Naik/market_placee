@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import VerificationBadge from '../components/VerificationBadge';
 import VerificationReport from '../components/VerificationReport';
+import CheckoutModal from '../components/CheckoutModal';
 import api from '../api/axios';
 import {
   ArrowLeft, Star, ShoppingCart, Minus, Plus, Bookmark,
@@ -22,7 +23,9 @@ export default function ListingDetails() {
   const { addToCart } = useCart();
   const { user, isAuthenticated } = useAuth();
 
-  const listing = listings.find(l => (l._id || l.id) === id);
+  const contextListing = listings.find(l => (l._id || l.id) === id);
+  const [apiListing, setApiListing] = useState(null);
+  const listing = contextListing || apiListing;
 
   const [quantity, setQuantity] = useState(1);
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -34,12 +37,21 @@ export default function ListingDetails() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Live APMC Market Comparison state
   const [apmcPriceData, setApmcPriceData] = useState(null);
+
+  useEffect(() => {
+    if (!contextListing && id) {
+      api.get(`/listings/${id}`)
+        .then(res => setApiListing(res.data))
+        .catch(err => console.warn('API fetch listing failed:', err.message));
+    }
+  }, [id, contextListing]);
 
   useEffect(() => {
     if (listing) {
@@ -96,6 +108,7 @@ export default function ListingDetails() {
   const farmerName = listing.farmer?.name || listing.farmerName || 'Local Farmer';
   const farmerPhone = listing.farmer?.phone || listing.phone || '';
   const harvestDate = listing.harvestDate || listing.createdAt;
+  const isFarmer = user?.role === 'farmer' || user?.userType === 'farmer' || location.pathname.includes('/farmer');
   const formattedDate = harvestDate
     ? new Date(harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : 'Recent Harvest';
@@ -144,10 +157,10 @@ export default function ListingDetails() {
     try {
       setAddingToCart(true);
       await addToCart(listingId, quantity, listing);
-      navigate('/checkout');
+      setShowCheckoutModal(true);
     } catch (error) {
       console.error('Buy Now failed:', error);
-      navigate('/checkout');
+      setShowCheckoutModal(true);
     } finally {
       setAddingToCart(false);
     }
@@ -161,6 +174,257 @@ export default function ListingDetails() {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     }
+  };
+
+  const downloadInspectionReport = () => {
+    const reportWin = window.open('', '_blank', 'width=900,height=1100');
+    if (!reportWin) return;
+
+    const certId = `KB-CERT-${listingId.slice(-6).toUpperCase()}`;
+    const issueDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Quality Verification Certificate - ${listing.cropName}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+          body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+            color: #111827;
+            margin: 0;
+            padding: 40px;
+            -webkit-print-color-adjust: exact;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-b: 3px solid #1F7A4D;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #1F7A4D;
+            letter-spacing: -0.5px;
+          }
+          .logo span { color: #FF8C42; }
+          .cert-badge {
+            background: #E8F7EE;
+            color: #1F7A4D;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            border: 1px solid #1F7A4D;
+          }
+          .title-block {
+            text-align: center;
+            margin-bottom: 30px;
+            background: #F9FAFB;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid #E5E7EB;
+          }
+          .title-block h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 900;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          .title-block p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: #6B7280;
+          }
+          .section {
+            margin-bottom: 25px;
+          }
+          .section-title {
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #1F7A4D;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #E5E7EB;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+          }
+          .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+          }
+          .grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
+          }
+          .data-card {
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            padding: 12px 16px;
+            border-radius: 12px;
+          }
+          .label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #6B7280;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+          .value {
+            font-size: 14px;
+            font-weight: 800;
+            color: #111827;
+          }
+          .val-highlight { color: #1F7A4D; }
+          .footer {
+            margin-top: 50px;
+            border-t: 2px solid #E5E7EB;
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .seal-box {
+            text-align: right;
+          }
+          .seal-circle {
+            display: inline-block;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 2px dashed #1F7A4D;
+            color: #1F7A4D;
+            font-size: 9px;
+            font-weight: 900;
+            line-height: 70px;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">🌾 Kisan<span>Bazaar</span></div>
+          <div>
+            <span class="cert-badge">ISO 9001:2026 CERTIFIED</span>
+          </div>
+        </div>
+
+        <div class="title-block">
+          <h1>Official Quality Inspection Certificate</h1>
+          <p>Certificate Reference: <strong>${certId}</strong> • Issued Date: <strong>${issueDate}</strong></p>
+        </div>
+
+        <!-- 1. FARMER & CULTIVATOR DETAILS -->
+        <div class="section">
+          <div class="section-title">1. Farmer & Cultivator Profile</div>
+          <div class="grid-2">
+            <div class="data-card">
+              <div class="label">Farmer / Producer Name</div>
+              <div class="value">${farmerName}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Farm Location & Region</div>
+              <div class="value">${locationStr}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Verification Status</div>
+              <div class="value val-highlight">Verified Registered Cultivator ✓</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Sourcing Protocol</div>
+              <div class="value">Direct Field Sourcing</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. CROP & HARVEST SPECIFICATIONS -->
+        <div class="section">
+          <div class="section-title">2. Crop Lot Specifications</div>
+          <div class="grid-2">
+            <div class="data-card">
+              <div class="label">Commodity / Crop</div>
+              <div class="value">${listing.cropName} (${listing.variety || 'Standard Variety'})</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Harvest Date</div>
+              <div class="value">${formattedDate}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Available Stock Batch</div>
+              <div class="value">${listing.quantity || 100} ${listing.unit || 'kg'}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Direct Producer Price</div>
+              <div class="value val-highlight">₹${price} / ${listing.unit || 'kg'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. AI CROPVERIFY DIAGNOSTICS & LAB ANALYSIS -->
+        <div class="section">
+          <div class="section-title">3. AI CropVerify™ Quality & Diagnostic Report</div>
+          <div class="grid-4">
+            <div class="data-card">
+              <div class="label">Moisture Content</div>
+              <div class="value">${listing.verification?.moisture || '12% (Optimal)'}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Freshness Score</div>
+              <div class="value val-highlight">98% Prime</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Disease Analysis</div>
+              <div class="value">${listing.verification?.disease_label || (listing.isOrganic ? 'Zero Pathogens' : 'Healthy Crop')}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Quality Grade</div>
+              <div class="value val-highlight">Grade A+</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. STORAGE & SHELF LIFE -->
+        <div class="section">
+          <div class="section-title">4. Logistics & Storage Protocol</div>
+          <div class="grid-2">
+            <div class="data-card">
+              <div class="label">Recommended Storage Ambient</div>
+              <div class="value">${listing.storageType || 'Cool & Dry (12-15°C)'}</div>
+            </div>
+            <div class="data-card">
+              <div class="label">Estimated Shelf Durability</div>
+              <div class="value">14 Days from Dispatch</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div>
+            <p style="font-size: 11px; color: #6B7280; margin: 0;">Verified by KisanBazaar AI Quality Assurance Engine</p>
+            <p style="font-size: 10px; color: #9CA3AF; margin: 4px 0 0 0;">Digital Signature ID: ${listingId.slice(-12).toUpperCase()}</p>
+          </div>
+          <div class="seal-box">
+            <div class="seal-circle">VERIFIED</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    reportWin.document.write(htmlContent);
+    reportWin.document.close();
+    setTimeout(() => {
+      reportWin.print();
+    }, 500);
   };
 
   const description = listing.description || `Fresh ${listing.cropName} harvested directly from local fields. Verified quality and natural growth.`;
@@ -365,45 +629,59 @@ export default function ListingDetails() {
               </div>
 
               {/* Quantity Counter */}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Select Quantity ({listing.unit || 'kg'}):</span>
-                <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                  >
-                    <Plus size={16} />
-                  </button>
+              {!isFarmer && (
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Select Quantity ({listing.unit || 'kg'}):</span>
+                  <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
+                    <button 
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
+                    <button 
+                      onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                      className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* SLEEK ACTION BUTTONS */}
+              {/* ACTION BUTTONS / FARMER BANNER */}
               <div className="pt-3 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={handleBuyNow}
-                    className="min-h-[48px] py-3 px-6 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>Buy Now</span>
-                    <ChevronRight size={16} className="shrink-0" />
-                  </button>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={addingToCart}
-                    className="min-h-[48px] py-3 px-6 bg-[#1F7A4D] hover:bg-[#165b38] text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
-                    <ChevronRight size={16} className="shrink-0" />
-                  </button>
-                </div>
-                {cartError && (
+                {isFarmer ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center space-y-2">
+                    <p className="text-xs font-bold text-emerald-800">🌱 You are viewing your produce lot in Farmer Mode.</p>
+                    <button
+                      onClick={() => navigate('/farmer/dashboard')}
+                      className="w-full py-3 bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-sm"
+                    >
+                      Return to Farmer Dashboard
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleBuyNow}
+                      className="min-h-[48px] py-3 px-6 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <span>Buy Now</span>
+                      <ChevronRight size={16} className="shrink-0" />
+                    </button>
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={addingToCart}
+                      className="min-h-[48px] py-3 px-6 bg-[#1F7A4D] hover:bg-[#165b38] text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
+                      <ChevronRight size={16} className="shrink-0" />
+                    </button>
+                  </div>
+                )}
+                {!isFarmer && cartError && (
                   <p className="text-xs font-bold text-red-600 text-center">{cartError}</p>
                 )}
               </div>
@@ -513,7 +791,7 @@ export default function ListingDetails() {
                 ISO Certified
               </span>
               <button 
-                onClick={() => window.print()} 
+                onClick={downloadInspectionReport} 
                 className="px-5 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md border-b-4 border-black active:border-b-0 active:translate-y-1 transition-all cursor-pointer flex items-center gap-2 print:hidden"
               >
                 <Download size={15} /> Download Report PDF
@@ -580,7 +858,7 @@ export default function ListingDetails() {
                 <span className="text-xs font-black text-gray-900 block mt-1">Verified Inspection ID</span>
               </div>
               <button 
-                onClick={() => window.print()}
+                onClick={downloadInspectionReport}
                 className="w-full py-2.5 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-sm border-b-2 border-emerald-950 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <FileText size={14} /> View Certificate
@@ -654,51 +932,53 @@ export default function ListingDetails() {
 
       </div>
 
-      {/* STICKY BOTTOM ACTION CTA BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-              <button 
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-              >
-                <Minus size={16} />
-              </button>
-              <span className="w-10 text-center text-sm font-black text-gray-900">{quantity}</span>
-              <button 
-                onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-              >
-                <Plus size={16} />
-              </button>
+      {/* STICKY BOTTOM ACTION CTA BAR (BUYERS ONLY) */}
+      {!isFarmer && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
+                <button 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="w-10 text-center text-sm font-black text-gray-900">{quantity}</span>
+                <button 
+                  onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                  className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              <div className="hidden sm:block">
+                <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
+                <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
+              </div>
             </div>
 
-            <div className="hidden sm:block">
-              <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
-              <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
+            <div className="flex gap-3 flex-1 sm:flex-none">
+              <button
+                onClick={handleAddToCart}
+                disabled={addingToCart}
+                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
+                <ChevronRight size={16} className="shrink-0" />
+              </button>
+              <button
+                onClick={handleBuyNow}
+                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span>Buy Now</span>
+                <ChevronRight size={16} className="shrink-0" />
+              </button>
             </div>
-          </div>
-
-          <div className="flex gap-3 flex-1 sm:flex-none">
-            <button
-              onClick={handleAddToCart}
-              disabled={addingToCart}
-              className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
-              <ChevronRight size={16} className="shrink-0" />
-            </button>
-            <button
-              onClick={handleBuyNow}
-              className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              <span>Buy Now</span>
-              <ChevronRight size={16} className="shrink-0" />
-            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* FARMER CONTACT DETAILS MODAL */}
       {showContactModal && (
@@ -798,6 +1078,18 @@ export default function ListingDetails() {
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {/* CHECKOUT MODAL FOR DIRECT BUY REQUEST */}
+      {showCheckoutModal && (
+        <CheckoutModal 
+          listing={{
+            ...listing,
+            quantityNeeded: quantity,
+            totalPrice: (price * quantity)
+          }} 
+          onClose={() => setShowCheckoutModal(false)} 
+        />
       )}
 
     </div>

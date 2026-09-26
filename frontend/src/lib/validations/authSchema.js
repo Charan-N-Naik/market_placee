@@ -25,10 +25,14 @@ export const commonRegisterSchema = z.object({
 export const farmerRegisterSchema = commonRegisterSchema.extend({
   farmSize: z.string().min(1, 'Farm size is required'),
   primaryCrops: z.string().min(1, 'Primary crops are required'),
+  kisanId: z.string().optional(),
+  aadhaarNumber: z.string().optional(),
 });
 
 export const buyerRegisterSchema = commonRegisterSchema.extend({
   businessName: z.string().min(2, 'Business name is required'),
+  gstNumber: z.string().optional(),
+  licenseNumber: z.string().optional(),
   orderVolume: z.string().optional(),
   produceType: z.string().optional(),
 });

@@ -209,48 +209,11 @@ export default function CheckoutPage() {
         quantity: i.quantity,
       })),
       deliveryAddress,
-      paymentMethod: payMethod === 'cod' ? 'cod' : 'online',
+      paymentMethod: 'pending_farmer_approval',
+      totalAmount: total,
     };
 
     try {
-      if (payMethod === 'online') {
-        const loaded = await loadRazorpayScript();
-        let rzpOrder = null;
-        try {
-          const r = await api.post('/payments/create', { amount: total, currency: 'INR' });
-          rzpOrder = r.data;
-        } catch (_) { console.warn('Razorpay order creation failed, falling back.'); }
-
-        if (loaded && window.Razorpay && rzpOrder?.order?.id && !rzpOrder?.order?.id?.includes('sim_')) {
-          const opts = {
-            key: rzpOrder.order.key_id || 'rzp_test_dummy',
-            amount: rzpOrder.order.amount,
-            currency: rzpOrder.order.currency,
-            name: 'KisanBazaar',
-            description: 'Crop Purchase',
-            order_id: rzpOrder.order.id,
-            handler: async (resp) => {
-              try {
-                const res = await api.post('/orders', { ...payload, paymentId: resp.razorpay_payment_id });
-                setOrderResult({ status: 'success', data: res.data });
-                fetchCart();
-              } catch (err) {
-                setOrderResult({ status: 'failed', error: err.response?.data?.message || 'Payment verification failed' });
-              } finally { setPlacing(false); }
-            },
-            prefill: { name: user?.name || activeAddr.name, email: user?.email || '', contact: user?.phone || activeAddr.phone },
-            theme: { color: '#ea580c' },
-          };
-          const rzp = new window.Razorpay(opts);
-          rzp.on('payment.failed', (resp) => {
-            setPlacing(false);
-            setOrderResult({ status: 'failed', error: resp.error.description || 'Payment cancelled or failed.' });
-          });
-          rzp.open();
-          return;
-        }
-      }
-      // COD or fallback
       let orderData = null;
       try {
         const res = await api.post('/orders', payload);
@@ -267,22 +230,22 @@ export default function CheckoutPage() {
           })),
           totalAmount: total,
           status: 'pending',
-          paymentMethod: payMethod,
+          paymentMethod: 'pending_farmer_approval',
           deliveryAddress,
           createdAt: new Date().toISOString()
         };
       }
 
-      // Save order locally so it instantly shows in Buyer Pending Orders
-      const existingOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
-      localStorage.setItem('kisan_orders', JSON.stringify([orderData, ...existingOrders]));
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const existingOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+      localStorage.setItem(ordersKey, JSON.stringify([orderData, ...existingOrders]));
 
-      // Create Farmer Notification so farmer sees order alert
+      // Create Farmer Notification so farmer sees order alert in Gmail inbox
       const cropNamesStr = cartItems.map(i => i.listing?.cropName || 'Crop').join(', ');
       const farmerNotif = {
         id: 'notif-' + Date.now(),
-        title: '🌾 New Direct Crop Order Received!',
-        message: `A buyer placed an order for ${cropNamesStr} (Total: ₹${total.toLocaleString('en-IN')}). Order ID: #${orderData.orderId || orderData._id?.slice?.(-6)}`,
+        title: '🌾 New Direct Crop Order Request Received!',
+        message: `A buyer submitted a Buy Request for ${cropNamesStr} (Total: ₹${total.toLocaleString('en-IN')}). Order ID: #${orderData.orderId || orderData._id?.slice?.(-6)}`,
         time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
         date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
         type: 'order',
@@ -295,9 +258,10 @@ export default function CheckoutPage() {
       window.dispatchEvent(new CustomEvent('new_order_placed', { detail: { order: orderData, notification: farmerNotif } }));
 
       setOrderResult({ status: 'success', data: orderData });
-      await fetchCart();
+      fetchCart();
+      setStep(4);
     } catch (err) {
-      setOrderResult({ status: 'failed', error: err.response?.data?.message || 'Failed to place order.' });
+      setOrderResult({ status: 'failed', error: err.response?.data?.message || 'Failed to submit buy request.' });
     } finally {
       setPlacing(false);
     }
@@ -332,27 +296,24 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <h1 style={S.successTitle}>Order Placed!</h1>
+            <h1 style={S.successTitle}>Buy Request Sent! 🌾</h1>
             <p style={S.successSub}>
-              Your order has been confirmed and sent to the farmer. Thank you for supporting Bharat's agriculture.
+              Your buy request has been sent to the farmer's inbox. Once the farmer accepts your request, you can complete payment from your Approved Requests section.
             </p>
 
             <div style={S.metaCard}>
-              <MetaRow label="Order ID" value={`#${oid}`} highlight />
-              <MetaRow label="Payment" value={payMethod === 'cod' ? 'Cash on Delivery' : 'Online (Verified)'} />
-              <MetaRow label="Amount" value={`₹${total.toLocaleString('en-IN')}`} highlight />
+              <MetaRow label="Request ID" value={`#${oid}`} highlight />
+              <MetaRow label="Status" value="Pending Farmer Approval" />
+              <MetaRow label="Estimated Amount" value={`₹${total.toLocaleString('en-IN')}`} highlight />
               <MetaRow label="Deliver To" value={`${activeAddr?.city}, ${activeAddr?.state}`} />
             </div>
 
             <div style={S.successActions}>
-              <button onClick={downloadInvoice} style={S.outlineBtn}>
-                <Download size={16} /> Download Invoice
-              </button>
               <button onClick={() => navigate('/buyer/pending-orders')} style={S.primaryBtn}>
-                <Eye size={16} /> View My Orders
+                <Eye size={16} /> Track Request Status
               </button>
               <button onClick={() => navigate('/buyer/dashboard')} style={S.ghostBtn}>
-                Continue Shopping <ArrowRight size={16} />
+                Continue Sourcing <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -583,67 +544,20 @@ export default function CheckoutPage() {
           {step === 3 && (
             <div style={S.card}>
               <SectionHead icon={CreditCard} title="Payment Method" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-                {/* Online */}
-                <div onClick={() => setPayMethod('online')} style={{
-                  ...S.payCard,
-                  borderColor: payMethod === 'online' ? '#ea580c' : '#f4f4f5',
-                  background: payMethod === 'online' ? '#fff7ed' : '#fff',
-                  boxShadow: payMethod === 'online' ? '0 0 0 3px rgba(234,88,12,0.08)' : 'none',
-                }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <RadioDot selected={payMethod === 'online'} />
-                    <div style={{ flex: 1 }}>
-                      <h4 style={S.payTitle}>Online Payment</h4>
-                      <p style={S.payDesc}>UPI, Cards, Net Banking — instant verification via Razorpay</p>
-
-                      {payMethod === 'online' && (
-                        <div style={S.subPayGrid}>
-                          {[
-                            { id: 'razorpay', label: 'Razorpay', icon: Wallet },
-                            { id: 'upi', label: 'UPI / GPay', icon: Smartphone },
-                            { id: 'card', label: 'Card', icon: CreditCard },
-                            { id: 'netbanking', label: 'Net Banking', icon: Building2 },
-                          ].map(s => (
-                            <button key={s.id} onClick={(e) => { e.stopPropagation(); setOnlineSub(s.id); }} style={{
-                              ...S.subPayChip,
-                              borderColor: onlineSub === s.id ? '#ea580c' : '#e4e4e7',
-                              background: onlineSub === s.id ? '#fff' : '#fafaf9',
-                              color: onlineSub === s.id ? '#ea580c' : '#52525b',
-                              fontWeight: onlineSub === s.id ? 700 : 500,
-                              boxShadow: onlineSub === s.id ? '0 2px 8px rgba(234,88,12,0.12)' : 'none',
-                            }}>
-                              <s.icon size={14} />
-                              {s.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+              {/* 2-Stage Farmer Approval Banner */}
+              <div className="p-5 bg-amber-50/80 border border-amber-200/80 rounded-2xl mb-6 space-y-2 text-amber-900">
+                <div className="flex items-center gap-2 font-black text-sm text-amber-800">
+                  <Sparkles size={18} className="text-amber-600" />
+                  <span>2-Stage Farmer Approval Process</span>
                 </div>
-
-                {/* COD */}
-                <div onClick={() => setPayMethod('cod')} style={{
-                  ...S.payCard,
-                  borderColor: payMethod === 'cod' ? '#ea580c' : '#f4f4f5',
-                  background: payMethod === 'cod' ? '#fff7ed' : '#fff',
-                  boxShadow: payMethod === 'cod' ? '0 0 0 3px rgba(234,88,12,0.08)' : 'none',
-                }}>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <RadioDot selected={payMethod === 'cod'} />
-                    <div>
-                      <h4 style={S.payTitle}>Cash on Delivery</h4>
-                      <p style={S.payDesc}>Pay in cash when your crop shipment arrives</p>
-                    </div>
-                  </div>
-                </div>
+                <p className="text-xs font-medium leading-relaxed text-amber-800">
+                  Submitting this request alerts the farmer in their notification inbox. You do <strong>NOT</strong> pay now. Once the farmer accepts your request, you can complete payment from your <strong>Approved Requests</strong> section.
+                </p>
               </div>
 
               <StepFooter>
                 <button onClick={() => goTo(2)} style={S.cancelBtn}><ArrowLeft size={16} /> Back</button>
-                <button onClick={() => goTo(4)} style={S.nextBtn}>Review Order <ChevronRight size={16} /></button>
+                <button onClick={() => goTo(4)} style={S.nextBtn}>Review Request <ChevronRight size={16} /></button>
               </StepFooter>
             </div>
           )}
@@ -651,7 +565,7 @@ export default function CheckoutPage() {
           {/* ═══ STEP 4: REVIEW & PLACE ═══ */}
           {step === 4 && (
             <div style={S.card}>
-              <SectionHead icon={CheckCircle2} title="Review & Confirm" />
+              <SectionHead icon={CheckCircle2} title="Review & Send Buy Request" />
 
               <div style={S.reviewGrid}>
                 {/* Address summary */}
@@ -671,15 +585,11 @@ export default function CheckoutPage() {
                 <div style={S.reviewBox}>
                   <div style={S.reviewBoxHead}>
                     <CreditCard size={15} color="#ea580c" />
-                    <span>Payment</span>
-                    <button onClick={() => goTo(3)} style={S.changeLink}>Change</button>
+                    <span>Workflow</span>
+                    <button onClick={() => goTo(3)} style={S.changeLink}>Info</button>
                   </div>
-                  <p style={S.reviewBold}>
-                    {payMethod === 'cod' ? 'Cash on Delivery' : `Online (${onlineSub.charAt(0).toUpperCase() + onlineSub.slice(1)})`}
-                  </p>
-                  <p style={S.reviewText}>
-                    {payMethod === 'cod' ? 'Payment collected upon crop delivery.' : 'Secured via Razorpay payment gateway.'}
-                  </p>
+                  <p style={S.reviewBold}>Request-then-Pay Flow</p>
+                  <p style={S.reviewText}>No payment required right now. Payment triggers after farmer approves.</p>
                 </div>
               </div>
 
@@ -710,9 +620,9 @@ export default function CheckoutPage() {
                   pointerEvents: placing ? 'none' : 'auto',
                 }}>
                   {placing ? (
-                    <><span style={S.spinner} /> Processing...</>
+                    <><span style={S.spinner} /> Submitting Request...</>
                   ) : (
-                    <><ShieldCheck size={18} /> Place Order — ₹{total.toLocaleString('en-IN')}</>
+                    <><Sparkles size={18} /> SEND BUY REQUEST TO FARMER — ₹{total.toLocaleString('en-IN')}</>
                   )}
                 </button>
               </StepFooter>

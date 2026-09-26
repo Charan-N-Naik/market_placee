@@ -38,11 +38,21 @@ const userSchema = new mongoose.Schema(
       state: String,
     },
     avatar: String,
+    coverImage: String,
     
-    // Authentication fields
+    // Verification and credential fields
     isVerified: {
       type: Boolean,
-      default: false,
+      default: true,
+    },
+    aadhaarNumber: String,
+    kisanId: String,
+    gstNumber: String,
+    licenseNumber: String,
+    verificationStatus: {
+      type: String,
+      enum: ['verified', 'pending', 'rejected'],
+      default: 'verified',
     },
     googleId: String,
     refreshToken: [String],
@@ -58,6 +68,7 @@ const userSchema = new mongoose.Schema(
       certifications: [String],
       experience: String, // years of farming experience
       bio: String,        // about the farmer
+      kisanCardNo: String,
     },
     
     // Buyer specific fields
@@ -66,6 +77,8 @@ const userSchema = new mongoose.Schema(
       companySector: String, // e.g. "Wholesale Food Distributor"
       produceTypes: [String],
       orderVolume: String,
+      gstin: String,
+      apmcLicense: String,
     }
   },
   {

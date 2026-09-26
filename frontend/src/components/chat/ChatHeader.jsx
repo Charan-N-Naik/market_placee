@@ -77,36 +77,31 @@ export default function ChatHeader({
   };
 
   return (
-    <div className="relative bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#0d9488] p-4 sm:p-5 flex items-center justify-between gap-3 shadow-xl shrink-0 border-b border-emerald-500/20">
-      {/* Background radial glow */}
-      <div className="absolute top-0 right-1/4 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
-
+    <div className="relative bg-gradient-to-r from-emerald-900 via-emerald-850 to-teal-900 px-4 sm:px-6 py-4 flex items-center justify-between gap-3 shadow-md shrink-0 border-b border-emerald-800/40">
       {/* Left: Avatar & Title */}
-      <div className="flex items-center gap-3.5 relative z-10">
+      <div className="flex items-center gap-3 relative z-10">
         <div className="relative">
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/25 shadow-lg">
-            <Bot size={26} className="text-white drop-shadow-md" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-sm">
+            <Bot size={22} className="text-emerald-300" />
           </div>
-          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-[#047857] shadow-sm flex items-center justify-center">
+          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-emerald-900 flex items-center justify-center">
             <span className="w-full h-full rounded-full bg-emerald-300 animate-ping opacity-75" />
           </span>
         </div>
 
         <div>
-          <h3 className="text-white font-extrabold text-base sm:text-lg flex items-center gap-2 tracking-tight">
+          <h3 className="text-white font-bold text-base sm:text-lg flex items-center gap-1.5 tracking-tight">
             {t('aiAssistant.voiceAiTitle')}
-            <Sparkles size={16} className="text-amber-300 animate-pulse" />
+            <Sparkles size={14} className="text-amber-300" />
           </h3>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-emerald-100/90 text-xs font-semibold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              {isListening 
-                ? t('aiAssistant.listening') 
-                : activeSpeakingId 
-                  ? t('aiAssistant.speaking')
-                  : t('aiAssistant.readyActive')}
-            </span>
-          </div>
+          <p className="text-emerald-200/80 text-xs font-medium flex items-center gap-1.5 mt-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {isListening 
+              ? t('aiAssistant.listening') 
+              : activeSpeakingId 
+                ? t('aiAssistant.speaking')
+                : t('aiAssistant.readyActive')}
+          </p>
         </div>
       </div>
 
@@ -117,29 +112,30 @@ export default function ChatHeader({
           <button
             type="button"
             onClick={stopSpeaking}
-            className="p-2 rounded-xl bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-300/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer animate-pulse"
+            className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
             title="Stop Speech"
           >
-            <Square size={13} className="fill-amber-300" />
+            <Square size={12} className="fill-amber-300" />
             <span className="hidden md:inline">{t('aiAssistant.stopAudio')}</span>
           </button>
         )}
 
-        <LanguageToggle className="!bg-white/10 !border-white/20 !text-white hover:!bg-white/20 text-xs font-bold" />
-        
+        <LanguageToggle className="!bg-white/10 !border-white/15 !text-white hover:!bg-white/20 text-xs font-semibold" />
+
+        {/* Speech Toggle Button */}
         <button 
           type="button"
           onClick={handleToggleSpeech}
           aria-pressed={isSpeechEnabled}
-          className={`p-2.5 rounded-xl transition-all duration-300 active:scale-95 flex items-center gap-1.5 border ${
+          className={`p-2 rounded-lg transition-all duration-200 active:scale-95 flex items-center gap-1.5 border text-xs font-semibold ${
             isSpeechEnabled 
-              ? 'bg-white/20 text-white border-white/30 shadow-md hover:bg-white/30' 
-              : 'bg-rose-500/20 text-rose-200 border-rose-400/40 hover:bg-rose-500/30'
+              ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30 hover:bg-emerald-500/30' 
+              : 'bg-rose-500/20 text-rose-200 border-rose-400/30 hover:bg-rose-500/30'
           }`}
           title={isSpeechEnabled ? "Disable Voice Output" : "Enable Voice Output"}
         >
-          {isSpeechEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          <span className="text-[11px] font-bold hidden sm:inline">
+          {isSpeechEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          <span className="hidden sm:inline">
             {isSpeechEnabled ? t('aiAssistant.speechOn') : t('aiAssistant.muted')}
           </span>
         </button>
@@ -151,24 +147,24 @@ export default function ChatHeader({
               <button
                 type="button"
                 onClick={() => setShowConfirmClear(true)}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-rose-500/20 text-white hover:text-rose-200 border border-white/20 hover:border-rose-400/40 transition-all cursor-pointer active:scale-95"
+                className="p-2 rounded-lg bg-white/10 hover:bg-rose-500/20 text-white/90 hover:text-rose-200 border border-white/15 transition-all cursor-pointer active:scale-95"
                 title="Clear Chat History"
               >
-                <Trash2 size={18} />
+                <Trash2 size={16} />
               </button>
             ) : (
-              <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md p-1.5 rounded-xl border border-rose-400/40 animate-fade-in">
+              <div className="flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-lg border border-rose-400/30">
                 <button
                   type="button"
                   onClick={handleConfirmClear}
-                  className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded cursor-pointer"
                 >
                   {t('aiAssistant.clearConfirm')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowConfirmClear(false)}
-                  className="px-2 py-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-lg cursor-pointer"
+                  className="px-1.5 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded cursor-pointer"
                 >
                   {t('aiAssistant.cancel')}
                 </button>
@@ -177,9 +173,10 @@ export default function ChatHeader({
           </div>
         )}
 
-        <div className="hidden lg:flex items-center gap-1.5 bg-black/20 border border-white/15 text-emerald-200 text-[10px] px-3 py-1.5 rounded-full uppercase font-black tracking-wider">
-          <Activity size={12} className="text-emerald-400 animate-pulse" />
-          {t('aiAssistant.mlEngine')}
+        {/* ML Engine Badge */}
+        <div className="hidden lg:flex items-center gap-1 text-emerald-300/80 text-[11px] font-medium px-2 py-1 bg-black/20 rounded-md border border-white/10">
+          <Activity size={12} className="text-emerald-400" />
+          <span>V2</span>
         </div>
       </div>
     </div>

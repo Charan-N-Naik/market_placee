@@ -31,7 +31,11 @@ const setTokenCookie = (res, token) => {
 // @access  Public
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, phone, email, password, role, village, district, state, farmSize, primaryCrops, businessName, produceType, orderVolume } = req.body;
+    const { 
+      name, phone, email, password, role, village, district, state, 
+      farmSize, primaryCrops, businessName, produceType, orderVolume,
+      aadhaarNumber, kisanId, gstNumber, licenseNumber 
+    } = req.body;
 
     const userExists = await User.findOne({ $or: [{ phone }, { email }] });
 
@@ -61,6 +65,12 @@ export const registerUser = async (req, res, next) => {
       email,
       passwordHash: password,
       role,
+      isVerified: true,
+      verificationStatus: 'verified',
+      aadhaarNumber: aadhaarNumber || undefined,
+      kisanId: kisanId || undefined,
+      gstNumber: gstNumber || undefined,
+      licenseNumber: licenseNumber || undefined,
       location: {
         address: village || '',
         district: district || '',
@@ -75,12 +85,15 @@ export const registerUser = async (req, res, next) => {
       userObj.farmerProfile = {
         farmSize,
         primaryCrops: primaryCrops ? primaryCrops.split(',').map(c => c.trim()) : [],
+        kisanCardNo: kisanId || `KSN-${Math.floor(100000 + Math.random() * 900000)}`,
       };
     } else if (role === 'buyer') {
       userObj.buyerProfile = {
-        businessName,
+        businessName: businessName || `${name} Agri Trading`,
         produceTypes: produceType ? produceType.split(',').map(c => c.trim()) : [],
         orderVolume,
+        gstin: gstNumber || `29ABCDE${Math.floor(1000 + Math.random() * 9000)}F1Z5`,
+        apmcLicense: licenseNumber || `APMC-KA-${Math.floor(10000 + Math.random() * 90000)}`,
       };
     }
 
@@ -423,11 +436,57 @@ export const updateUserProfile = async (req, res, next) => {
       throw new Error('User not found');
     }
 
-    const { name, phone, email, location, farmerProfile, buyerProfile } = req.body;
+    let { name, phone, email, location, farmerProfile, buyerProfile } = req.body;
+
+    // Handle JSON stringified bodies when sent via FormData
+    if (typeof location === 'string') {
+      try { location = JSON.parse(location); } catch (e) {}
+    }
+    if (typeof farmerProfile === 'string') {
+      try { farmerProfile = JSON.parse(farmerProfile); } catch (e) {}
+    }
+    if (typeof buyerProfile === 'string') {
+      try { buyerProfile = JSON.parse(buyerProfile); } catch (e) {}
+    }
+
+    // Handle Cloudinary image uploads if files were uploaded
+    if (req.files) {
+      if (req.files.avatar && req.files.avatar[0]) {
+        const file = req.files.avatar[0];
+        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        user.avatar = uploaded.secure_url;
+      }
+      if (req.files.coverImage && req.files.coverImage[0]) {
+        const file = req.files.coverImage[0];
+        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        user.coverImage = uploaded.secure_url;
+      }
+    } else if (req.body.avatar) {
+      user.avatar = req.body.avatar;
+    } else if (req.body.coverImage) {
+      user.coverImage = req.body.coverImage;
+    }
 
     if (name) user.name = name;
-    if (phone) user.phone = phone;
-    if (email) user.email = email.toLowerCase().trim();
+
+    if (phone && phone.trim() !== user.phone) {
+      const existingPhone = await User.findOne({ phone: phone.trim(), _id: { $ne: user._id } });
+      if (existingPhone) {
+        res.status(400);
+        throw new Error('This phone number is already registered to another account.');
+      }
+      user.phone = phone.trim();
+    }
+
+    if (email && email.toLowerCase().trim() !== user.email) {
+      const targetEmail = email.toLowerCase().trim();
+      const existingEmail = await User.findOne({ email: targetEmail, _id: { $ne: user._id } });
+      if (existingEmail) {
+        res.status(400);
+        throw new Error('This email address is already registered to another account.');
+      }
+      user.email = targetEmail;
+    }
     if (location) {
       user.location = {
         ...user.location?.toObject?.() || user.location || {},
@@ -459,6 +518,7 @@ export const updateUserProfile = async (req, res, next) => {
       role: updatedUser.role,
       isVerified: updatedUser.isVerified,
       avatar: updatedUser.avatar,
+      coverImage: updatedUser.coverImage,
       location: updatedUser.location,
       farmerProfile: updatedUser.farmerProfile,
       buyerProfile: updatedUser.buyerProfile,

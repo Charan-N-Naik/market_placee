@@ -4,13 +4,89 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
+import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import api from '../api/axios';
 import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
   CheckCircle, Truck, Package, Clock, ShieldCheck, Download, AlertTriangle,
   RefreshCw, X, ChevronRight, MessageCircle, ExternalLink, Calendar, Receipt,
-  Check, PhoneCall
+  Check, PhoneCall, CreditCard, CheckCircle2
 } from 'lucide-react';
+
+/* ─── Order Progress Stepper ─── */
+function OrderStepper({ status }) {
+  const steps = [
+    { key: 'pending',   label: 'Requested',  icon: '📋' },
+    { key: 'accepted',  label: 'Approved',   icon: '✅' },
+    { key: 'paid',      label: 'Paid',       icon: '💳' },
+    { key: 'packed',    label: 'Packed',     icon: '📦' },
+    { key: 'collected', label: 'In Transit', icon: '🚛' },
+    { key: 'delivered', label: 'Delivered',  icon: '🎉' },
+  ];
+
+  // Map backend statuses to stepper index
+  const statusIndex = {
+    pending: 0, accepted: 1, approved: 1,
+    paid: 2, processing: 2,
+    packed: 3,
+    collected: 4, shipped: 4,
+    delivered: 5, received: 5,
+    cancelled: -1, refunded: -1,
+  };
+
+  const currentIdx = statusIndex[status] ?? 0;
+  const isCancelled = status === 'cancelled' || status === 'refunded';
+
+  if (isCancelled) {
+    return (
+      <div className="px-5 sm:px-6 pb-4">
+        <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+          <X size={14} className="text-red-500 shrink-0" />
+          <span className="text-xs font-black text-red-700 uppercase tracking-wider">Order Cancelled</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-5 sm:px-6 pb-4">
+      <div className="flex items-center gap-0 overflow-x-auto no-scrollbar">
+        {steps.map((step, idx) => {
+          const isCompleted = idx < currentIdx;
+          const isActive = idx === currentIdx;
+          const isLast = idx === steps.length - 1;
+          return (
+            <div key={step.key} className="flex items-center shrink-0">
+              {/* Step Node */}
+              <div className="flex flex-col items-center gap-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${
+                  isCompleted ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' :
+                  isActive    ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/30 ring-4 ring-orange-100' :
+                                'bg-white border-zinc-300 text-zinc-400'
+                }`}>
+                  {isCompleted ? <CheckCircle2 size={14} /> : <span className="text-[11px]">{step.icon}</span>}
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${
+                  isCompleted ? 'text-emerald-600' :
+                  isActive    ? 'text-orange-600' :
+                                'text-zinc-400'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+              {/* Connector */}
+              {!isLast && (
+                <div className={`h-0.5 w-8 sm:w-10 mx-1 shrink-0 rounded-full ${
+                  isCompleted ? 'bg-emerald-500' : 'bg-zinc-200'
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* ─── Invoice HTML generator ─── */
 function generateInvoiceHTML(order, listingCache) {
@@ -96,6 +172,8 @@ export default function BuyerOrdersPage() {
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [contactingOrder, setContactingOrder] = useState(null);
   const [ratingOrder, setRatingOrder] = useState(null);
+  const [approvedPayOrder, setApprovedPayOrder] = useState(null);
+  const [activeChatOrder, setActiveChatOrder] = useState(null);
   
   // Rating states
   const [ratingVal, setRatingVal] = useState(5);
@@ -120,7 +198,8 @@ export default function BuyerOrdersPage() {
         console.warn('API get orders failed, falling back to local storage orders:', e);
       }
 
-      const localOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
       
       // Combine API & Local orders, removing duplicates by ID
       // API orders take priority (they have the latest DB status from farmer actions)
@@ -144,7 +223,7 @@ export default function BuyerOrdersPage() {
           const apiVersion = apiMap.get(key);
           return apiVersion ? { ...lo, status: apiVersion.status } : lo;
         });
-        localStorage.setItem('kisan_orders', JSON.stringify(updatedLocal));
+        localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
       }
 
       setOrders(uniqueOrders);
@@ -248,19 +327,12 @@ export default function BuyerOrdersPage() {
     }
   };
 
-  const handleContactFarmer = async (farmerId) => {
-    if (!farmerId) return;
-    try {
-      const { data } = await api.post('/chat/chat', { participantId: farmerId });
-      setContactingOrder(null);
-      if (data?._id) {
-        navigate(`/chat-test`); // Renders AIChatbot test flow
-      } else {
-        showToast('Chat session initialized.', 'success');
-      }
-    } catch (err) {
-      console.error('Error starting chat:', err);
-      showToast('Could not initialize chat room.', 'error');
+  const handleContactFarmer = async (farmerId, order) => {
+    setContactingOrder(null);
+    if (order) {
+      setActiveChatOrder(order);
+    } else {
+      showToast('Opening live chat with farmer...', 'success');
     }
   };
 
@@ -285,9 +357,10 @@ export default function BuyerOrdersPage() {
       setOrders(prev =>
         prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o)
       );
-      const localOrders = JSON.parse(localStorage.getItem('kisan_orders') || '[]');
+      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
       const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o);
-      localStorage.setItem('kisan_orders', JSON.stringify(updatedLocal));
+      localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
 
       showToast('Order cancelled successfully.');
     } catch (err) {
@@ -299,9 +372,10 @@ export default function BuyerOrdersPage() {
   /* ─── Status Filter Mapping ─── */
   const matchesTab = (order, tab) => {
     const status = order.status;
+    if (tab === 'approved') return status === 'accepted' || status === 'approved';
     if (tab === 'pending') return status === 'pending';
-    if (tab === 'confirmed') return ['paid', 'accepted', 'packed'].includes(status);
-    if (tab === 'shipped') return status === 'shipped';
+    if (tab === 'confirmed') return ['paid', 'packed'].includes(status);
+    if (tab === 'collected') return ['collected', 'shipped'].includes(status);
     if (tab === 'delivered') return ['delivered', 'received'].includes(status);
     if (tab === 'cancelled') return ['cancelled', 'refunded'].includes(status);
     return false;
@@ -396,9 +470,10 @@ export default function BuyerOrdersPage() {
         {/* Tab Controls */}
         <div className="flex border-b border-zinc-200 gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
           {[
-            { id: 'pending', label: 'Pending', color: 'border-blue-600 text-blue-600 bg-blue-50/50' },
-            { id: 'confirmed', label: 'Confirmed', color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
-            { id: 'shipped', label: 'Shipped', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
+            { id: 'approved', label: 'Approved (Pay Now) 💳', color: 'border-emerald-600 text-emerald-700 bg-emerald-50' },
+            { id: 'pending', label: 'Pending Approval', color: 'border-amber-600 text-amber-600 bg-amber-50/50' },
+            { id: 'confirmed', label: 'Paid & Processing', color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
+            { id: 'collected', label: 'Collected by Agent 🚛', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
             { id: 'delivered', label: 'Delivered', color: 'border-emerald-600 text-emerald-600 bg-emerald-50/50' },
             { id: 'cancelled', label: 'Cancelled', color: 'border-red-600 text-red-600 bg-red-50/50' },
           ].map(tab => {
@@ -558,8 +633,19 @@ export default function BuyerOrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                      {/* Track Order — only show button for non-shipped (shipped shows map inline) */}
-                      {!['shipped'].includes(order.status) && (
+                      {/* PAY NOW for farmer-approved orders */}
+                      {['accepted', 'approved'].includes(order.status) && (
+                        <button 
+                          onClick={() => setApprovedPayOrder(order)}
+                          className="min-h-[44px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-md shadow-emerald-600/20 cursor-pointer whitespace-nowrap animate-pulse"
+                        >
+                          <CreditCard size={16} className="shrink-0" />
+                          <span>PAY NOW (₹{order.totalAmount?.toLocaleString('en-IN')})</span>
+                        </button>
+                      )}
+
+                      {/* Track Order — show after payment or during delivery */}
+                      {['paid', 'processing', 'packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
                         <button 
                           onClick={() => setTrackingOrder(order)}
                           className="min-h-[44px] px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
@@ -589,14 +675,14 @@ export default function BuyerOrdersPage() {
                         </button>
                       )}
 
-                      {/* Receive confirmation */}
-                      {['shipped', 'delivered'].includes(order.status) && (
+                      {/* Receive confirmation — only after delivery agent has collected */}
+                      {['collected', 'shipped', 'delivered'].includes(order.status) && (
                         <button 
                           onClick={() => handleMarkAsReceived(order._id || order.id)}
                           className="min-h-[44px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         >
                           <CheckCircle size={15} className="shrink-0" />
-                          <span>Mark Received</span>
+                          <span>Confirm Crop Delivered</span>
                         </button>
                       )}
 
@@ -616,8 +702,13 @@ export default function BuyerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* ─── INLINE MAP TRACKER for shipped orders ─── */}
-                  {order.status === 'shipped' && (
+                  {/* ─── ORDER PROGRESS STEPPER ─── */}
+                  <div className="border-t border-zinc-100 pt-4">
+                    <OrderStepper status={order.status} />
+                  </div>
+
+                  {/* ─── INLINE MAP TRACKER for collected/shipped orders ─── */}
+                  {['collected', 'shipped'].includes(order.status) && (
                     <div className="border-t border-zinc-100 p-5 sm:p-6">
                       <LiveDeliveryTracker order={order} onClose={() => {}} />
                     </div>
@@ -630,6 +721,17 @@ export default function BuyerOrdersPage() {
         )}
 
       </div>
+
+      {/* ─── PAYMENT MODAL FOR APPROVED ORDERS ─── */}
+      {approvedPayOrder && (
+        <PaymentModal 
+          order={approvedPayOrder} 
+          onClose={() => setApprovedPayOrder(null)} 
+          onPaymentSuccess={() => {
+            fetchOrders();
+          }}
+        />
+      )}
 
       {/* ─── TRACK ORDER MODAL ─── */}
       {trackingOrder && (
@@ -778,6 +880,15 @@ export default function BuyerOrdersPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* ─── DIRECT FARMER CHAT MODAL ─── */}
+      {activeChatOrder && (
+        <DirectBuyerChatModal
+          buyerName={activeChatOrder.items?.[0]?.listing?.farmer?.name || 'Farmer'}
+          order={activeChatOrder}
+          onClose={() => setActiveChatOrder(null)}
+        />
       )}
 
     </div>

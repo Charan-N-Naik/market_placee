@@ -8,7 +8,7 @@ export function useAIChat() {
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: t('chatWelcome') || "Hello! I'm KisanMitra, your farming assistant. How can I help you today with crops, market prices, pests, or weather?",
+      content: t('aiAssistant.chatWelcome') || "Hello! I'm KisanMitra, your farming assistant. How can I help you today with crops, market prices, pests, or weather?",
       timestamp: new Date().toISOString(),
     }
   ]);
@@ -166,7 +166,7 @@ export function useAIChat() {
       {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
-        content: t('chatWelcome') || "Hello! I'm KisanMitra, your farming assistant. How can I help you today?",
+        content: t('aiAssistant.chatWelcome') || "Hello! I'm KisanMitra, your farming assistant. How can I help you today?",
         timestamp: new Date().toISOString()
       }
     ]);

@@ -88,6 +88,7 @@ export default function AuthPage({ mode = 'login' }) {
 
   const isLogin = mode === 'login';
   const isFarmer = role === 'farmer';
+  const isDeliveryAgent = role === 'delivery_agent' || role === 'driver';
 
   const schema = isLogin
     ? loginSchema
@@ -107,15 +108,21 @@ export default function AuthPage({ mode = 'login' }) {
     setIsSubmitting(true);
     try {
       if (isLogin) {
-        await login({ ...data, role });
-        navigate(isFarmer ? '/farmer/dashboard' : '/buyer/dashboard');
+        await login({ ...data, role: role || 'buyer' });
+        if (role === 'farmer') navigate('/farmer/dashboard');
+        else if (role === 'delivery_agent' || role === 'driver') navigate('/delivery/dashboard');
+        else navigate('/buyer/dashboard');
       } else {
-        const registerData = { ...data, role };
+        const registerData = { ...data, role: role || 'buyer' };
         if (avatarFile) {
           registerData.avatar = avatarFile;
         }
         await register(registerData);
-        navigate('/verify-email-pending');
+        if (role === 'delivery_agent' || role === 'driver') {
+          navigate('/delivery/dashboard');
+        } else {
+          navigate('/verify-email-pending');
+        }
       }
     } catch (error) {
       setApiError(error.message || 'Authentication failed. Please try again.');
@@ -127,7 +134,7 @@ export default function AuthPage({ mode = 'login' }) {
   const toggleMode = () => {
     reset();
     setApiError('');
-    navigate(`/${isLogin ? 'register' : 'login'}/${role}`);
+    navigate(`/${isLogin ? 'register' : 'login'}/${role || 'buyer'}`);
   };
 
   const autoDetectLocation = () => {
@@ -341,35 +348,64 @@ export default function AuthPage({ mode = 'login' }) {
 
                     {/* Farmer-specific */}
                     {isFarmer && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <div>
-                          <label style={labelStyle}>Farm Size</label>
-                          <div style={fieldWrap}>
-                            <MapPin size={16} style={iconStyle} />
-                            <input {...formRegister('farmSize')} style={inputStyle(errors.farmSize)} placeholder="e.g. 5 acres" />
+                      <div className="space-y-3">
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                          <div>
+                            <label style={labelStyle}>Farm Size</label>
+                            <div style={fieldWrap}>
+                              <MapPin size={16} style={iconStyle} />
+                              <input {...formRegister('farmSize')} style={inputStyle(errors.farmSize)} placeholder="e.g. 5 acres" />
+                            </div>
+                            {errors.farmSize && <p style={errorStyle}>{errors.farmSize.message}</p>}
                           </div>
-                          {errors.farmSize && <p style={errorStyle}>{errors.farmSize.message}</p>}
+                          <div>
+                            <label style={labelStyle}>Primary Crops</label>
+                            <div style={fieldWrap}>
+                              <Sprout size={16} style={iconStyle} />
+                              <input {...formRegister('primaryCrops')} style={inputStyle(errors.primaryCrops)} placeholder="Wheat, Rice..." />
+                            </div>
+                            {errors.primaryCrops && <p style={errorStyle}>{errors.primaryCrops.message}</p>}
+                          </div>
                         </div>
+
                         <div>
-                          <label style={labelStyle}>Primary Crops</label>
+                          <label style={labelStyle}>Kisan Card ID / Aadhaar No. (Verification)</label>
                           <div style={fieldWrap}>
-                            <Sprout size={16} style={iconStyle} />
-                            <input {...formRegister('primaryCrops')} style={inputStyle(errors.primaryCrops)} placeholder="Wheat, Rice..." />
+                            <Leaf size={16} style={iconStyle} />
+                            <input {...formRegister('kisanId')} style={inputStyle(errors.kisanId)} placeholder="e.g. KSN-882190 or Aadhaar 12-digit" />
                           </div>
-                          {errors.primaryCrops && <p style={errorStyle}>{errors.primaryCrops.message}</p>}
                         </div>
                       </div>
                     )}
 
                     {/* Buyer-specific */}
                     {!isFarmer && (
-                      <div>
-                        <label style={labelStyle}>Business Name</label>
-                        <div style={fieldWrap}>
-                          <Building size={16} style={iconStyle} />
-                          <input {...formRegister('businessName')} style={inputStyle(errors.businessName)} placeholder="Your Company Ltd." />
+                      <div className="space-y-3">
+                        <div>
+                          <label style={labelStyle}>Business Name</label>
+                          <div style={fieldWrap}>
+                            <Building size={16} style={iconStyle} />
+                            <input {...formRegister('businessName')} style={inputStyle(errors.businessName)} placeholder="Your Company Ltd." />
+                          </div>
+                          {errors.businessName && <p style={errorStyle}>{errors.businessName.message}</p>}
                         </div>
-                        {errors.businessName && <p style={errorStyle}>{errors.businessName.message}</p>}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                          <div>
+                            <label style={labelStyle}>GSTIN Number (Optional)</label>
+                            <div style={fieldWrap}>
+                              <Building size={16} style={iconStyle} />
+                              <input {...formRegister('gstNumber')} style={inputStyle(errors.gstNumber)} placeholder="29ABCDE1234F1Z5" />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={labelStyle}>APMC Trade License No.</label>
+                            <div style={fieldWrap}>
+                              <Building size={16} style={iconStyle} />
+                              <input {...formRegister('licenseNumber')} style={inputStyle(errors.licenseNumber)} placeholder="APMC-KA-99120" />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </motion.div>
@@ -381,6 +417,9 @@ export default function AuthPage({ mode = 'login' }) {
                   <div style={fieldWrap}>
                     <Mail size={16} style={iconStyle} />
                     <input
+                      id="email"
+                      type={isLogin ? "text" : "email"}
+                      autoComplete={isLogin ? "username email" : "email"}
                       {...formRegister(isLogin ? 'loginId' : 'email')}
                       style={inputStyle(errors.loginId || errors.email)}
                       placeholder={isLogin ? 'Enter email or phone' : 'you@example.com'}
@@ -391,7 +430,7 @@ export default function AuthPage({ mode = 'login' }) {
 
                 {/* Password */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <div className="flex items-center justify-between mb-2">
                     <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
                     {isLogin && (
                       <Link to="/forgot-password" style={{ fontSize: '0.72rem', fontWeight: 800, color: primary, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -402,7 +441,9 @@ export default function AuthPage({ mode = 'login' }) {
                   <div style={{ ...fieldWrap }}>
                     <Lock size={16} style={iconStyle} />
                     <input
+                      id="password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete={isLogin ? "current-password" : "new-password"}
                       {...formRegister('password')}
                       style={{ ...inputStyle(errors.password), paddingRight: '3rem' }}
                       placeholder="••••••••"
@@ -424,7 +465,9 @@ export default function AuthPage({ mode = 'login' }) {
                     <div style={fieldWrap}>
                       <Lock size={16} style={iconStyle} />
                       <input
+                        id="confirmPassword"
                         type={showConfirmPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
                         {...formRegister('confirmPassword')}
                         style={{ ...inputStyle(errors.confirmPassword), paddingRight: '3rem' }}
                         placeholder="••••••••"
@@ -495,16 +538,21 @@ export default function AuthPage({ mode = 'login' }) {
             </div>
           </motion.div>
 
-          {/* Role toggle hint */}
-          <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.8rem', color: '#9ca3af', fontWeight: 600 }}>
-            {isFarmer ? 'A buyer? ' : 'A farmer? '}
-            <Link
-              to={`/${isLogin ? 'login' : 'register'}/${isFarmer ? 'buyer' : 'farmer'}`}
-              style={{ color: primary, fontWeight: 800, textDecoration: 'none' }}
-            >
-              Switch portal →
+          {/* Role toggle hints */}
+          <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.8rem', color: '#6b7280', fontWeight: 600 }} className="flex flex-wrap items-center justify-center gap-2">
+            <span>Switch portal:</span>
+            <Link to={`/${isLogin ? 'login' : 'register'}/farmer`} style={{ color: '#15803d', fontWeight: 800, textDecoration: 'none' }}>
+              🌾 Farmer
             </Link>
-          </p>
+            <span>•</span>
+            <Link to={`/${isLogin ? 'login' : 'register'}/buyer`} style={{ color: '#ea580c', fontWeight: 800, textDecoration: 'none' }}>
+              🛒 Buyer
+            </Link>
+            <span>•</span>
+            <Link to={`/${isLogin ? 'login' : 'register'}/delivery_agent`} style={{ color: '#1F7A4D', fontWeight: 800, textDecoration: 'none' }}>
+              🚚 Delivery Agent
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -404,7 +404,7 @@ export default function Sidebar({
                     {collapsed && item.count > 0 && (
                       <div style={{
                         position: 'absolute', top: 6, right: 6, width: 8, height: 8,
-                        borderRadius: '50%', background: '#ef4444', border: '2px solid #166534',
+                        borderRadius: '50%', background: '#ef4444', border: '2px solid #0F3D2E',
                       }} />
                     )}
                   </button>

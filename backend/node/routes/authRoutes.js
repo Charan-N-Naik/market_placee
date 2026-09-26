@@ -27,6 +27,6 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
 router.get('/me', protect, getUserProfile);
-router.put('/me', protect, updateUserProfile);
+router.put('/me', protect, upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), updateUserProfile);
 
 export default router;

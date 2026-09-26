@@ -48,6 +48,8 @@ export function AuthProvider({ children }) {
       const userData = { ...data.user, token: data.token };
       setUser(userData);
       localStorage.setItem('kisanbazaar_user', JSON.stringify(userData));
+      // Clean up the old unscoped orders key to prevent cross-user data leakage
+      localStorage.removeItem('kisan_orders');
       return userData;
     } catch (err) {
       throw new Error(err.response?.data?.message || 'Login failed');
@@ -74,6 +76,8 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null);
       localStorage.removeItem('kisanbazaar_user');
+      // Clear legacy shared orders key to prevent data leaking to the next session
+      localStorage.removeItem('kisan_orders');
     }
   }, []);
 
@@ -97,6 +101,8 @@ export function AuthProvider({ children }) {
       const newUser = { ...data.user, token: data.token };
       setUser(newUser);
       localStorage.setItem('kisanbazaar_user', JSON.stringify(newUser));
+      // New accounts must start completely clean — remove any legacy shared orders key
+      localStorage.removeItem('kisan_orders');
       return newUser;
     } catch (err) {
       throw new Error(err.response?.data?.message || 'Registration failed');
@@ -105,8 +111,32 @@ export function AuthProvider({ children }) {
 
   const updateProfile = useCallback(async (profileData) => {
     try {
-      const { data } = await api.put('/auth/me', profileData);
-      const updatedUser = { ...user, ...data, token: user.token };
+      let dataToSend = profileData;
+      let headers = { 'Content-Type': 'application/json' };
+
+      if (profileData instanceof FormData) {
+        dataToSend = profileData;
+        headers = { 'Content-Type': 'multipart/form-data' };
+      } else if (profileData.avatarFile || profileData.coverImageFile) {
+        const formData = new FormData();
+        if (profileData.avatarFile) formData.append('avatar', profileData.avatarFile);
+        if (profileData.coverImageFile) formData.append('coverImage', profileData.coverImageFile);
+
+        Object.keys(profileData).forEach(key => {
+          if (key !== 'avatarFile' && key !== 'coverImageFile' && profileData[key] !== undefined) {
+            if (typeof profileData[key] === 'object') {
+              formData.append(key, JSON.stringify(profileData[key]));
+            } else {
+              formData.append(key, profileData[key]);
+            }
+          }
+        });
+        dataToSend = formData;
+        headers = { 'Content-Type': 'multipart/form-data' };
+      }
+
+      const { data } = await api.put('/auth/me', dataToSend, { headers });
+      const updatedUser = { ...user, ...data, token: user?.token };
       setUser(updatedUser);
       localStorage.setItem('kisanbazaar_user', JSON.stringify(updatedUser));
       return updatedUser;
