@@ -13,7 +13,9 @@ import {
   getDriverRequests,
   acceptRejectDriverJob,
   updateDriverJobStatus,
-  getDriverStats
+  getDriverStats,
+  requestDeliveryForOrder,
+  respondToDeliveryOffer
 } from '../controllers/orderController.js';
 
 const router = express.Router();
@@ -31,10 +33,12 @@ router.get('/pending/list', protect, getPendingOrders);
 // Get orders for the farmer who owns the listings in the orders
 router.get('/seller', protect, requireRole('farmer'), getSellerOrders);
 
-// ═══ Delivery Agent Routes ═══
+// ═══ Delivery Agent Routes & Offer Orchestration ═══
 router.get('/driver/jobs', protect, getDriverJobs);
 router.get('/driver/requests', protect, getDriverRequests);
 router.get('/driver/stats', protect, getDriverStats);
+router.post('/:orderId/delivery/request', protect, requestDeliveryForOrder);
+router.put('/:orderId/delivery/offers/:agentId/respond', protect, respondToDeliveryOffer);
 router.put('/:orderId/driver/respond', protect, acceptRejectDriverJob);
 router.put('/:orderId/driver/status', protect, updateDriverJobStatus);
 

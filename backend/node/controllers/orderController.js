@@ -5,6 +5,8 @@ import Listing from '../models/Listing.js';
 import Payment from '../models/Payment.js';
 import Chat from '../models/Chat.js';
 import { sendNotification } from '../services/notificationService.js';
+import User from '../models/User.js';
+import { calculateDistance, rankAgentsByProximityAndRating } from '../services/deliveryDistanceService.js';
 
 // @desc    Place a new order
 // @route   POST /api/orders
@@ -129,6 +131,15 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     await order.save();
+
+    // Automatically trigger delivery offer dispatch based on deliveryMode chosen at checkout
+    try {
+      const chosenAgentId = req.body.chosenAgentId || req.body.selectedAgentId;
+      await dispatchDeliveryOffers(order, chosenAgentId);
+    } catch (dispatchErr) {
+      console.error('[CreateOrder] Error auto-dispatching delivery offers:', dispatchErr.message);
+    }
+
     createdOrders.push(order);
     orderIds.push(order._id);
   }
@@ -423,6 +434,197 @@ export const getPendingOrders = asyncHandler(async (req, res) => {
 // DELIVERY AGENT ENDPOINTS
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * Dispatch delivery offers for an order according to its deliveryMode.
+ * If buyer_choice: creates a single deliveryOffers entry for the chosen agent with status 'offered', notify that agent only.
+ * If auto_assign: finds available agents (availabilityStatus === 'available'), ranks by distance to farmer then rating,
+ * creates deliveryOffers entries for the top 3, notifies all 3.
+ */
+export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
+  if (!order) return null;
+
+  if (order.deliveryMode === 'buyer_choice') {
+    const targetAgentId = chosenAgentId || order.deliveryAgent;
+    if (!targetAgentId) {
+      console.warn(`[DeliveryDispatch] Order ${order._id} deliveryMode is buyer_choice, but no agent specified.`);
+      return order;
+    }
+
+    order.deliveryOffers = order.deliveryOffers || [];
+    const existingOffer = order.deliveryOffers.find(
+      o => o.agent?.toString() === targetAgentId.toString() && o.status === 'offered'
+    );
+
+    if (!existingOffer) {
+      order.deliveryOffers.push({
+        agent: targetAgentId,
+        offeredAt: new Date(),
+        status: 'offered'
+      });
+    }
+
+    order.deliveryAgent = targetAgentId;
+    order.deliveryRequestStatus = 'pending_driver_approval';
+    await order.save();
+
+    try {
+      await sendNotification({
+        recipientId: targetAgentId,
+        senderId: order.buyer?._id || order.buyer,
+        type: 'custom',
+        title: '🚚 New Delivery Job Offer',
+        message: `You have been selected for delivery on order #${order._id.toString().slice(-6)}. Open your driver portal to accept or decline.`,
+        relatedOrder: order._id,
+      });
+    } catch (err) {
+      console.error('[DeliveryDispatch] Notification error for buyer_choice:', err.message);
+    }
+
+    return order;
+  }
+
+  if (order.deliveryMode === 'auto_assign') {
+    // 1. Find available delivery agents in MongoDB
+    let availableAgents = await User.find({
+      role: { $in: ['delivery_agent', 'driver'] },
+      $or: [
+        { 'deliveryAgentProfile.availabilityStatus': 'available' },
+        { availabilityStatus: 'available' }
+      ]
+    }).lean();
+
+    if (!availableAgents || availableAgents.length === 0) {
+      availableAgents = await User.find({
+        role: { $in: ['delivery_agent', 'driver'] },
+        'deliveryAgentProfile.availabilityStatus': { $ne: 'offline' }
+      }).lean();
+    }
+
+    if (!availableAgents || availableAgents.length === 0) {
+      availableAgents = await User.find({
+        role: { $in: ['delivery_agent', 'driver'] }
+      }).lean();
+    }
+
+    // Filter out agents who already have an offer or declined
+    const existingOfferAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString());
+    const eligibleAgents = availableAgents.filter(a => !existingOfferAgentIds.includes(a._id.toString()));
+
+    // 2. Determine farmer location string
+    let farmerLocation = 'Karnataka';
+    if (order.farmer) {
+      const farmerUser = await User.findById(order.farmer._id || order.farmer).lean();
+      if (farmerUser?.location?.district || farmerUser?.location?.address) {
+        farmerLocation = farmerUser.location.district || farmerUser.location.address;
+      }
+    }
+
+    // 3. Rank available agents by distance to farmer, then rating (server-side calculateDistance)
+    const rankedAgents = rankAgentsByProximityAndRating(eligibleAgents, farmerLocation);
+
+    // 4. Create deliveryOffers entries for the top 3
+    const top3 = rankedAgents.slice(0, 3);
+    if (top3.length === 0) {
+      console.warn(`[DeliveryDispatch] No available delivery agents found to auto-assign for order ${order._id}`);
+      return order;
+    }
+
+    order.deliveryOffers = order.deliveryOffers || [];
+    for (const agent of top3) {
+      order.deliveryOffers.push({
+        agent: agent._id,
+        offeredAt: new Date(),
+        status: 'offered'
+      });
+    }
+
+    order.deliveryRequestStatus = 'pending_driver_approval';
+    await order.save();
+
+    // 5. Notify all 3 agents
+    for (const agent of top3) {
+      try {
+        await sendNotification({
+          recipientId: agent._id,
+          senderId: order.buyer?._id || order.buyer,
+          type: 'custom',
+          title: '🚚 Delivery Job Available',
+          message: `New delivery opportunity near ${farmerLocation} for order #${order._id.toString().slice(-6)}. First to accept gets the job!`,
+          relatedOrder: order._id,
+        });
+      } catch (err) {
+        console.error('[DeliveryDispatch] Notification error for auto_assign candidate:', err.message);
+      }
+    }
+
+    return order;
+  }
+
+  return order;
+}
+
+/**
+ * Escalate to next-nearest available delivery agent when all previous offers were declined
+ */
+async function escalateToNextDeliveryAgent(order) {
+  if (!order || order.deliveryMode !== 'auto_assign') return;
+
+  let availableAgents = await User.find({
+    role: { $in: ['delivery_agent', 'driver'] },
+    $or: [
+      { 'deliveryAgentProfile.availabilityStatus': 'available' },
+      { availabilityStatus: 'available' }
+    ]
+  }).lean();
+
+  if (!availableAgents || availableAgents.length === 0) {
+    availableAgents = await User.find({
+      role: { $in: ['delivery_agent', 'driver'] },
+      'deliveryAgentProfile.availabilityStatus': { $ne: 'offline' }
+    }).lean();
+  }
+
+  const attemptedAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString());
+  const eligibleAgents = availableAgents.filter(a => !attemptedAgentIds.includes(a._id.toString()));
+
+  if (eligibleAgents.length === 0) {
+    console.log(`[DeliveryEscalation] No further uncontacted agents available for order ${order._id}`);
+    return;
+  }
+
+  let farmerLocation = 'Karnataka';
+  if (order.farmer) {
+    const farmerUser = await User.findById(order.farmer._id || order.farmer).lean();
+    if (farmerUser?.location?.district || farmerUser?.location?.address) {
+      farmerLocation = farmerUser.location.district || farmerUser.location.address;
+    }
+  }
+
+  const ranked = rankAgentsByProximityAndRating(eligibleAgents, farmerLocation);
+  const nextAgent = ranked[0];
+
+  order.deliveryOffers.push({
+    agent: nextAgent._id,
+    offeredAt: new Date(),
+    status: 'offered'
+  });
+  order.deliveryRequestStatus = 'pending_driver_approval';
+  await order.save();
+
+  try {
+    await sendNotification({
+      recipientId: nextAgent._id,
+      senderId: order.buyer?._id || order.buyer,
+      type: 'custom',
+      title: '🚚 Escalated Delivery Opportunity',
+      message: `Priority delivery opportunity near ${farmerLocation} for order #${order._id.toString().slice(-6)}.`,
+      relatedOrder: order._id,
+    });
+  } catch (err) {
+    console.error('[DeliveryEscalation] Error notifying escalated agent:', err.message);
+  }
+}
+
 // @desc    Get all jobs for the delivery agent (pending requests + active + completed)
 // @route   GET /api/orders/driver/jobs
 // @access  Private (delivery_agent)
@@ -430,7 +632,8 @@ export const getDriverJobs = asyncHandler(async (req, res) => {
   const orders = await Order.find({
     $or: [
       { deliveryAgent: req.user._id },
-      { deliveryRequestStatus: 'pending_driver_approval', deliveryAgent: req.user._id }
+      { deliveryRequestStatus: 'pending_driver_approval', deliveryAgent: req.user._id },
+      { deliveryOffers: { $elemMatch: { agent: req.user._id, status: 'offered' } } }
     ]
   })
     .populate('items.listing')
@@ -445,8 +648,10 @@ export const getDriverJobs = asyncHandler(async (req, res) => {
 // @access  Private (delivery_agent)
 export const getDriverRequests = asyncHandler(async (req, res) => {
   const orders = await Order.find({
-    deliveryAgent: req.user._id,
-    deliveryRequestStatus: 'pending_driver_approval'
+    $or: [
+      { deliveryAgent: req.user._id, deliveryRequestStatus: 'pending_driver_approval' },
+      { deliveryOffers: { $elemMatch: { agent: req.user._id, status: 'offered' } } }
+    ]
   })
     .populate('items.listing')
     .populate('buyer', 'name email phone location')
@@ -455,41 +660,179 @@ export const getDriverRequests = asyncHandler(async (req, res) => {
   res.json(orders);
 });
 
-// @desc    Accept or reject a delivery request
-// @route   PUT /api/orders/:orderId/driver/respond
-// @access  Private (delivery_agent)
-export const acceptRejectDriverJob = asyncHandler(async (req, res) => {
-  const { action } = req.body; // 'accept' or 'reject'
-  const order = await Order.findById(req.params.orderId);
+// @desc    Initiate or dispatch a delivery request for an order
+// @route   POST /api/orders/:orderId/delivery/request
+// @access  Private
+export const requestDeliveryForOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { chosenAgentId, agentId, deliveryMode } = req.body;
+
+  const order = await Order.findById(orderId);
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
   }
-  if (order.deliveryAgent?.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Not authorized' });
+
+  if (deliveryMode && ['buyer_choice', 'auto_assign'].includes(deliveryMode)) {
+    order.deliveryMode = deliveryMode;
+  }
+
+  const targetAgentId = chosenAgentId || agentId || order.deliveryAgent;
+  await dispatchDeliveryOffers(order, targetAgentId);
+
+  res.json({
+    success: true,
+    message: 'Delivery offers dispatched successfully',
+    order
+  });
+});
+
+// @desc    Respond to a delivery offer (accept or decline)
+// @route   PUT /api/orders/:orderId/delivery/offers/:agentId/respond
+// @access  Private (delivery_agent or driver)
+export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
+  const { orderId, agentId } = req.params;
+  const action = req.body.action?.toLowerCase(); // 'accept' | 'decline' | 'reject'
+
+  if (!['accept', 'decline', 'reject'].includes(action)) {
+    return res.status(400).json({ message: 'Action must be "accept" or "decline"' });
+  }
+
+  // Authorization check: Must be the agent or admin
+  const isAgent = req.user._id.toString() === agentId.toString();
+  const isAdmin = req.user.role === 'admin';
+  if (!isAgent && !isAdmin) {
+    return res.status(403).json({ message: 'Not authorized to respond for this agent' });
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+
+  order.deliveryOffers = order.deliveryOffers || [];
+
+  // Check or register offer entry
+  let currentOffer = order.deliveryOffers.find(o => o.agent?.toString() === agentId.toString());
+  if (!currentOffer) {
+    currentOffer = {
+      agent: agentId,
+      offeredAt: new Date(),
+      status: 'offered'
+    };
+    order.deliveryOffers.push(currentOffer);
   }
 
   if (action === 'accept') {
+    // Check if another agent already accepted (first-accept-wins)
+    if (
+      order.deliveryRequestStatus === 'driver_accepted' &&
+      order.deliveryAgent &&
+      order.deliveryAgent.toString() !== agentId.toString()
+    ) {
+      return res.status(409).json({
+        message: 'This delivery job has already been accepted by another agent.',
+        order
+      });
+    }
+
+    currentOffer.status = 'accepted';
+
+    // Mark all sibling pending offers as expired
+    const siblingOffers = order.deliveryOffers.filter(
+      o => o.agent?.toString() !== agentId.toString() && o.status === 'offered'
+    );
+    for (const sibling of siblingOffers) {
+      sibling.status = 'expired';
+    }
+
+    order.deliveryAgent = agentId;
     order.deliveryRequestStatus = 'driver_accepted';
     await order.save();
 
-    // Notify buyer
+    const agentUser = await User.findById(agentId).select('name phone');
+    const agentName = agentUser?.name || 'Assigned Delivery Agent';
+
+    // Notify Buyer
     try {
       await sendNotification({
         recipientId: order.buyer,
-        senderId: req.user._id,
+        senderId: agentId,
         type: 'custom',
-        title: '🚚 Delivery Agent Accepted!',
-        message: `Your delivery request has been accepted by ${req.user.name}. They will collect the order from the farmer.`,
+        title: '🚚 Delivery Agent Confirmed!',
+        message: `${agentName} has accepted delivery for your order #${order._id.toString().slice(-6)}.`,
         relatedOrder: order._id,
       });
     } catch (e) {}
-  } else {
-    order.deliveryRequestStatus = 'driver_rejected';
-    order.deliveryAgent = undefined;
-    await order.save();
+
+    // Notify Farmer
+    if (order.farmer) {
+      try {
+        await sendNotification({
+          recipientId: order.farmer,
+          senderId: agentId,
+          type: 'custom',
+          title: '🚚 Delivery Agent Assigned',
+          message: `${agentName} will pick up order #${order._id.toString().slice(-6)}. Please have items packed.`,
+          relatedOrder: order._id,
+        });
+      } catch (e) {}
+    }
+
+    // Automatically reject and notify sibling agents that the job was taken
+    for (const sibling of siblingOffers) {
+      try {
+        await sendNotification({
+          recipientId: sibling.agent,
+          senderId: agentId,
+          type: 'custom',
+          title: 'Job Taken',
+          message: `Delivery job for order #${order._id.toString().slice(-6)} has been taken by another agent.`,
+          relatedOrder: order._id,
+        });
+      } catch (e) {}
+    }
+
+    if (req.io) {
+      req.io.emit('orderUpdate', { orderId: order._id, deliveryRequestStatus: 'driver_accepted', deliveryAgent: agentId });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Delivery offer accepted successfully',
+      order
+    });
   }
 
-  res.json(order);
+  // Action is decline / reject
+  currentOffer.status = 'declined';
+  if (order.deliveryAgent?.toString() === agentId.toString()) {
+    order.deliveryAgent = undefined;
+    order.deliveryRequestStatus = 'none';
+  }
+
+  await order.save();
+
+  // If auto_assign and no other pending offers remain, escalate to next-nearest agent automatically
+  const remainingPendingOffers = order.deliveryOffers.filter(o => o.status === 'offered');
+  if (order.deliveryMode === 'auto_assign' && remainingPendingOffers.length === 0) {
+    await escalateToNextDeliveryAgent(order);
+  }
+
+  return res.json({
+    success: true,
+    message: 'Delivery offer declined',
+    order
+  });
+});
+
+// @desc    Accept or reject a delivery request (legacy forwarder)
+// @route   PUT /api/orders/:orderId/driver/respond
+// @access  Private (delivery_agent)
+export const acceptRejectDriverJob = asyncHandler(async (req, res) => {
+  const { action } = req.body;
+  req.params.agentId = req.user._id.toString();
+  req.body.action = action === 'reject' ? 'decline' : action;
+  return respondToDeliveryOffer(req, res);
 });
 
 // @desc    Mark order as collected or delivered by the driver

@@ -8,8 +8,9 @@ import {
   ArrowLeft, MapPin, CheckCircle2, CreditCard, ShieldCheck, Truck, Package,
   ChevronRight, Plus, Edit2, Trash2, Check, AlertCircle, RefreshCw, PhoneCall,
   ShoppingBag, ArrowRight, X, Home, Wallet, Smartphone, Building2,
-  Receipt, Download, Eye, Clock, Sparkles, Lock, IndianRupee, User, Phone
+  Receipt, Download, Eye, Clock, Sparkles, Lock, IndianRupee, User, Phone, Star
 } from 'lucide-react';
+import { fetchRealDeliveryAgents } from '../utils/deliveryService';
 
 /* ─── Razorpay loader ─── */
 function loadRazorpayScript() {
@@ -134,6 +135,30 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null); // { status: 'success'|'failed', data, error }
   const [deliveryMode, setDeliveryMode] = useState('auto_assign'); // 'auto_assign' | 'buyer_choice'
+  const [availableAgents, setAvailableAgents] = useState([]);
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+  const [loadingAgents, setLoadingAgents] = useState(false);
+
+  /* ── Fetch Real Delivery Agents from MongoDB ── */
+  useEffect(() => {
+    let mounted = true;
+    const loadAgents = async () => {
+      setLoadingAgents(true);
+      try {
+        const agents = await fetchRealDeliveryAgents();
+        if (mounted && agents && agents.length > 0) {
+          setAvailableAgents(agents);
+          setSelectedAgentId(prev => prev || agents[0]?.id || agents[0]?._id || '');
+        }
+      } catch (err) {
+        console.error('Failed loading delivery agents:', err);
+      } finally {
+        if (mounted) setLoadingAgents(false);
+      }
+    };
+    loadAgents();
+    return () => { mounted = false; };
+  }, []);
 
   /* ── Persist addresses ── */
   useEffect(() => {
@@ -153,6 +178,7 @@ export default function CheckoutPage() {
   const delivery = 0;
   const total = subtotal + delivery;
   const activeAddr = addresses.find(a => a.id === selectedAddr) || addresses[0];
+  const selectedAgent = availableAgents.find(a => (a.id === selectedAgentId || a._id === selectedAgentId)) || availableAgents[0];
 
   /* ── Step navigation ── */
   const goTo = (s) => {
@@ -204,7 +230,6 @@ export default function CheckoutPage() {
       country: 'India',
       fullAddress: `${activeAddr.line1}${activeAddr.line2 ? ', ' + activeAddr.line2 : ''}, ${activeAddr.city}, ${activeAddr.state} - ${activeAddr.pin}`,
     };
-    // TODO [Phase 2]: Open AgentPickerModal when deliveryMode === 'buyer_choice' to capture selectedAgentId before dispatching order
     const payload = {
       items: cartItems.map(i => ({
         listing: i.listing?._id || i.listing?.id || i.listing,
@@ -213,6 +238,8 @@ export default function CheckoutPage() {
       deliveryAddress,
       paymentMethod: 'pending_farmer_approval',
       deliveryMode,
+      chosenAgentId: deliveryMode === 'buyer_choice' ? selectedAgentId : undefined,
+      selectedAgentId: deliveryMode === 'buyer_choice' ? selectedAgentId : undefined,
       totalAmount: total,
     };
 
@@ -643,23 +670,101 @@ export default function CheckoutPage() {
                         <User size={17} className={deliveryMode === 'buyer_choice' ? 'text-emerald-700' : 'text-stone-500'} />
                         <span className="text-sm font-black text-stone-900">Buyer's Choice</span>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        Coming in Phase 2
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Choose Partner
                       </span>
                     </div>
                     <p className="text-xs text-stone-600 font-medium leading-relaxed">
-                      Send a targeted delivery offer directly to your preferred delivery partner. <em>(Interactive driver picker arriving in Phase 2)</em>.
+                      Select your preferred verified delivery partner. A targeted offer is sent directly to them.
                     </p>
                   </div>
                 </div>
 
-                {/* Phase 2 Agent Selection Notice */}
+                {/* Delivery Agent Picker for Buyer's Choice */}
                 {deliveryMode === 'buyer_choice' && (
-                  <div className="mt-3 p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-2xl flex items-start gap-2.5 text-amber-900">
-                    <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                    <div className="text-xs leading-relaxed">
-                      <span className="font-bold">Agent Selection Preview:</span> The interactive driver-picker modal will be integrated here in Phase 2. Orders tagged as <em>buyer_choice</em> will currently be flagged for targeted allocation upon farmer packing.
+                  <div className="mt-4 p-4 bg-stone-50/90 border border-stone-200 rounded-2xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
+                          <Truck size={14} className="text-emerald-600" /> Select Delivery Partner
+                        </h4>
+                        <p className="text-[11px] text-stone-500">Pick the driver to handle your farm-to-door transit</p>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                        {availableAgents.length} Available
+                      </span>
                     </div>
+
+                    {loadingAgents ? (
+                      <div className="p-6 text-center text-xs text-stone-500">
+                        <RefreshCw size={16} className="animate-spin inline-block mr-2" />
+                        Loading verified delivery partners from directory...
+                      </div>
+                    ) : availableAgents.length === 0 ? (
+                      <div className="p-4 bg-amber-50 rounded-xl text-amber-800 text-xs">
+                        No delivery partners found nearby. Auto-assign will be used upon checkout.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {availableAgents.map((agent) => {
+                          const agId = agent.id || agent._id;
+                          const isSelected = (selectedAgentId === agId) || (!selectedAgentId && agent === availableAgents[0]);
+                          return (
+                            <div
+                              key={agId}
+                              onClick={() => setSelectedAgentId(agId)}
+                              className={`cursor-pointer p-3 rounded-xl border-2 transition-all flex flex-col justify-between ${
+                                isSelected
+                                  ? 'border-emerald-600 bg-white shadow-sm ring-1 ring-emerald-500/20'
+                                  : 'border-stone-200/80 bg-white/70 hover:border-stone-300'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <img
+                                  src={agent.profilePhoto || agent.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120'}
+                                  alt={agent.name}
+                                  className="w-10 h-10 rounded-full object-cover border border-stone-200 shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h5 className="text-xs font-black text-stone-900 truncate flex items-center gap-1">
+                                      {agent.name}
+                                      <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                                    </h5>
+                                    {isSelected ? (
+                                      <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] shrink-0">
+                                        ✓
+                                      </span>
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full border border-stone-300 shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-stone-600 font-medium truncate mt-0.5">
+                                    {agent.vehicleType || 'Commercial Vehicle'}
+                                  </p>
+                                  <p className="text-[10px] text-stone-400">
+                                    📍 {agent.district || agent.location || 'Karnataka'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center justify-between text-[11px]">
+                                <span className="flex items-center gap-1 font-bold text-amber-600">
+                                  <Star size={12} className="fill-amber-400 text-amber-500" />
+                                  {agent.rating || 4.8}
+                                  <span className="text-[10px] text-stone-400 font-normal">
+                                    ({agent.totalReviews || agent.reviews?.length || 12})
+                                  </span>
+                                </span>
+                                <span className="font-black text-stone-900">
+                                  ₹{agent.ratePerKm || 18} <span className="text-[10px] font-normal text-stone-500">/ km</span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -720,12 +825,12 @@ export default function CheckoutPage() {
                     <button onClick={() => goTo(3)} style={S.changeLink}>Change</button>
                   </div>
                   <p style={S.reviewBold}>
-                    {deliveryMode === 'buyer_choice' ? "Buyer's Choice" : "Auto-Assign Partner"}
+                    {deliveryMode === 'buyer_choice' ? "Buyer's Choice Partner" : "Auto-Assign Partner"}
                   </p>
                   <p style={S.reviewText}>
                     {deliveryMode === 'buyer_choice'
-                      ? 'Targeted offer to preferred driver'
-                      : 'Closest agent assigned upon farmer packing (6h deadline)'}
+                      ? (selectedAgent ? `🚚 ${selectedAgent.name} • ${selectedAgent.vehicleType || 'Commercial Vehicle'} (₹${selectedAgent.ratePerKm || 18}/km)` : 'Targeted offer to preferred driver')
+                      : 'Auto-broadcasted to top 3 nearest verified agents'}
                   </p>
                 </div>
               </div>

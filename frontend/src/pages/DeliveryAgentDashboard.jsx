@@ -127,9 +127,19 @@ export default function DeliveryAgentDashboard() {
 
   const handleRespond = async (orderId, action) => {
     try {
+      const agentId = user?._id || user?.id;
+      const mappedAction = action === 'reject' ? 'decline' : action;
       try {
-        await api.put(`/orders/${orderId}/driver/respond`, { action });
-      } catch (_) { }
+        if (agentId) {
+          await api.put(`/orders/${orderId}/delivery/offers/${agentId}/respond`, { action: mappedAction });
+        } else {
+          await api.put(`/orders/${orderId}/driver/respond`, { action });
+        }
+      } catch (_) {
+        try {
+          await api.put(`/orders/${orderId}/driver/respond`, { action });
+        } catch (__) { }
+      }
 
       const newStatus = action === 'accept' ? 'driver_accepted' : 'driver_rejected';
       updateDeliveryBookingStatus(orderId, newStatus);
