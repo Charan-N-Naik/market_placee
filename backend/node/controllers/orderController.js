@@ -248,8 +248,38 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  if (ownsListing) {
+    if (status === 'cancelled' && !['pending', 'accepted', 'packed'].includes(order.status)) {
+      return res.status(400).json({
+        message: `Cannot cancel order after it has been collected or delivered. Please use POST /api/orders/${order._id}/refund to issue a refund once logistics are in motion.`
+      });
+    }
+  }
+
   const previousStatus = order.status;
   order.status = status;
+
+  // Track delivery agents to notify if order is being cancelled
+  const agentsToNotify = new Set();
+  if (status === 'cancelled' && previousStatus !== 'cancelled') {
+    if (order.deliveryAgent) {
+      agentsToNotify.add(order.deliveryAgent.toString());
+    }
+    if (order.deliveryOffers && order.deliveryOffers.length > 0) {
+      for (const offer of order.deliveryOffers) {
+        if (offer.agent && (offer.status === 'offered' || offer.status === 'accepted')) {
+          agentsToNotify.add(offer.agent.toString());
+        }
+        if (offer.status === 'offered') {
+          offer.status = 'expired';
+        }
+      }
+    }
+    if (['pending_driver_approval', 'driver_accepted'].includes(order.deliveryRequestStatus)) {
+      order.deliveryRequestStatus = 'none';
+    }
+  }
+
   if (status === 'received') {
     order.receivedDate = new Date();
   }
@@ -313,6 +343,24 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         relatedOrder: order._id,
         relatedChat: order.relatedChat,
       });
+    }
+
+    // Notify delivery agent(s) if order was cancelled so they don't show up for pickup
+    if (status === 'cancelled' && previousStatus !== 'cancelled' && agentsToNotify.size > 0) {
+      for (const agentId of agentsToNotify) {
+        try {
+          await sendNotification({
+            recipientId: agentId,
+            senderId: req.user._id,
+            type: 'custom',
+            title: '🚫 Delivery Job Cancelled',
+            message: `Order #${order._id.toString().slice(-6).toUpperCase()} has been cancelled. Pickup is no longer required.`,
+            relatedOrder: order._id,
+          });
+        } catch (agentNotifyErr) {
+          console.error('[UpdateOrderStatus] Error notifying agent of cancellation:', agentNotifyErr.message);
+        }
+      }
     }
   } catch (error) {
     console.error('Error sending status update notification:', error);
