@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { getAgentDeliveryRequests, getAllDeliveryBookings, updateDeliveryBookingStatus } from '../utils/deliveryService';
+import { getSocket } from '../utils/socket';
+import OrderTrackingMap from '../components/OrderTrackingMap';
 
 // Format raw DB username into clean display name (e.g. driver1 -> Driver 1)
 function formatDisplayName(rawName) {
@@ -36,6 +38,7 @@ export default function DeliveryAgentDashboard() {
     avgRating: 4.9
   });
   const [selectedFullDetailOrder, setSelectedFullDetailOrder] = useState(null);
+  const [selectedTrackingOrder, setSelectedTrackingOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const profile = user?.deliveryAgentProfile || {};
@@ -151,16 +154,70 @@ export default function DeliveryAgentDashboard() {
 
   const handleStatusUpdate = async (orderId, status) => {
     try {
-      try {
-        await api.put(`/orders/${orderId}/driver/status`, { status });
-      } catch (_) { }
-
+      await api.put(`/orders/${orderId}/driver/status`, { status });
       updateDeliveryBookingStatus(orderId, status);
       fetchData();
     } catch (e) {
       console.error('Error updating job status:', e);
+      const errMsg = e.response?.data?.message || 'Could not update delivery status.';
+      alert(errMsg);
     }
   };
+
+  // Live GPS tracking heartbeat for collected orders (every ~10s)
+  useEffect(() => {
+    const collectedOrders = jobs.filter(
+      j => (j.deliveryRequestStatus === 'collected' || j.status === 'collected')
+    );
+    if (collectedOrders.length === 0) return;
+
+    const socket = getSocket();
+
+    let simStep = 0;
+    const sendUpdates = () => {
+      simStep = (simStep + 1) % 10;
+      collectedOrders.forEach((order) => {
+        const orderId = order._id || order.id;
+        if (!orderId) return;
+
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              socket.emit('agent_location_update', {
+                orderId,
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              });
+            },
+            () => {
+              // Simulated corridor coordinates between farm and buyer
+              const baseLat = order.farmer?.location?.lat || 15.3647;
+              const baseLng = order.farmer?.location?.lng || 75.1240;
+              const destLat = order.buyer?.location?.lat || 12.9141;
+              const destLng = order.buyer?.location?.lng || 74.8560;
+              const lat = +(baseLat - simStep * (baseLat - destLat) / 10).toFixed(6);
+              const lng = +(baseLng - simStep * (baseLng - destLng) / 10).toFixed(6);
+              socket.emit('agent_location_update', { orderId, lat, lng });
+            },
+            { timeout: 4000, maximumAge: 10000 }
+          );
+        } else {
+          const baseLat = order.farmer?.location?.lat || 15.3647;
+          const baseLng = order.farmer?.location?.lng || 75.1240;
+          const destLat = order.buyer?.location?.lat || 12.9141;
+          const destLng = order.buyer?.location?.lng || 74.8560;
+          const lat = +(baseLat - simStep * (baseLat - destLat) / 10).toFixed(6);
+          const lng = +(baseLng - simStep * (baseLng - destLng) / 10).toFixed(6);
+          socket.emit('agent_location_update', { orderId, lat, lng });
+        }
+      });
+    };
+
+    sendUpdates();
+    const heartbeatTimer = setInterval(sendUpdates, 10000);
+
+    return () => clearInterval(heartbeatTimer);
+  }, [jobs]);
 
   const handleLogout = () => {
     logout();
@@ -577,7 +634,7 @@ export default function DeliveryAgentDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       {(order.deliveryRequestStatus === 'driver_accepted' || order.status === 'driver_accepted') && (
                         <button
                           onClick={() => handleStatusUpdate(order._id || order.id, 'collected')}
@@ -594,6 +651,13 @@ export default function DeliveryAgentDashboard() {
                           Confirm Delivered to Buyer
                         </button>
                       )}
+                      <button
+                        onClick={() => setSelectedTrackingOrder(order)}
+                        className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Navigation size={14} className="text-blue-600" />
+                        <span>View Live Map</span>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -652,6 +716,18 @@ export default function DeliveryAgentDashboard() {
             getCropTitle={getCropTitle}
             getQtyText={getQtyText}
           />
+        )}
+
+        {/* LIVE TRACKING MAP MODAL FOR AGENT */}
+        {selectedTrackingOrder && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <OrderTrackingMap
+                order={selectedTrackingOrder}
+                onClose={() => setSelectedTrackingOrder(null)}
+              />
+            </div>
+          </div>
         )}
 
       </div>

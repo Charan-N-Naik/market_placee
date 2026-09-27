@@ -1072,12 +1072,20 @@ export default function FarmerDashboard() {
                               >
                                 <FileText size={12} /> Invoice
                               </button>
+                              {['packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
+                                <button
+                                  onClick={() => setTrackingFarmerOrder(trackingFarmerOrder === order._id ? null : order._id)}
+                                  className="min-h-[36px] px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                                >
+                                  <Truck size={12} /> {trackingFarmerOrder === order._id ? 'Hide Map' : 'Track Order'}
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
 
-                        {/* INLINE LIVE MAP for shipped orders */}
-                        {order.status === 'shipped' && trackingFarmerOrder === order._id && (
+                        {/* INLINE LIVE MAP for packed/collected/shipped/delivered orders */}
+                        {['packed', 'collected', 'shipped', 'delivered'].includes(order.status) && trackingFarmerOrder === order._id && (
                           <div className="mt-4 border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
                             <div className="flex items-center justify-between px-4 py-3 border-b border-blue-100 bg-white">
                               <div className="flex items-center gap-2">

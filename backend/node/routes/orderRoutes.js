@@ -2,6 +2,7 @@ import express from 'express';
 import { protect, requireRole } from '../middleware/auth.js';
 import { 
   createOrder, 
+  getOrderById,
   getBuyerOrders, 
   getSellerOrders, 
   updateOrderStatus, 
@@ -19,6 +20,9 @@ import {
 } from '../controllers/orderController.js';
 
 const router = express.Router();
+
+// Get single order by ID
+router.get('/:orderId', protect, getOrderById);
 
 // Create a new order (buyer must be authenticated)
 router.post('/', protect, createOrder);

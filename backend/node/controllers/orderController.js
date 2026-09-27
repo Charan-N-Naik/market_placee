@@ -149,12 +149,40 @@ export const createOrder = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get single order by ID
+// @route   GET /api/orders/:orderId
+// @access  Private
+export const getOrderById = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.orderId)
+    .populate('items.listing')
+    .populate('farmer', 'name email phone location')
+    .populate('buyer', 'name email phone location')
+    .populate('deliveryAgent', 'name phone location deliveryAgentProfile');
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+  const userId = req.user._id.toString();
+  const isBuyer = order.buyer?._id?.toString() === userId || order.buyer?.toString() === userId;
+  const isFarmer = order.farmer?._id?.toString() === userId || order.farmer?.toString() === userId;
+  const isAgent = order.deliveryAgent?._id?.toString() === userId || order.deliveryAgent?.toString() === userId;
+  const isOfferedAgent = (order.deliveryOffers || []).some(o => o.agent?.toString() === userId);
+  const isAdmin = req.user.role === 'admin';
+
+  if (!isBuyer && !isFarmer && !isAgent && !isOfferedAgent && !isAdmin) {
+    return res.status(403).json({ message: 'Not authorized to view this order' });
+  }
+
+  res.json(order);
+});
+
 // @desc    Get buyer's orders
 // @route   GET /api/orders/my
 // @access  Private (buyer)
 export const getBuyerOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ buyer: req.user._id })
     .populate('items.listing')
+    .populate('farmer', 'name email phone location')
+    .populate('deliveryAgent', 'name phone location deliveryAgentProfile')
     .sort({ createdAt: -1 });
   res.json(orders);
 });
@@ -174,7 +202,8 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find(query)
     .populate('items.listing')
-    .populate('buyer', 'name email phone')
+    .populate('buyer', 'name email phone location')
+    .populate('deliveryAgent', 'name phone location deliveryAgentProfile')
     .sort({ createdAt: -1 });
 
   // NEVER fall back to Order.find({}) — return empty array for farmers with no orders
@@ -280,7 +309,14 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     console.error('Error sending status update notification:', error);
   }
 
-  if (req.io) req.io.emit('orderUpdate', { orderId: order._id, status });
+  if (req.io) {
+    req.io.to(`order:${order._id}`).emit('orderUpdate', {
+      orderId: order._id,
+      status,
+      deliveryRequestStatus: order.deliveryRequestStatus,
+      order
+    });
+  }
   res.json(order);
 });
 
@@ -832,7 +868,12 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
     }
 
     if (req.io) {
-      req.io.emit('orderUpdate', { orderId: order._id, deliveryRequestStatus: 'driver_accepted', deliveryAgent: agentId });
+      req.io.to(`order:${order._id}`).emit('orderUpdate', {
+        orderId: order._id,
+        deliveryRequestStatus: 'driver_accepted',
+        deliveryAgent: agentId,
+        order
+      });
     }
 
     return res.json({
@@ -887,6 +928,18 @@ export const updateDriverJobStatus = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized' });
   }
 
+  // Enforce step progression: 'collected' only from 'packed', 'delivered' only from 'collected'
+  if (status === 'collected' && order.status !== 'packed') {
+    return res.status(400).json({
+      message: `Order can only be marked as collected when it is packed (current status: ${order.status})`
+    });
+  }
+  if (status === 'delivered' && order.status !== 'collected') {
+    return res.status(400).json({
+      message: `Order can only be marked as delivered when it is collected (current status: ${order.status})`
+    });
+  }
+
   order.deliveryRequestStatus = status;
   if (status === 'collected') {
     order.status = 'collected';
@@ -912,7 +965,14 @@ export const updateDriverJobStatus = asyncHandler(async (req, res) => {
     });
   } catch (e) {}
 
-  if (req.io) req.io.emit('orderUpdate', { orderId: order._id, status });
+  if (req.io) {
+    req.io.to(`order:${order._id}`).emit('orderUpdate', {
+      orderId: order._id,
+      status,
+      deliveryRequestStatus: order.deliveryRequestStatus,
+      order
+    });
+  }
   res.json(order);
 });
 

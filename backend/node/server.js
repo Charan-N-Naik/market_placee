@@ -36,6 +36,7 @@ import productVerificationRoutes from './routes/productVerificationRoutes.js';
 import cropVerificationRoutes from './routes/cropVerificationRoutes.js';
 import { seedAgriData } from './utils/seedAgriData.js';
 import { initDeliveryScheduler } from './services/deliverySchedulerService.js';
+import Order from './models/Order.js';
 
 // Initialize Express app
 const app = express();
@@ -98,6 +99,39 @@ io.on('connection', (socket) => {
   socket.on('join_room', (roomId) => {
     socket.join(roomId);
     console.log(`User ${socket.id} joined room ${roomId}`);
+  });
+
+  socket.on('leave_room', (roomId) => {
+    socket.leave(roomId);
+    console.log(`User ${socket.id} left room ${roomId}`);
+  });
+
+  // Live delivery agent GPS location update
+  socket.on('agent_location_update', async (data) => {
+    try {
+      const { orderId, lat, lng } = data || {};
+      if (!orderId || lat === undefined || lng === undefined) return;
+
+      const updatedAt = new Date();
+      // Relay to scoped order room
+      io.to(`order:${orderId}`).emit('agent_location', {
+        orderId,
+        lat: Number(lat),
+        lng: Number(lng),
+        updatedAt,
+      });
+
+      // Persist to order document for seamless reload
+      await Order.findByIdAndUpdate(orderId, {
+        lastKnownAgentLocation: {
+          lat: Number(lat),
+          lng: Number(lng),
+          updatedAt,
+        },
+      });
+    } catch (err) {
+      console.error('Socket agent_location_update error:', err);
+    }
   });
 
   // Real-Time Multilingual Agri-Advisory WebSocket Handlers

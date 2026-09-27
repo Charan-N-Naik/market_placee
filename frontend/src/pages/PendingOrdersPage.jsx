@@ -701,8 +701,8 @@ export default function BuyerOrdersPage() {
                     <OrderStepper status={order.status} />
                   </div>
 
-                  {/* ─── INLINE MAP TRACKER for collected/shipped orders ─── */}
-                  {['collected', 'shipped'].includes(order.status) && (
+                  {/* ─── INLINE MAP TRACKER for packed/collected/shipped/delivered orders ─── */}
+                  {['packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
                     <div className="border-t border-zinc-100 p-5 sm:p-6">
                       <LiveDeliveryTracker order={order} onClose={() => { }} />
                     </div>

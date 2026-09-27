@@ -8,6 +8,8 @@ import {
   Building2, UserCheck, MessageSquare, DollarSign, Star
 } from 'lucide-react';
 import { calculateDistance, calculateTransportExpenditure, getAvailableDeliveryAgents, getDeliveryBooking, createDeliveryBooking, addAgentReview } from '../utils/deliveryService';
+import { getSocket } from '../utils/socket';
+export { default as OrderTrackingMap } from './OrderTrackingMap';
 
 /* ─── Custom Crisp DivIcons for Leaflet ─── */
 const createCustomIcon = (type, label) => {
@@ -70,11 +72,13 @@ function MapBoundsFitter({ bounds }) {
 }
 
 export default function LiveDeliveryTracker({ order, onClose }) {
-  const status = order?.deliveryRequestStatus || order?.status || 'pending';
+  const orderId = order?._id || order?.id || order?.orderId;
+  const [currentStatus, setCurrentStatus] = useState(() => order?.deliveryRequestStatus || order?.status || 'pending');
+  const isDelivered = currentStatus === 'delivered' || currentStatus === 'received';
   
   const [selectedAgent, setSelectedAgent] = useState(() => {
     const list = getAvailableDeliveryAgents();
-    return order?.driver || list[0] || {
+    return order?.deliveryAgent || order?.driver || list[0] || {
       id: 'agent_driver_1',
       name: 'Ramesh Gowda',
       vehicleType: 'Mahindra Bolero Pickup 🚚',
@@ -91,22 +95,30 @@ export default function LiveDeliveryTracker({ order, onClose }) {
   const expenditure = order?.expenditureDetails || calculateTransportExpenditure(distanceKm, selectedAgent?.ratePerKm || 18);
 
   // Coordinates setup: Origin (Farmer Hub) -> Destination (Buyer Address)
-  const origin = [15.3647, 75.1240]; // Hub A (Hubli / Dharwad Agri Storage)
-  const dest = [12.9141, 74.8560];   // Hub B (Mangaluru / District Destination)
+  const origin = (order?.farmer?.location?.lat && order?.farmer?.location?.lng)
+    ? [order.farmer.location.lat, order.farmer.location.lng]
+    : [15.3647, 75.1240]; // Hub A (Hubli / Dharwad Agri Storage)
+  const dest = (order?.buyer?.location?.lat && order?.buyer?.location?.lng)
+    ? [order.buyer.location.lat, order.buyer.location.lng]
+    : [12.9141, 74.8560];   // Hub B (Mangaluru / District Destination)
   
   // Route interpolation points for real-time truck animation
   const routePoints = [
-    [15.3647, 75.1240],
+    origin,
     [14.8138, 75.0500],
     [14.2800, 74.9000],
     [13.8000, 74.8000],
     [13.3400, 74.7400],
-    [12.9141, 74.8560]
+    dest
   ];
 
-  // Animated truck progress index along routePoints
-  const [progressIndex, setProgressIndex] = useState(2);
-  const [currentPos, setCurrentPos] = useState(routePoints[2]);
+  // Animated truck position
+  const [currentPos, setCurrentPos] = useState(() => {
+    if (order?.lastKnownAgentLocation?.lat && order?.lastKnownAgentLocation?.lng) {
+      return [order.lastKnownAgentLocation.lat, order.lastKnownAgentLocation.lng];
+    }
+    return routePoints[2];
+  });
 
   // Anti-Fake GPS Verification Telemetry states
   const [telemetry, setTelemetry] = useState({
@@ -119,16 +131,52 @@ export default function LiveDeliveryTracker({ order, onClose }) {
     lastPingSecAgo: 2,
   });
 
-  // Dynamic truck movement simulation
+  // Socket.IO Room: Join order-scoped room & listen for live agent location
   useEffect(() => {
-    const timer = setInterval(() => {
-      setProgressIndex(prev => {
-        const next = (prev + 1) % routePoints.length;
-        setCurrentPos(routePoints[next]);
-        return next;
-      });
+    if (!orderId) return;
 
-      // Fluctuate telemetry slightly to show live hardware sensor stream
+    const socket = getSocket();
+    const roomId = `order:${orderId}`;
+
+    socket.emit('join_room', roomId);
+
+    const handleAgentLocation = (data) => {
+      if (isDelivered) return; // Stop tracking automatically when delivered
+      if (data && data.lat !== undefined && data.lng !== undefined) {
+        setCurrentPos([Number(data.lat), Number(data.lng)]);
+        setTelemetry(prev => ({
+          ...prev,
+          speed: Math.floor(40 + Math.random() * 12),
+          lastPingSecAgo: 1,
+          gpsAuthenticity: +(99.6 + Math.random() * 0.3).toFixed(1)
+        }));
+      }
+    };
+
+    const handleOrderUpdate = (data) => {
+      if (data && (data.orderId === orderId || data.order?._id === orderId)) {
+        const newStatus = data.status || data.deliveryRequestStatus;
+        if (newStatus) {
+          setCurrentStatus(newStatus);
+        }
+      }
+    };
+
+    socket.on('agent_location', handleAgentLocation);
+    socket.on('orderUpdate', handleOrderUpdate);
+
+    return () => {
+      socket.off('agent_location', handleAgentLocation);
+      socket.off('orderUpdate', handleOrderUpdate);
+      socket.emit('leave_room', roomId);
+    };
+  }, [orderId, isDelivered]);
+
+  // Dynamic truck movement simulation (fallback when status is collected and not yet delivered)
+  useEffect(() => {
+    if (isDelivered) return; // Automatic stop once status is delivered
+
+    const timer = setInterval(() => {
       setTelemetry(prev => ({
         ...prev,
         speed: Math.floor(42 + Math.random() * 12),
@@ -139,7 +187,7 @@ export default function LiveDeliveryTracker({ order, onClose }) {
     }, 4000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isDelivered]);
 
   // Streamlined Delivery Pipeline Stepper Config
   const steps = [
