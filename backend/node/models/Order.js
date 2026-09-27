@@ -40,6 +40,29 @@ const orderSchema = new mongoose.Schema(
     receivedDate: { type: Date },
     
     // Delivery Agent Ecosystem integration
+    deliveryMode: {
+      type: String,
+      enum: ['buyer_choice', 'auto_assign'],
+      required: true,
+    },
+    packedAt: { type: Date },
+    pickupDeadline: { type: Date },
+    deliveryOffers: [
+      {
+        agent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        offeredAt: { type: Date, default: Date.now },
+        status: {
+          type: String,
+          enum: ['offered', 'accepted', 'declined', 'expired'],
+          default: 'offered',
+        },
+      },
+    ],
+    lastKnownAgentLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      updatedAt: { type: Date },
+    },
     deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     deliveryDistance: { type: Number }, // in km
     deliveryFare: { type: Number }, // total cost for delivery

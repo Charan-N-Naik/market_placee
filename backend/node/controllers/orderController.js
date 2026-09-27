@@ -10,105 +10,136 @@ import { sendNotification } from '../services/notificationService.js';
 // @route   POST /api/orders
 // @access  Private (buyer)
 export const createOrder = asyncHandler(async (req, res) => {
-  const { items, deliveryAddress, paymentMethod } = req.body;
+  const { items, deliveryAddress, paymentMethod, deliveryMode } = req.body;
   if (!items || !items.length) {
     return res.status(400).json({ message: 'No items provided' });
   }
 
-  // Calculate total amount and verify inventory
-  let totalAmount = 0;
-  let farmerId = null;
+  if (!deliveryMode || !['buyer_choice', 'auto_assign'].includes(deliveryMode)) {
+    return res.status(400).json({
+      message: 'deliveryMode is required and must be either "buyer_choice" or "auto_assign"'
+    });
+  }
+
+  // Group cart items by listing.farmer and verify inventory
+  const farmerGroups = new Map(); // farmerId -> { farmerId, items: [], totalAmount: 0 }
 
   for (const item of items) {
-    const listing = await Listing.findById(item.listing);
+    const listingId = item.listing?._id || item.listing?.id || item.listing;
+    const listing = await Listing.findById(listingId);
     if (!listing) {
-      return res.status(404).json({ message: 'Listing not found' });
+      return res.status(404).json({ message: `Listing not found: ${listingId}` });
     }
     // Use quantity field (the actual stock field in the Listing model)
     const availableQty = listing.quantity || 0;
     if (availableQty < item.quantity) {
       return res.status(400).json({ message: `Insufficient stock for ${listing.cropName}. Available: ${availableQty}` });
     }
-    totalAmount += listing.pricePerUnit * item.quantity;
 
-    // Get farmer ID from the first listing (assuming single farmer per order for now)
-    if (!farmerId) {
-      farmerId = listing.farmer;
+    const farmerIdStr = listing.farmer.toString();
+    if (!farmerGroups.has(farmerIdStr)) {
+      farmerGroups.set(farmerIdStr, {
+        farmerId: listing.farmer,
+        items: [],
+        totalAmount: 0,
+      });
     }
+
+    const priceAtPurchase = listing.pricePerUnit || 0;
+    const group = farmerGroups.get(farmerIdStr);
+    group.totalAmount += priceAtPurchase * item.quantity;
+    group.items.push({
+      listing: listing._id,
+      quantity: item.quantity,
+      priceAtPurchase,
+      cropName: listing.cropName,
+    });
   }
 
-  const order = await Order.create({
-    buyer: req.user._id,
-    farmer: farmerId,  // Store farmer directly for fast lookup
-    items: items.map(i => ({
-      listing: i.listing,
-      quantity: i.quantity,
-      priceAtPurchase: items.find(x => x.listing === i.listing)?.pricePerUnit || 0
-    })),
-    totalAmount,
-    paymentMethod,
-    deliveryAddress,
-    status: 'pending',
-  });
+  const createdOrders = [];
+  const orderIds = [];
+  const chats = [];
+  const payments = [];
 
-  // Reduce quantity immediately (optimistic)
-  for (const item of items) {
-    await Listing.findByIdAndUpdate(item.listing, { $inc: { quantity: -item.quantity } });
-  }
+  // Create ONE Order document per farmer
+  for (const [farmerKey, group] of farmerGroups.entries()) {
+    const order = await Order.create({
+      buyer: req.user._id,
+      farmer: group.farmerId, // Store farmer directly for fast lookup
+      items: group.items.map(i => ({
+        listing: i.listing,
+        quantity: i.quantity,
+        priceAtPurchase: i.priceAtPurchase,
+      })),
+      totalAmount: group.totalAmount,
+      paymentMethod: paymentMethod || 'pending_farmer_approval',
+      deliveryAddress,
+      deliveryMode,
+      status: 'pending',
+    });
 
-  // Create or get existing chat with farmer
-  let chat = await Chat.findOne({
-    participants: { $all: [req.user._id, farmerId] },
-    isGroup: false,
-  });
+    // Reduce quantity immediately (optimistic)
+    for (const item of group.items) {
+      await Listing.findByIdAndUpdate(item.listing, { $inc: { quantity: -item.quantity } });
+    }
 
-  if (!chat) {
-    chat = await Chat.create({
-      participants: [req.user._id, farmerId],
-      messages: [],
+    // Create or get existing chat with farmer
+    let chat = await Chat.findOne({
+      participants: { $all: [req.user._id, group.farmerId] },
       isGroup: false,
     });
-  }
 
-  // Link chat to order
-  order.relatedChat = chat._id;
-  await order.save();
+    if (!chat) {
+      chat = await Chat.create({
+        participants: [req.user._id, group.farmerId],
+        messages: [],
+        isGroup: false,
+      });
+    }
 
-  // Send notification to farmer
-  try {
-    await sendNotification({
-      recipientId: farmerId,
-      senderId: req.user._id,
-      type: 'order_placed',
-      title: 'New Order Received',
-      message: `A new order has been placed for ₹${totalAmount}. Total quantity: ${items.reduce((sum, i) => sum + i.quantity, 0)} units.`,
-      relatedOrder: order._id,
-      relatedChat: chat._id,
-    });
-  } catch (error) {
-    console.error('Error sending notification:', error);
-  }
+    // Link chat to order
+    order.relatedChat = chat._id;
+    chats.push(chat._id);
 
-  // If online payment, create a payment record
-  if (paymentMethod !== 'cod') {
-    const payment = await Payment.create({
-      order: order._id,
-      amount: totalAmount,
-      currency: 'INR',
-      status: 'initiated',
-    });
-    order.paymentId = payment._id;
+    // Send notification to farmer
+    try {
+      await sendNotification({
+        recipientId: group.farmerId,
+        senderId: req.user._id,
+        type: 'order_placed',
+        title: 'New Order Received',
+        message: `A new order has been placed for ₹${group.totalAmount}. Total quantity: ${group.items.reduce((sum, i) => sum + i.quantity, 0)} units.`,
+        relatedOrder: order._id,
+        relatedChat: chat._id,
+      });
+    } catch (error) {
+      console.error('Error sending notification:', error);
+    }
+
+    // If online payment (not cod or pending_farmer_approval), create a payment record
+    if (paymentMethod && !['cod', 'pending_farmer_approval'].includes(paymentMethod)) {
+      const payment = await Payment.create({
+        order: order._id,
+        amount: group.totalAmount,
+        currency: 'INR',
+        status: 'initiated',
+      });
+      order.paymentId = payment._id;
+      payments.push(payment._id);
+    }
+
     await order.save();
-    return res.status(201).json({
-      orderId: order._id,
-      paymentId: payment._id,
-      chatId: chat._id
-    });
+    createdOrders.push(order);
+    orderIds.push(order._id);
   }
 
   res.status(201).json({
-    orderId: order._id,
-    chatId: chat._id
+    message: 'Orders placed successfully',
+    orderIds,
+    orderId: orderIds[0], // for backward compatibility with singular consumers
+    orders: createdOrders,
+    chatIds: chats,
+    paymentIds: payments.length > 0 ? payments : undefined,
   });
 });
 
@@ -177,6 +208,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   order.status = status;
   if (status === 'received') {
     order.receivedDate = new Date();
+  }
+  if (status === 'packed') {
+    order.packedAt = new Date();
+    order.pickupDeadline = new Date(order.packedAt.getTime() + 6 * 60 * 60 * 1000);
   }
   await order.save();
 

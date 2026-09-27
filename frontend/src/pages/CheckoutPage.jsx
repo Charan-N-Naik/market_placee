@@ -133,6 +133,7 @@ export default function CheckoutPage() {
   /* ── Order state ── */
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null); // { status: 'success'|'failed', data, error }
+  const [deliveryMode, setDeliveryMode] = useState('auto_assign'); // 'auto_assign' | 'buyer_choice'
 
   /* ── Persist addresses ── */
   useEffect(() => {
@@ -210,6 +211,7 @@ export default function CheckoutPage() {
       })),
       deliveryAddress,
       paymentMethod: 'pending_farmer_approval',
+      deliveryMode,
       totalAmount: total,
     };
 
@@ -220,42 +222,66 @@ export default function CheckoutPage() {
         orderData = res.data;
       } catch (apiErr) {
         console.warn('Backend order API call failed, generating robust local order:', apiErr);
+        // Fallback: group cart items by farmer
+        const farmerMap = {};
+        for (const item of cartItems) {
+          const fid = item.listing?.farmer?._id || item.listing?.farmer || 'farmer_default';
+          if (!farmerMap[fid]) farmerMap[fid] = [];
+          farmerMap[fid].push(item);
+        }
+        const fallbackOrders = Object.entries(farmerMap).map(([fid, fitems], idx) => {
+          const subTotal = fitems.reduce((s, i) => s + (i.listing?.pricePerUnit || i.priceAtAdd || 35) * i.quantity, 0);
+          return {
+            _id: 'ORD-' + Math.random().toString(36).slice(2, 9),
+            orderId: 'KB' + (Date.now() + idx).toString().slice(-6),
+            farmer: fid,
+            items: fitems.map(i => ({
+              listing: i.listing,
+              quantity: i.quantity,
+              priceAtPurchase: i.listing?.pricePerUnit || i.priceAtAdd || 35
+            })),
+            totalAmount: subTotal,
+            status: 'pending',
+            paymentMethod: 'pending_farmer_approval',
+            deliveryAddress,
+            deliveryMode,
+            createdAt: new Date().toISOString()
+          };
+        });
         orderData = {
-          _id: 'ORD-' + Date.now(),
-          orderId: 'KB' + Date.now().toString().slice(-6),
-          items: cartItems.map(i => ({
-            listing: i.listing,
-            quantity: i.quantity,
-            priceAtPurchase: i.listing?.pricePerUnit || i.priceAtAdd || 35
-          })),
-          totalAmount: total,
-          status: 'pending',
-          paymentMethod: 'pending_farmer_approval',
-          deliveryAddress,
-          createdAt: new Date().toISOString()
+          orderIds: fallbackOrders.map(o => o._id),
+          orderId: fallbackOrders[0]?._id,
+          orders: fallbackOrders
         };
       }
 
+      const ordersList = orderData.orders?.length ? orderData.orders : [orderData];
       const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
       const existingOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      localStorage.setItem(ordersKey, JSON.stringify([orderData, ...existingOrders]));
+      localStorage.setItem(ordersKey, JSON.stringify([...ordersList, ...existingOrders]));
 
-      // Create Farmer Notification so farmer sees order alert in Gmail inbox
-      const cropNamesStr = cartItems.map(i => i.listing?.cropName || 'Crop').join(', ');
-      const farmerNotif = {
-        id: 'notif-' + Date.now(),
-        title: '🌾 New Direct Crop Order Request Received!',
-        message: `A buyer submitted a Buy Request for ${cropNamesStr} (Total: ₹${total.toLocaleString('en-IN')}). Order ID: #${orderData.orderId || orderData._id?.slice?.(-6)}`,
-        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-        type: 'order',
-        read: false
-      };
+      // Create Farmer Notification(s) for each created farmer order
+      const createdFarmerNotifs = [];
+      ordersList.forEach((ord, idx) => {
+        const cropNamesStr = (ord.items || cartItems).map(i => i.listing?.cropName || i.cropName || 'Crop').join(', ');
+        const farmerNotif = {
+          id: 'notif-' + Date.now() + '-' + idx,
+          title: '🌾 New Direct Crop Order Request Received!',
+          message: `A buyer submitted a Buy Request for ${cropNamesStr} (Total: ₹${(ord.totalAmount || total).toLocaleString('en-IN')}). Order ID: #${ord.orderId || ord._id?.slice?.(-6)}`,
+          time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+          type: 'order',
+          read: false
+        };
+        createdFarmerNotifs.push(farmerNotif);
+      });
       const existingNotifs = JSON.parse(localStorage.getItem('farmer_notifications') || '[]');
-      localStorage.setItem('farmer_notifications', JSON.stringify([farmerNotif, ...existingNotifs]));
+      localStorage.setItem('farmer_notifications', JSON.stringify([...createdFarmerNotifs, ...existingNotifs]));
 
       // Dispatch event to notify application components
-      window.dispatchEvent(new CustomEvent('new_order_placed', { detail: { order: orderData, notification: farmerNotif } }));
+      ordersList.forEach((ord, idx) => {
+        window.dispatchEvent(new CustomEvent('new_order_placed', { detail: { order: ord, notification: createdFarmerNotifs[idx] } }));
+      });
 
       setOrderResult({ status: 'success', data: orderData });
       fetchCart();
@@ -269,7 +295,8 @@ export default function CheckoutPage() {
 
   /* ── Invoice download ── */
   const downloadInvoice = () => {
-    const html = generateInvoiceHTML(orderResult?.data, cartItems, activeAddr, payMethod, total);
+    const primaryOrder = orderResult?.data?.orders?.[0] || orderResult?.data;
+    const html = generateInvoiceHTML(primaryOrder, cartItems, activeAddr, payMethod, total);
     const w = window.open('', '_blank');
     if (w) {
       w.document.write(html);
@@ -282,7 +309,10 @@ export default function CheckoutPage() {
      RENDER: SUCCESS
   ═══════════════════════════════════════════════════ */
   if (orderResult?.status === 'success') {
-    const oid = orderResult.data?.orderId?.slice?.(-8)?.toUpperCase?.() || ('KB' + Date.now().toString().slice(-6));
+    const ordersList = orderResult.data?.orders?.length
+      ? orderResult.data.orders
+      : [orderResult.data];
+
     return (
       <div style={S.page}>
         <div style={S.statusWrap}>
@@ -296,16 +326,42 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <h1 style={S.successTitle}>Buy Request Sent! 🌾</h1>
+            <h1 style={S.successTitle}>
+              {ordersList.length > 1
+                ? `Buy Requests Sent to ${ordersList.length} Farmers! 🌾`
+                : 'Buy Request Sent! 🌾'}
+            </h1>
             <p style={S.successSub}>
-              Your buy request has been sent to the farmer's inbox. Once the farmer accepts your request, you can complete payment from your Approved Requests section.
+              {ordersList.length > 1
+                ? `Your cart contained crops from ${ordersList.length} different farmers. A separate direct buy request has been created and dispatched to each farmer's inbox:`
+                : "Your buy request has been sent to the farmer's inbox. Once the farmer accepts your request, you can complete payment from your Approved Requests section."}
             </p>
 
-            <div style={S.metaCard}>
-              <MetaRow label="Request ID" value={`#${oid}`} highlight />
-              <MetaRow label="Status" value="Pending Farmer Approval" />
-              <MetaRow label="Estimated Amount" value={`₹${total.toLocaleString('en-IN')}`} highlight />
-              <MetaRow label="Deliver To" value={`${activeAddr?.city}, ${activeAddr?.state}`} />
+            {/* Loop through each farmer order */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', margin: '18px 0' }}>
+              {ordersList.map((ord, idx) => {
+                const oid = ord.orderId?.slice?.(-8)?.toUpperCase?.() || ord._id?.slice?.(-8)?.toUpperCase?.() || ('KB' + (idx + 1));
+                const ordTotal = ord.totalAmount ?? total;
+                const cropNames = ord.items?.map(i => i.listing?.cropName || i.cropName || 'Crop').filter(Boolean).join(', ') || 'Fresh Crops';
+
+                return (
+                  <div key={ord._id || idx} style={S.metaCard}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f4f4f5', paddingBottom: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#18181b' }}>
+                        {ordersList.length > 1 ? `Farmer Order #${idx + 1}` : 'Order Summary'}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: '#fef3c7', color: '#b45309' }}>
+                        {ord.status === 'pending' ? 'Pending Approval' : ord.status}
+                      </span>
+                    </div>
+                    <MetaRow label="Request ID" value={`#${oid}`} highlight />
+                    <MetaRow label="Crops" value={cropNames} />
+                    <MetaRow label="Delivery Mode" value={ord.deliveryMode === 'buyer_choice' ? 'Buyer Choice Agent' : 'Auto-Assign Agent'} />
+                    <MetaRow label="Estimated Amount" value={`₹${ordTotal.toLocaleString('en-IN')}`} highlight />
+                    <MetaRow label="Deliver To" value={`${activeAddr?.city}, ${activeAddr?.state}`} />
+                  </div>
+                );
+              })}
             </div>
 
             <div style={S.successActions}>
@@ -540,10 +596,63 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* ═══ STEP 3: PAYMENT ═══ */}
+          {/* ═══ STEP 3: PAYMENT & DELIVERY ═══ */}
           {step === 3 && (
             <div style={S.card}>
-              <SectionHead icon={CreditCard} title="Payment Method" />
+              <SectionHead icon={CreditCard} title="Delivery & Payment Workflow" />
+
+              {/* Delivery Mode Selection */}
+              <div className="mb-6">
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-3">
+                  Delivery Agent Allocation Mode *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setDeliveryMode('auto_assign')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${
+                      deliveryMode === 'auto_assign'
+                        ? 'border-emerald-600 bg-emerald-50/70 shadow-sm'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <Truck size={17} className={deliveryMode === 'auto_assign' ? 'text-emerald-700' : 'text-stone-500'} />
+                        <span className="text-sm font-black text-stone-900">Auto-Assign Agent</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Fastest
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 font-medium leading-relaxed">
+                      Auto-broadcasts offer to the nearest verified delivery agents once the farmer packs the order (6h pickup window).
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setDeliveryMode('buyer_choice')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${
+                      deliveryMode === 'buyer_choice'
+                        ? 'border-emerald-600 bg-emerald-50/70 shadow-sm'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <User size={17} className={deliveryMode === 'buyer_choice' ? 'text-emerald-700' : 'text-stone-500'} />
+                        <span className="text-sm font-black text-stone-900">Buyer's Choice</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                        Targeted
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 font-medium leading-relaxed">
+                      Send a targeted delivery offer directly to your chosen delivery partner of preference.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* 2-Stage Farmer Approval Banner */}
               <div className="p-5 bg-amber-50/80 border border-amber-200/80 rounded-2xl mb-6 space-y-2 text-amber-900">
                 <div className="flex items-center gap-2 font-black text-sm text-amber-800">
@@ -590,6 +699,23 @@ export default function CheckoutPage() {
                   </div>
                   <p style={S.reviewBold}>Request-then-Pay Flow</p>
                   <p style={S.reviewText}>No payment required right now. Payment triggers after farmer approves.</p>
+                </div>
+
+                {/* Delivery Mode summary */}
+                <div style={S.reviewBox}>
+                  <div style={S.reviewBoxHead}>
+                    <Truck size={15} color="#ea580c" />
+                    <span>Delivery Mode</span>
+                    <button onClick={() => goTo(3)} style={S.changeLink}>Change</button>
+                  </div>
+                  <p style={S.reviewBold}>
+                    {deliveryMode === 'buyer_choice' ? "Buyer's Choice" : "Auto-Assign Partner"}
+                  </p>
+                  <p style={S.reviewText}>
+                    {deliveryMode === 'buyer_choice'
+                      ? 'Targeted offer to preferred driver'
+                      : 'Closest agent assigned upon farmer packing (6h deadline)'}
+                  </p>
                 </div>
               </div>
 

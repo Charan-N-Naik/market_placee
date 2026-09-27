@@ -48,6 +48,7 @@ export default function BuyModal({ listing, onClose, onSuccess }) {
           fullAddress: `${deliveryAddress.addressLine1}, ${deliveryAddress.addressLine2 || ''} ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.postalCode}`,
         },
         paymentMethod,
+        deliveryMode: 'auto_assign',
       };
 
       const response = await axios.post('/api/orders', orderData);
