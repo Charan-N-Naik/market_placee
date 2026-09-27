@@ -8,6 +8,8 @@ import { sendNotification } from '../services/notificationService.js';
 import User from '../models/User.js';
 import { calculateDistance, rankAgentsByProximityAndRating } from '../services/deliveryDistanceService.js';
 
+export const PICKUP_WINDOW_HOURS = 6;
+
 // @desc    Place a new order
 // @route   POST /api/orders
 // @access  Private (buyer)
@@ -214,9 +216,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     order.receivedDate = new Date();
   }
   if (status === 'packed') {
-    order.packedAt = new Date();
-    order.pickupDeadline = new Date(order.packedAt.getTime() + 6 * 60 * 60 * 1000);
-    // Trigger delivery offer dispatch upon farmer packing
+    const now = new Date();
+    order.packedAt = now;
+    order.pickupDeadline = new Date(now.getTime() + PICKUP_WINDOW_HOURS * 60 * 60 * 1000);
+    // Trigger delivery offer dispatch upon farmer packing (with auto_assign fallback)
     try {
       await dispatchDeliveryOffers(order, order.chosenAgentId);
     } catch (dispatchErr) {
@@ -435,20 +438,51 @@ export const getPendingOrders = asyncHandler(async (req, res) => {
 
 /**
  * Dispatch delivery offers for an order according to its deliveryMode.
- * If buyer_choice: creates a single deliveryOffers entry for the chosen agent with status 'offered', notify that agent only.
- * If auto_assign: finds available agents (availabilityStatus === 'available'), ranks by distance to farmer then rating,
- * creates deliveryOffers entries for the top 3, notifies all 3.
+ * If buyer_choice with a chosen agent: creates a single deliveryOffers entry for that agent and notifies them.
+ * If auto_assign or fallback (deliveryAgent not set): finds available agents, ranks by distance to farmer then rating,
+ * creates deliveryOffers entries for the top 3, and notifies all 3 with pickup deadline and farmer address.
  */
 export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
   if (!order) return null;
 
-  if (order.deliveryMode === 'buyer_choice') {
-    const targetAgentId = chosenAgentId || order.deliveryAgent;
-    if (!targetAgentId) {
-      console.warn(`[DeliveryDispatch] Order ${order._id} deliveryMode is buyer_choice, but no agent specified.`);
-      return order;
+  // Retrieve farmer address and location for notifications
+  let farmerAddress = 'the farm location';
+  let farmerLocation = 'Karnataka';
+  if (order.farmer) {
+    const farmerUser = await User.findById(order.farmer._id || order.farmer).lean();
+    if (farmerUser?.location?.address || farmerUser?.location?.district) {
+      farmerAddress = farmerUser.location.address || farmerUser.location.district;
+      farmerLocation = farmerUser.location.district || farmerUser.location.address;
     }
+  }
 
+  const windowHours = PICKUP_WINDOW_HOURS || 6;
+  const deadlineStr = order.pickupDeadline
+    ? new Date(order.pickupDeadline).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : `${windowHours} hours`;
+  const orderShort = order._id.toString().slice(-6).toUpperCase();
+
+  // 1. If order already has an assigned & accepted delivery agent, specifically notify them of the pickup deadline
+  if (order.deliveryAgent && order.deliveryRequestStatus === 'driver_accepted') {
+    try {
+      await sendNotification({
+        recipientId: order.deliveryAgent,
+        senderId: order.buyer?._id || order.buyer,
+        type: 'custom',
+        title: '📦 Order Packed — Ready for Pickup',
+        message: `Order #${orderShort} is packed and ready for pickup at ${farmerAddress}. Please collect within ${windowHours} hours (by ${deadlineStr}).`,
+        relatedOrder: order._id,
+      });
+    } catch (err) {
+      console.error('[DeliveryDispatch] Notification error for assigned driver:', err.message);
+    }
+    return order;
+  }
+
+  // 2. Target agent for buyer_choice
+  const targetAgentId = chosenAgentId || order.chosenAgentId || (order.deliveryMode === 'buyer_choice' ? order.deliveryAgent : null);
+
+  if (order.deliveryMode === 'buyer_choice' && targetAgentId) {
     order.deliveryOffers = order.deliveryOffers || [];
     const existingOffer = order.deliveryOffers.find(
       o => o.agent?.toString() === targetAgentId.toString() && o.status === 'offered'
@@ -471,8 +505,8 @@ export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
         recipientId: targetAgentId,
         senderId: order.buyer?._id || order.buyer,
         type: 'custom',
-        title: '🚚 New Delivery Job Offer',
-        message: `You have been selected for delivery on order #${order._id.toString().slice(-6)}. Open your driver portal to accept or decline.`,
+        title: '📦 Order Packed — Delivery Job Offered',
+        message: `Order #${orderShort} is packed and ready for pickup at ${farmerAddress}. Please collect within ${windowHours} hours (by ${deadlineStr}).`,
         relatedOrder: order._id,
       });
     } catch (err) {
@@ -482,81 +516,70 @@ export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
     return order;
   }
 
-  if (order.deliveryMode === 'auto_assign') {
-    // 1. Find available delivery agents in MongoDB
-    let availableAgents = await User.find({
+  // 3. Fallback to auto_assign: If deliveryAgent is not yet set or buyer didn't pick an agent
+  order.deliveryMode = order.deliveryMode || 'auto_assign';
+
+  let availableAgents = await User.find({
+    role: { $in: ['delivery_agent', 'driver'] },
+    $or: [
+      { 'deliveryAgentProfile.availabilityStatus': 'available' },
+      { availabilityStatus: 'available' }
+    ]
+  }).lean();
+
+  if (!availableAgents || availableAgents.length === 0) {
+    availableAgents = await User.find({
       role: { $in: ['delivery_agent', 'driver'] },
-      $or: [
-        { 'deliveryAgentProfile.availabilityStatus': 'available' },
-        { availabilityStatus: 'available' }
-      ]
+      'deliveryAgentProfile.availabilityStatus': { $ne: 'offline' }
     }).lean();
+  }
 
-    if (!availableAgents || availableAgents.length === 0) {
-      availableAgents = await User.find({
-        role: { $in: ['delivery_agent', 'driver'] },
-        'deliveryAgentProfile.availabilityStatus': { $ne: 'offline' }
-      }).lean();
-    }
+  if (!availableAgents || availableAgents.length === 0) {
+    availableAgents = await User.find({
+      role: { $in: ['delivery_agent', 'driver'] }
+    }).lean();
+  }
 
-    if (!availableAgents || availableAgents.length === 0) {
-      availableAgents = await User.find({
-        role: { $in: ['delivery_agent', 'driver'] }
-      }).lean();
-    }
+  // Filter out agents who already have an offer or declined
+  const existingOfferAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString());
+  const eligibleAgents = availableAgents.filter(a => !existingOfferAgentIds.includes(a._id.toString()));
 
-    // Filter out agents who already have an offer or declined
-    const existingOfferAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString());
-    const eligibleAgents = availableAgents.filter(a => !existingOfferAgentIds.includes(a._id.toString()));
+  // Rank available agents by distance to farmer, then rating
+  const rankedAgents = rankAgentsByProximityAndRating(eligibleAgents, farmerLocation);
 
-    // 2. Determine farmer location string
-    let farmerLocation = 'Karnataka';
-    if (order.farmer) {
-      const farmerUser = await User.findById(order.farmer._id || order.farmer).lean();
-      if (farmerUser?.location?.district || farmerUser?.location?.address) {
-        farmerLocation = farmerUser.location.district || farmerUser.location.address;
-      }
-    }
-
-    // 3. Rank available agents by distance to farmer, then rating (server-side calculateDistance)
-    const rankedAgents = rankAgentsByProximityAndRating(eligibleAgents, farmerLocation);
-
-    // 4. Create deliveryOffers entries for the top 3
-    const top3 = rankedAgents.slice(0, 3);
-    if (top3.length === 0) {
-      console.warn(`[DeliveryDispatch] No available delivery agents found to auto-assign for order ${order._id}`);
-      return order;
-    }
-
-    order.deliveryOffers = order.deliveryOffers || [];
-    for (const agent of top3) {
-      order.deliveryOffers.push({
-        agent: agent._id,
-        offeredAt: new Date(),
-        status: 'offered'
-      });
-    }
-
-    order.deliveryRequestStatus = 'pending_driver_approval';
-    await order.save();
-
-    // 5. Notify all 3 agents
-    for (const agent of top3) {
-      try {
-        await sendNotification({
-          recipientId: agent._id,
-          senderId: order.buyer?._id || order.buyer,
-          type: 'custom',
-          title: '🚚 Delivery Job Available',
-          message: `New delivery opportunity near ${farmerLocation} for order #${order._id.toString().slice(-6)}. First to accept gets the job!`,
-          relatedOrder: order._id,
-        });
-      } catch (err) {
-        console.error('[DeliveryDispatch] Notification error for auto_assign candidate:', err.message);
-      }
-    }
-
+  // Create deliveryOffers entries for the top 3
+  const top3 = rankedAgents.slice(0, 3);
+  if (top3.length === 0) {
+    console.warn(`[DeliveryDispatch] No available delivery agents found to auto-assign for order ${order._id}`);
     return order;
+  }
+
+  order.deliveryOffers = order.deliveryOffers || [];
+  for (const agent of top3) {
+    order.deliveryOffers.push({
+      agent: agent._id,
+      offeredAt: new Date(),
+      status: 'offered'
+    });
+  }
+
+  order.deliveryRequestStatus = 'pending_driver_approval';
+  await order.save();
+
+  // Send notification to the offered agents specifically with pickup deadline and farmer address
+  for (const agent of top3) {
+    try {
+      await sendNotification({
+        recipientId: agent._id,
+        senderId: order.buyer?._id || order.buyer,
+        type: 'custom',
+        title: '📦 Order Packed — Pickup Available',
+        message: `Order #${orderShort} is packed and ready for pickup at ${farmerAddress}. Please collect within ${windowHours} hours (by ${deadlineStr}).`,
+        relatedOrder: order._id,
+      });
+    } catch (err) {
+      console.error('[DeliveryDispatch] Notification error for auto_assign candidate:', err.message);
+    }
   }
 
   return order;
@@ -565,8 +588,8 @@ export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
 /**
  * Escalate to next-nearest available delivery agent when all previous offers were declined
  */
-async function escalateToNextDeliveryAgent(order) {
-  if (!order || order.deliveryMode !== 'auto_assign') return;
+export async function escalateToNextDeliveryAgent(order) {
+  if (!order) return;
 
   let availableAgents = await User.find({
     role: { $in: ['delivery_agent', 'driver'] },
@@ -592,10 +615,12 @@ async function escalateToNextDeliveryAgent(order) {
   }
 
   let farmerLocation = 'Karnataka';
+  let farmerAddress = 'the farm location';
   if (order.farmer) {
     const farmerUser = await User.findById(order.farmer._id || order.farmer).lean();
     if (farmerUser?.location?.district || farmerUser?.location?.address) {
       farmerLocation = farmerUser.location.district || farmerUser.location.address;
+      farmerAddress = farmerUser.location.address || farmerLocation;
     }
   }
 
@@ -610,13 +635,19 @@ async function escalateToNextDeliveryAgent(order) {
   order.deliveryRequestStatus = 'pending_driver_approval';
   await order.save();
 
+  const windowHours = PICKUP_WINDOW_HOURS || 6;
+  const deadlineStr = order.pickupDeadline
+    ? new Date(order.pickupDeadline).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : `${windowHours} hours`;
+  const orderShort = order._id.toString().slice(-6).toUpperCase();
+
   try {
     await sendNotification({
       recipientId: nextAgent._id,
       senderId: order.buyer?._id || order.buyer,
       type: 'custom',
-      title: '🚚 Escalated Delivery Opportunity',
-      message: `Priority delivery opportunity near ${farmerLocation} for order #${order._id.toString().slice(-6)}.`,
+      title: '🚚 Escalated Delivery Offer',
+      message: `Order #${orderShort} is packed and ready for pickup at ${farmerAddress}. Please collect within ${windowHours} hours (by ${deadlineStr}).`,
       relatedOrder: order._id,
     });
   } catch (err) {

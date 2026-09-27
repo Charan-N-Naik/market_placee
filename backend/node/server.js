@@ -35,6 +35,7 @@ import agriChatOrchestrator from './services/agriChat/agriChatOrchestrator.js';
 import productVerificationRoutes from './routes/productVerificationRoutes.js';
 import cropVerificationRoutes from './routes/cropVerificationRoutes.js';
 import { seedAgriData } from './utils/seedAgriData.js';
+import { initDeliveryScheduler } from './services/deliverySchedulerService.js';
 
 // Initialize Express app
 const app = express();
@@ -43,6 +44,7 @@ const httpServer = createServer(app);
 // Connect to MongoDB and seed agricultural data
 connectDB().then(() => {
   seedAgriData();
+  initDeliveryScheduler();
 });
 
 // Setup Socket.io
