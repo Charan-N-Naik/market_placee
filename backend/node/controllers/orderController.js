@@ -383,3 +383,155 @@ export const getPendingOrders = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 });
   res.json(orders);
 });
+
+// ═══════════════════════════════════════════════════════════
+// DELIVERY AGENT ENDPOINTS
+// ═══════════════════════════════════════════════════════════
+
+// @desc    Get all jobs for the delivery agent (pending requests + active + completed)
+// @route   GET /api/orders/driver/jobs
+// @access  Private (delivery_agent)
+export const getDriverJobs = asyncHandler(async (req, res) => {
+  const orders = await Order.find({
+    $or: [
+      { deliveryAgent: req.user._id },
+      { deliveryRequestStatus: 'pending_driver_approval', deliveryAgent: req.user._id }
+    ]
+  })
+    .populate('items.listing')
+    .populate('buyer', 'name email phone location')
+    .populate('farmer', 'name email phone location')
+    .sort({ createdAt: -1 });
+  res.json(orders);
+});
+
+// @desc    Get pending delivery requests for the agent
+// @route   GET /api/orders/driver/requests
+// @access  Private (delivery_agent)
+export const getDriverRequests = asyncHandler(async (req, res) => {
+  const orders = await Order.find({
+    deliveryAgent: req.user._id,
+    deliveryRequestStatus: 'pending_driver_approval'
+  })
+    .populate('items.listing')
+    .populate('buyer', 'name email phone location')
+    .populate('farmer', 'name email phone location')
+    .sort({ createdAt: -1 });
+  res.json(orders);
+});
+
+// @desc    Accept or reject a delivery request
+// @route   PUT /api/orders/:orderId/driver/respond
+// @access  Private (delivery_agent)
+export const acceptRejectDriverJob = asyncHandler(async (req, res) => {
+  const { action } = req.body; // 'accept' or 'reject'
+  const order = await Order.findById(req.params.orderId);
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+  if (order.deliveryAgent?.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized' });
+  }
+
+  if (action === 'accept') {
+    order.deliveryRequestStatus = 'driver_accepted';
+    await order.save();
+
+    // Notify buyer
+    try {
+      await sendNotification({
+        recipientId: order.buyer,
+        senderId: req.user._id,
+        type: 'custom',
+        title: '🚚 Delivery Agent Accepted!',
+        message: `Your delivery request has been accepted by ${req.user.name}. They will collect the order from the farmer.`,
+        relatedOrder: order._id,
+      });
+    } catch (e) {}
+  } else {
+    order.deliveryRequestStatus = 'driver_rejected';
+    order.deliveryAgent = undefined;
+    await order.save();
+  }
+
+  res.json(order);
+});
+
+// @desc    Mark order as collected or delivered by the driver
+// @route   PUT /api/orders/:orderId/driver/status
+// @access  Private (delivery_agent)
+export const updateDriverJobStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body; // 'collected' or 'delivered'
+  const order = await Order.findById(req.params.orderId);
+  if (!order) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+  if (order.deliveryAgent?.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized' });
+  }
+
+  order.deliveryRequestStatus = status;
+  if (status === 'collected') {
+    order.status = 'collected';
+  } else if (status === 'delivered') {
+    order.status = 'delivered';
+  }
+  await order.save();
+
+  // Notify buyer
+  try {
+    const title = status === 'collected' ? '📦 Order Collected!' : '🎉 Order Delivered!';
+    const message = status === 'collected'
+      ? `${req.user.name} has collected your order from the farmer. It's on the way!`
+      : `${req.user.name} has delivered your order. Please confirm receipt.`;
+
+    await sendNotification({
+      recipientId: order.buyer,
+      senderId: req.user._id,
+      type: 'custom',
+      title,
+      message,
+      relatedOrder: order._id,
+    });
+  } catch (e) {}
+
+  if (req.io) req.io.emit('orderUpdate', { orderId: order._id, status });
+  res.json(order);
+});
+
+// @desc    Get driver dashboard stats (earnings, trips, etc.)
+// @route   GET /api/orders/driver/stats
+// @access  Private (delivery_agent)
+export const getDriverStats = asyncHandler(async (req, res) => {
+  const completedOrders = await Order.find({
+    deliveryAgent: req.user._id,
+    deliveryRequestStatus: 'delivered'
+  });
+
+  const totalEarnings = completedOrders.reduce((sum, o) => sum + (o.deliveryFare || 0), 0);
+  const tripsCompleted = completedOrders.length;
+
+  const activeOrders = await Order.countDocuments({
+    deliveryAgent: req.user._id,
+    deliveryRequestStatus: { $in: ['driver_accepted', 'collected'] }
+  });
+
+  const pendingRequests = await Order.countDocuments({
+    deliveryAgent: req.user._id,
+    deliveryRequestStatus: 'pending_driver_approval'
+  });
+
+  // Average rating from rated delivered orders
+  const ratedOrders = completedOrders.filter(o => o.rating);
+  const avgRating = ratedOrders.length > 0
+    ? (ratedOrders.reduce((s, o) => s + o.rating, 0) / ratedOrders.length).toFixed(1)
+    : 0;
+
+  res.json({
+    totalEarnings,
+    tripsCompleted,
+    activeOrders,
+    pendingRequests,
+    avgRating: Number(avgRating),
+  });
+});

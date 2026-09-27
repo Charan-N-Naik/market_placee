@@ -37,6 +37,13 @@ export const buyerRegisterSchema = commonRegisterSchema.extend({
   produceType: z.string().optional(),
 });
 
+export const deliveryAgentRegisterSchema = commonRegisterSchema.extend({
+  vehicleType: z.string().min(1, 'Vehicle type is required'),
+  vehicleNumber: z.string().min(4, 'Vehicle number is required'),
+  drivingLicense: z.string().min(5, 'Driving license is required'),
+  perKmCharge: z.string().min(1, 'Charge per km is required'),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
 });

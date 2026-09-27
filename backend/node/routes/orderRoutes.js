@@ -8,7 +8,12 @@ import {
   refundOrder,
   markOrderAsReceived,
   rateOrder,
-  getPendingOrders
+  getPendingOrders,
+  getDriverJobs,
+  getDriverRequests,
+  acceptRejectDriverJob,
+  updateDriverJobStatus,
+  getDriverStats
 } from '../controllers/orderController.js';
 
 const router = express.Router();
@@ -16,7 +21,7 @@ const router = express.Router();
 // Create a new order (buyer must be authenticated)
 router.post('/', protect, createOrder);
 
-// Get orders for the logged‑in buyer
+// Get orders for the logged-in buyer
 router.get('/my', protect, getBuyerOrders);
 router.get('/buyer', protect, getBuyerOrders);
 
@@ -25,6 +30,13 @@ router.get('/pending/list', protect, getPendingOrders);
 
 // Get orders for the farmer who owns the listings in the orders
 router.get('/seller', protect, requireRole('farmer'), getSellerOrders);
+
+// ═══ Delivery Agent Routes ═══
+router.get('/driver/jobs', protect, getDriverJobs);
+router.get('/driver/requests', protect, getDriverRequests);
+router.get('/driver/stats', protect, getDriverStats);
+router.put('/:orderId/driver/respond', protect, acceptRejectDriverJob);
+router.put('/:orderId/driver/status', protect, updateDriverJobStatus);
 
 // Mark order as received (buyer)
 router.put('/:orderId/receive', protect, markOrderAsReceived);

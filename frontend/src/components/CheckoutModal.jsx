@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/axios';
+import { getAvailableDeliveryAgents, calculateDistance, calculateTransportExpenditure } from '../utils/deliveryService';
 import { 
   X, Check, ChevronRight, ShieldCheck, MapPin, Truck, CreditCard, 
-  CheckCircle2, Scale, Calendar, Sparkles, Receipt, Download, RefreshCw, Send, AlertCircle
+  CheckCircle2, Scale, Calendar, Sparkles, Receipt, Download, RefreshCw, Send, AlertCircle, User
 } from 'lucide-react';
 
 export default function CheckoutModal({ listing: rawListing, crop, onClose, onSuccess }) {
@@ -16,6 +17,16 @@ export default function CheckoutModal({ listing: rawListing, crop, onClose, onSu
   const [step, setStep] = useState(1);
   const [quantity, setQuantity] = useState(1);
   const [deliveryOption, setDeliveryOption] = useState('express'); // 'express' | 'pickup'
+  
+  // Available & Selected Delivery Agents
+  const [agents, setAgents] = useState([]);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+
+  useEffect(() => {
+    const list = getAvailableDeliveryAgents();
+    setAgents(list);
+    if (list.length > 0) setSelectedAgent(list[0]);
+  }, []);
 
   // Customer & Address Details
   const [customerDetails, setCustomerDetails] = useState({
@@ -181,14 +192,59 @@ export default function CheckoutModal({ listing: rawListing, crop, onClose, onSu
                 </div>
               </div>
 
-              {/* Logistics & Delivery Agent Note */}
-              <div className="p-4 bg-[#E8F7EE] rounded-2xl border border-[#1F7A4D]/20 flex items-start gap-3">
-                <Truck size={20} className="text-[#1F7A4D] shrink-0 mt-0.5" />
-                <div>
-                  <h5 className="font-black text-xs text-gray-900">Logistics & Delivery Agent Selection</h5>
-                  <p className="text-[11px] text-gray-600 font-medium mt-0.5">
-                    Delivery agent options and contact details will be selected by you after the farmer accepts your purchase request.
+              {/* Farmer Sourcing & Pickup Info Card */}
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <User size={14} className="text-amber-700" /> Sourcing Farmer Details
+                  </span>
+                  <span className="text-[10px] font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-full">Crop Pickup Point</span>
+                </div>
+                <div className="text-xs font-semibold text-amber-950 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold">{listing.farmer?.name || listing.farmerName || 'Local Sourcing Farmer'}</span>
+                    <span className="text-amber-800 text-[11px] font-mono">📞 {listing.farmer?.phone || '9845012345'}</span>
+                  </div>
+                  <p className="text-amber-800 text-[11px] flex items-center gap-1">
+                    <MapPin size={12} className="text-amber-600 shrink-0" />
+                    {typeof listing.location === 'object' 
+                      ? `${listing.location.address || 'Village Farm Gate'}, ${listing.location.district || ''}, ${listing.location.state || 'Karnataka'}` 
+                      : (listing.location || 'Tumakuru, Karnataka')}
                   </p>
+                </div>
+              </div>
+
+              {/* Delivery Agent Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-black text-gray-900 uppercase tracking-wider block flex items-center gap-1.5">
+                  <Truck size={14} className="text-[#1F7A4D]" /> Select Agri Delivery Agent
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {agents.map((agent) => (
+                    <div
+                      key={agent.id}
+                      onClick={() => setSelectedAgent(agent)}
+                      className={`p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                        selectedAgent?.id === agent.id 
+                          ? 'border-[#1F7A4D] bg-[#E8F7EE] text-[#1F7A4D] font-black shadow-xs' 
+                          : 'border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#1F7A4D] flex items-center justify-center font-bold text-sm">
+                          🚚
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{agent.name}</p>
+                          <p className="text-[10px] text-gray-500 font-semibold">{agent.vehicleType} • {agent.vehicleNumber || 'KA-06-EA-4821'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-[#1F7A4D]">₹{agent.ratePerKm || 18}/km</span>
+                        <p className="text-[10px] text-amber-600 font-bold">★ {agent.rating || 4.9}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
