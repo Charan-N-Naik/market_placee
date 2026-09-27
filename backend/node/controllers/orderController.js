@@ -215,7 +215,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (status === 'received') {
     order.receivedDate = new Date();
   }
-  if (status === 'packed') {
+  if (status === 'packed' && previousStatus !== 'packed') {
     const now = new Date();
     order.packedAt = now;
     order.pickupDeadline = new Date(now.getTime() + PICKUP_WINDOW_HOURS * 60 * 60 * 1000);
@@ -587,9 +587,10 @@ export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
 
 /**
  * Escalate to next-nearest available delivery agent when all previous offers were declined
+ * or when the pickup deadline expired. Shared by offer decline and scheduler watchdog.
  */
-export async function escalateToNextDeliveryAgent(order) {
-  if (!order) return;
+export async function escalateToNextDeliveryAgent(order, { notifyFarmerOnFail = false } = {}) {
+  if (!order) return null;
 
   let availableAgents = await User.find({
     role: { $in: ['delivery_agent', 'driver'] },
@@ -606,12 +607,34 @@ export async function escalateToNextDeliveryAgent(order) {
     }).lean();
   }
 
-  const attemptedAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString());
+  if (!availableAgents || availableAgents.length === 0) {
+    availableAgents = await User.find({
+      role: { $in: ['delivery_agent', 'driver'] }
+    }).lean();
+  }
+
+  const attemptedAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString()).filter(Boolean);
   const eligibleAgents = availableAgents.filter(a => !attemptedAgentIds.includes(a._id.toString()));
 
+  const orderShort = order._id.toString().slice(-6).toUpperCase();
+
   if (eligibleAgents.length === 0) {
-    console.log(`[DeliveryEscalation] No further uncontacted agents available for order ${order._id}`);
-    return;
+    console.warn(`[DeliveryEscalation] No further uncontacted delivery agents available for order ${order._id}`);
+    if (notifyFarmerOnFail && order.farmer) {
+      try {
+        await sendNotification({
+          recipientId: order.farmer,
+          senderId: order.buyer?._id || order.buyer,
+          type: 'custom',
+          title: '⚠️ Delivery Allocation Alert',
+          message: `All contacted delivery partners are currently unavailable for packed Order #${orderShort}. Our dispatch system will retry automatically.`,
+          relatedOrder: order._id,
+        });
+      } catch (err) {
+        console.error('[DeliveryEscalation] Error notifying farmer on failure:', err.message);
+      }
+    }
+    return null;
   }
 
   let farmerLocation = 'Karnataka';
@@ -627,6 +650,7 @@ export async function escalateToNextDeliveryAgent(order) {
   const ranked = rankAgentsByProximityAndRating(eligibleAgents, farmerLocation);
   const nextAgent = ranked[0];
 
+  order.deliveryOffers = order.deliveryOffers || [];
   order.deliveryOffers.push({
     agent: nextAgent._id,
     offeredAt: new Date(),
@@ -639,7 +663,6 @@ export async function escalateToNextDeliveryAgent(order) {
   const deadlineStr = order.pickupDeadline
     ? new Date(order.pickupDeadline).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
     : `${windowHours} hours`;
-  const orderShort = order._id.toString().slice(-6).toUpperCase();
 
   try {
     await sendNotification({
@@ -653,6 +676,8 @@ export async function escalateToNextDeliveryAgent(order) {
   } catch (err) {
     console.error('[DeliveryEscalation] Error notifying escalated agent:', err.message);
   }
+
+  return nextAgent;
 }
 
 // @desc    Get all jobs for the delivery agent (pending requests + active + completed)
