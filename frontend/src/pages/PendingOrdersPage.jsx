@@ -16,12 +16,12 @@ import {
 /* ─── Order Progress Stepper ─── */
 function OrderStepper({ status }) {
   const steps = [
-    { key: 'pending',   label: 'Requested',  icon: '📋' },
-    { key: 'accepted',  label: 'Approved',   icon: '✅' },
-    { key: 'paid',      label: 'Paid',       icon: '💳' },
-    { key: 'packed',    label: 'Packed',     icon: '📦' },
+    { key: 'pending', label: 'Requested', icon: '📋' },
+    { key: 'accepted', label: 'Approved', icon: '✅' },
+    { key: 'paid', label: 'Paid', icon: '💳' },
+    { key: 'packed', label: 'Packed', icon: '📦' },
     { key: 'collected', label: 'In Transit', icon: '🚛' },
-    { key: 'delivered', label: 'Delivered',  icon: '🎉' },
+    { key: 'delivered', label: 'Delivered', icon: '🎉' },
   ];
 
   // Map backend statuses to stepper index
@@ -59,26 +59,23 @@ function OrderStepper({ status }) {
             <div key={step.key} className="flex items-center shrink-0">
               {/* Step Node */}
               <div className="flex flex-col items-center gap-1">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${
-                  isCompleted ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' :
-                  isActive    ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/30 ring-4 ring-orange-100' :
-                                'bg-white border-zinc-300 text-zinc-400'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${isCompleted ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' :
+                    isActive ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/30 ring-4 ring-orange-100' :
+                      'bg-white border-zinc-300 text-zinc-400'
+                  }`}>
                   {isCompleted ? <CheckCircle2 size={14} /> : <span className="text-[11px]">{step.icon}</span>}
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${
-                  isCompleted ? 'text-emerald-600' :
-                  isActive    ? 'text-orange-600' :
-                                'text-zinc-400'
-                }`}>
+                <span className={`text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${isCompleted ? 'text-emerald-600' :
+                    isActive ? 'text-orange-600' :
+                      'text-zinc-400'
+                  }`}>
                   {step.label}
                 </span>
               </div>
               {/* Connector */}
               {!isLast && (
-                <div className={`h-0.5 w-8 sm:w-10 mx-1 shrink-0 rounded-full ${
-                  isCompleted ? 'bg-emerald-500' : 'bg-zinc-200'
-                }`} />
+                <div className={`h-0.5 w-8 sm:w-10 mx-1 shrink-0 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-zinc-200'
+                  }`} />
               )}
             </div>
           );
@@ -92,7 +89,7 @@ function OrderStepper({ status }) {
 function generateInvoiceHTML(order, listingCache) {
   const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
   const orderId = order?._id?.slice?.(-8)?.toUpperCase?.() || 'KB-ORDER';
-  
+
   const rows = order.items.map(item => {
     const listingId = item.listing?._id || item.listing;
     const cache = listingCache[listingId] || {};
@@ -158,12 +155,12 @@ export default function BuyerOrdersPage() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { user } = useAuth();
-  
+
   const [orders, setOrders] = useState([]);
   const [listingCache, setListingCache] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Tab control
   const [activeTab, setActiveTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
@@ -174,7 +171,7 @@ export default function BuyerOrdersPage() {
   const [ratingOrder, setRatingOrder] = useState(null);
   const [approvedPayOrder, setApprovedPayOrder] = useState(null);
   const [activeChatOrder, setActiveChatOrder] = useState(null);
-  
+
   // Rating states
   const [ratingVal, setRatingVal] = useState(5);
   const [ratingComment, setRatingComment] = useState('');
@@ -200,13 +197,13 @@ export default function BuyerOrdersPage() {
 
       const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
       const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      
+
       // Combine API & Local orders, removing duplicates by ID
       // API orders take priority (they have the latest DB status from farmer actions)
       const combined = [...apiOrders, ...localOrders];
       const uniqueOrders = [];
       const seenIds = new Set();
-      
+
       combined.forEach(o => {
         const idKey = o._id || o.orderId || o.id;
         if (idKey && !seenIds.has(idKey)) {
@@ -387,10 +384,10 @@ export default function BuyerOrdersPage() {
 
     if (!searchQuery) return true;
     const lowerQuery = searchQuery.toLowerCase();
-    
+
     // Search by Order ID
     if (order._id?.toLowerCase().includes(lowerQuery)) return true;
-    
+
     // Search by Crop Name
     const hasCrop = order.items?.some(item => {
       const cache = listingCache[item.listing?._id || item.listing];
@@ -416,11 +413,10 @@ export default function BuyerOrdersPage() {
     <div className="min-h-screen bg-stone-50 font-sans pb-24">
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed bottom-8 right-8 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-xl transition-all duration-300 transform translate-y-0 ${
-          toast.type === 'success' 
-            ? 'bg-emerald-950 text-emerald-100 border border-emerald-800' 
+        <div className={`fixed bottom-8 right-8 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-xl transition-all duration-300 transform translate-y-0 ${toast.type === 'success'
+            ? 'bg-emerald-950 text-emerald-100 border border-emerald-800'
             : 'bg-red-950 text-red-100 border border-red-800'
-        }`}>
+          }`}>
           <div className={`p-1.5 rounded-lg ${toast.type === 'success' ? 'bg-emerald-800' : 'bg-red-800'}`}>
             {toast.type === 'success' ? <Check size={16} /> : <AlertTriangle size={16} />}
           </div>
@@ -442,7 +438,7 @@ export default function BuyerOrdersPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-8 sm:px-10 lg:px-12 pt-16 pb-8 space-y-8 flex flex-col items-center">
-        
+
         {/* Title Block */}
         <div className="bg-white rounded-[20px] border border-zinc-100 p-6 sm:p-8 md:p-10 shadow-[0_1px_8px_rgba(0,0,0,0.03)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-1">
@@ -450,8 +446,8 @@ export default function BuyerOrdersPage() {
             <p className="text-stone-500 text-xs sm:text-sm font-semibold">Track updates, download receipts, and contact farmers directly</p>
           </div>
           <div className="flex items-center gap-4 w-full md:w-auto">
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search by Crop or Order ID..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -483,16 +479,14 @@ export default function BuyerOrdersPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3.5 border-b-3 font-black text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2.5 cursor-pointer rounded-t-xl ${
-                  isActive 
-                    ? `${tab.color} border-current` 
+                className={`px-6 py-3.5 border-b-3 font-black text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2.5 cursor-pointer rounded-t-xl ${isActive
+                    ? `${tab.color} border-current`
                     : 'border-transparent text-stone-400 hover:text-stone-700 hover:bg-stone-50'
-                }`}
+                  }`}
               >
                 <span>{tab.label}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-                  isActive ? 'bg-white shadow-xs border border-stone-200' : 'bg-stone-200 text-stone-600'
-                }`}>{count}</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${isActive ? 'bg-white shadow-xs border border-stone-200' : 'bg-stone-200 text-stone-600'
+                  }`}>{count}</span>
               </button>
             );
           })}
@@ -506,7 +500,7 @@ export default function BuyerOrdersPage() {
             </div>
             <h3 className="text-stone-900 font-black text-xl">No orders found</h3>
             <p className="text-stone-400 text-xs sm:text-sm font-semibold max-w-sm mx-auto">There are currently no orders matching this category filter.</p>
-            <button 
+            <button
               onClick={() => navigate('/buyer/dashboard')}
               className="mt-4 px-8 py-3.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-md shadow-orange-600/20 active:scale-95 transition-all cursor-pointer inline-flex items-center gap-2"
             >
@@ -514,16 +508,16 @@ export default function BuyerOrdersPage() {
             </button>
           </div>
         ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8 max-w-6xl mx-auto px-4 w-full">
-              {filteredOrders.map(order => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8 max-w-6xl mx-auto px-4 w-full">
+            {filteredOrders.map(order => {
               const shortId = order._id?.slice(-8).toUpperCase() || 'KB-ORDER';
               const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
                 day: 'numeric', month: 'short', year: 'numeric'
               });
-              
+
               return (
                 <div key={order._id} className="bg-white rounded-[20px] border border-zinc-100 overflow-hidden shadow-[0_1px_8px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-300">
-                  
+
                   {/* Card Header */}
                   <div className="bg-zinc-50/80 border-b border-zinc-100 p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-6 flex-wrap">
@@ -537,7 +531,7 @@ export default function BuyerOrdersPage() {
                         <h4 className="text-xs sm:text-sm font-bold text-stone-700">{formattedDate}</h4>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-8 flex-wrap justify-between w-full sm:w-auto">
                       <div>
                         <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase">TOTAL AMOUNT</span>
@@ -552,7 +546,7 @@ export default function BuyerOrdersPage() {
 
                   {/* Card Items & details */}
                   <div className="p-5 sm:p-6 flex flex-col lg:flex-row gap-6">
-                    
+
                     {/* Items List */}
                     <div className="flex-1 flex flex-col gap-4">
                       {order.items?.map((item, idx) => {
@@ -591,12 +585,12 @@ export default function BuyerOrdersPage() {
                         <div className="bg-zinc-50 rounded-2xl border border-zinc-100 p-4 space-y-1">
                           <p className="text-xs sm:text-sm font-black text-stone-800">{order.deliveryAddress?.name || user?.name}</p>
                           <p className="text-xs font-semibold text-stone-600 leading-relaxed">
-                            {order.deliveryAddress?.fullAddress || 
-                             `${order.deliveryAddress?.addressLine1 || ''}, ${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''}`}
+                            {order.deliveryAddress?.fullAddress ||
+                              `${order.deliveryAddress?.addressLine1 || ''}, ${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''}`}
                           </p>
                         </div>
                       </div>
-                      
+
                       {/* Rating details display if already rated */}
                       {order.rating && (
                         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
@@ -616,14 +610,14 @@ export default function BuyerOrdersPage() {
                   {/* Card Footer Actions — BOUNDED BUTTON TEXT */}
                   <div className="bg-zinc-50/50 border-t border-zinc-100 p-5 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <button 
+                      <button
                         onClick={() => downloadInvoice(order)}
                         className="min-h-[44px] px-5 py-2.5 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
                       >
                         <Download size={15} className="shrink-0" />
                         <span>Invoice</span>
                       </button>
-                      <button 
+                      <button
                         onClick={() => setContactingOrder(order)}
                         className="min-h-[44px] px-5 py-2.5 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
                       >
@@ -635,7 +629,7 @@ export default function BuyerOrdersPage() {
                     <div className="flex items-center gap-3 flex-wrap">
                       {/* PAY NOW for farmer-approved orders */}
                       {['accepted', 'approved'].includes(order.status) && (
-                        <button 
+                        <button
                           onClick={() => setApprovedPayOrder(order)}
                           className="min-h-[44px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-md shadow-emerald-600/20 cursor-pointer whitespace-nowrap animate-pulse"
                         >
@@ -646,7 +640,7 @@ export default function BuyerOrdersPage() {
 
                       {/* Track Order — show after payment or during delivery */}
                       {['paid', 'processing', 'packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
-                        <button 
+                        <button
                           onClick={() => setTrackingOrder(order)}
                           className="min-h-[44px] px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         >
@@ -656,7 +650,7 @@ export default function BuyerOrdersPage() {
                       )}
 
                       {/* Buy Again */}
-                      <button 
+                      <button
                         onClick={() => handleBuyAgain(order)}
                         className="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm shadow-orange-600/20 cursor-pointer whitespace-nowrap"
                       >
@@ -666,7 +660,7 @@ export default function BuyerOrdersPage() {
 
                       {/* Cancel Order */}
                       {['pending', 'accepted'].includes(order.status) && (
-                        <button 
+                        <button
                           onClick={() => handleCancelOrder(order._id || order.id || order.orderId)}
                           className="min-h-[44px] px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         >
@@ -677,7 +671,7 @@ export default function BuyerOrdersPage() {
 
                       {/* Receive confirmation — only after delivery agent has collected */}
                       {['collected', 'shipped', 'delivered'].includes(order.status) && (
-                        <button 
+                        <button
                           onClick={() => handleMarkAsReceived(order._id || order.id)}
                           className="min-h-[44px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
                         >
@@ -688,7 +682,7 @@ export default function BuyerOrdersPage() {
 
                       {/* Rate Order */}
                       {(order.status === 'received' || order.status === 'delivered') && !order.rating && (
-                        <button 
+                        <button
                           onClick={() => {
                             setRatingOrder(order);
                             setRatingVal(5);
@@ -710,7 +704,7 @@ export default function BuyerOrdersPage() {
                   {/* ─── INLINE MAP TRACKER for collected/shipped orders ─── */}
                   {['collected', 'shipped'].includes(order.status) && (
                     <div className="border-t border-zinc-100 p-5 sm:p-6">
-                      <LiveDeliveryTracker order={order} onClose={() => {}} />
+                      <LiveDeliveryTracker order={order} onClose={() => { }} />
                     </div>
                   )}
 
@@ -724,9 +718,9 @@ export default function BuyerOrdersPage() {
 
       {/* ─── PAYMENT MODAL FOR APPROVED ORDERS ─── */}
       {approvedPayOrder && (
-        <PaymentModal 
-          order={approvedPayOrder} 
-          onClose={() => setApprovedPayOrder(null)} 
+        <PaymentModal
+          order={approvedPayOrder}
+          onClose={() => setApprovedPayOrder(null)}
           onPaymentSuccess={() => {
             fetchOrders();
           }}
@@ -760,7 +754,7 @@ export default function BuyerOrdersPage() {
         return (
           <Modal onClose={() => setContactingOrder(null)} title="Contact Farmer">
             <div className="flex flex-col gap-6 text-center">
-              
+
               {/* Farmer Meta */}
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-6 flex flex-col items-center">
                 <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center font-black text-orange-600 text-xl mb-3 shadow-inner">
@@ -780,15 +774,15 @@ export default function BuyerOrdersPage() {
               <div className="flex flex-col gap-3">
                 {farmerPhone ? (
                   <>
-                    <a 
-                      href={waLink} 
-                      target="_blank" 
+                    <a
+                      href={waLink}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-600/15"
                     >
                       <MessageCircle size={16} /> WhatsApp Farmer
                     </a>
-                    <a 
+                    <a
                       href={`tel:${farmerPhone}`}
                       className="py-3 border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-sm"
                     >
@@ -801,7 +795,7 @@ export default function BuyerOrdersPage() {
                     Farmer phone number is not available. Please try initiating system chat.
                   </div>
                 )}
-                
+
                 {/* Platform Chat */}
                 <button
                   onClick={() => handleContactFarmer(cache.farmer?._id || cache.farmer)}
@@ -811,7 +805,7 @@ export default function BuyerOrdersPage() {
                 </button>
               </div>
 
-              <button 
+              <button
                 onClick={() => setContactingOrder(null)}
                 className="py-3 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-2xl text-xs font-black transition-all"
               >
@@ -841,9 +835,9 @@ export default function BuyerOrdersPage() {
                     onClick={() => setRatingVal(star)}
                     className="p-1 hover:scale-110 active:scale-95 transition-all outline-none"
                   >
-                    <Star 
-                      size={36} 
-                      className={`transition-colors ${selected ? 'text-yellow-500 fill-current' : 'text-stone-300'}`} 
+                    <Star
+                      size={36}
+                      className={`transition-colors ${selected ? 'text-yellow-500 fill-current' : 'text-stone-300'}`}
                     />
                   </button>
                 );
@@ -853,7 +847,7 @@ export default function BuyerOrdersPage() {
             {/* Comments input */}
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-stone-400 uppercase tracking-wider">COMMENTS (OPTIONAL)</label>
-              <textarea 
+              <textarea
                 value={ratingComment}
                 onChange={e => setRatingComment(e.target.value)}
                 placeholder="Share your experience with the crop shelf-life, size, freshness..."
@@ -864,13 +858,13 @@ export default function BuyerOrdersPage() {
 
             {/* Action buttons */}
             <div className="flex gap-4">
-              <button 
+              <button
                 onClick={() => setRatingOrder(null)}
                 className="flex-1 py-3 border border-stone-200 hover:bg-stone-50 text-stone-600 rounded-2xl text-xs font-black transition-all"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleSubmitRating}
                 disabled={submittingRating}
                 className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-white rounded-2xl text-xs font-black transition-all shadow-md shadow-yellow-500/10"
@@ -925,9 +919,8 @@ function StatusBadge({ status }) {
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-      styles[status] || styles.pending
-    }`}>
+    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${styles[status] || styles.pending
+      }`}>
       {labels[status] || status}
     </span>
   );
@@ -936,11 +929,10 @@ function StatusBadge({ status }) {
 function TrackerStep({ label, desc, done, date }) {
   return (
     <div className="flex gap-4 items-start relative">
-      <div className={`w-8.5 h-8.5 rounded-full flex items-center justify-center z-10 flex-shrink-0 transition-all ${
-        done 
-          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+      <div className={`w-8.5 h-8.5 rounded-full flex items-center justify-center z-10 flex-shrink-0 transition-all ${done
+          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
           : 'bg-stone-100 text-stone-400 border border-stone-200'
-      }`}>
+        }`}>
         <Check size={14} strokeWidth={3} />
       </div>
       <div className="flex-1 min-w-0">
@@ -958,7 +950,7 @@ function Modal({ children, onClose, title, maxWidth = "max-w-md" }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in">
       <div className={`bg-white rounded-[20px] border border-zinc-100 ${maxWidth} w-full p-6 shadow-xl relative animate-scale-in max-h-[92vh] overflow-y-auto`}>
-        
+
         {/* Modal Header */}
         <div className="flex justify-between items-center border-b border-stone-100 pb-4 mb-5">
           <h3 className="text-sm font-black text-stone-800 tracking-tight">{title}</h3>

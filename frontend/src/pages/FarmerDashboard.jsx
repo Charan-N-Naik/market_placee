@@ -172,7 +172,7 @@ export default function FarmerDashboard() {
       });
 
       setSellerOrders(uniqueOrders);
-      
+
       let apiNotifs = [];
       try {
         const notifsRes = await api.get('/notifications');
@@ -181,7 +181,7 @@ export default function FarmerDashboard() {
           // Ensure dates are valid ISO strings
           createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString()
         }));
-      } catch (_) {}
+      } catch (_) { }
 
       setNotifications(apiNotifs);
 
@@ -414,7 +414,7 @@ export default function FarmerDashboard() {
   const cropPerformanceData = (myListings || []).slice(0, 5).map(l => {
     const rawViews = Number(l.views) || 0;
     const cleanViews = rawViews > 300 ? (rawViews % 85) + 18 : rawViews;
-    const salesCount = (sellerOrders || []).filter(o => 
+    const salesCount = (sellerOrders || []).filter(o =>
       o?.items?.some(i => i?.listing?._id === l._id || i?.listing === l._id || i?.listing?._id === l.id)
     ).length;
 
@@ -747,8 +747,8 @@ export default function FarmerDashboard() {
                           <div className="flex justify-between items-start">
                             <h4 className="text-base font-black text-gray-900">🌾 {listing.cropName}</h4>
                             <span className={`text-[10px] font-black px-2 py-0.5 rounded border flex items-center gap-1 ${listing.aiVerified || listing.isVerified
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-gray-50 text-gray-500 border-gray-200'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-gray-50 text-gray-500 border-gray-200'
                               }`}>
                               {listing.aiVerified || listing.isVerified ? (
                                 <><BadgeCheck size={12} className="text-emerald-600" /> AI Verified ✓</>
@@ -885,11 +885,11 @@ export default function FarmerDashboard() {
             {/* Pipeline Status Cards — Compact Centered Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {[
-                { id: 'pending',   label: 'Pending',   emoji: '🕐', activeBg: 'bg-orange-50',  activeBorder: 'border-orange-400',  activeText: 'text-orange-700',  countBg: 'bg-orange-500' },
-                { id: 'accepted',  label: 'Accepted',  emoji: '✅', activeBg: 'bg-blue-50',    activeBorder: 'border-blue-400',    activeText: 'text-blue-700',    countBg: 'bg-blue-500' },
-                { id: 'packed',    label: 'Packed',    emoji: '📦', activeBg: 'bg-purple-50',  activeBorder: 'border-purple-400',  activeText: 'text-purple-700',  countBg: 'bg-purple-500' },
-                { id: 'collected', label: 'Collected', emoji: '🚛', activeBg: 'bg-indigo-50',  activeBorder: 'border-indigo-400',  activeText: 'text-indigo-700',  countBg: 'bg-indigo-500' },
-                { id: 'cancelled', label: 'Cancelled', emoji: '❌', activeBg: 'bg-red-50',     activeBorder: 'border-red-400',     activeText: 'text-red-700',     countBg: 'bg-red-500' },
+                { id: 'pending', label: 'Pending', emoji: '🕐', activeBg: 'bg-orange-50', activeBorder: 'border-orange-400', activeText: 'text-orange-700', countBg: 'bg-orange-500' },
+                { id: 'accepted', label: 'Accepted', emoji: '✅', activeBg: 'bg-blue-50', activeBorder: 'border-blue-400', activeText: 'text-blue-700', countBg: 'bg-blue-500' },
+                { id: 'packed', label: 'Packed', emoji: '📦', activeBg: 'bg-purple-50', activeBorder: 'border-purple-400', activeText: 'text-purple-700', countBg: 'bg-purple-500' },
+                { id: 'collected', label: 'Collected', emoji: '🚛', activeBg: 'bg-indigo-50', activeBorder: 'border-indigo-400', activeText: 'text-indigo-700', countBg: 'bg-indigo-500' },
+                { id: 'cancelled', label: 'Cancelled', emoji: '❌', activeBg: 'bg-red-50', activeBorder: 'border-red-400', activeText: 'text-red-700', countBg: 'bg-red-500' },
               ].map((tab) => {
                 const count = sellerOrders.filter(o => {
                   if (tab.id === 'accepted') return o.status === 'accepted' || o.status === 'paid';
@@ -901,11 +901,10 @@ export default function FarmerDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setOrderActiveTab(tab.id)}
-                    className={`relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border transition-all cursor-pointer text-center ${
-                      isActive
+                    className={`relative flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border transition-all cursor-pointer text-center ${isActive
                         ? `${tab.activeBg} ${tab.activeBorder} shadow-sm font-black`
                         : 'bg-white border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                    }`}
+                      }`}
                   >
                     <span className="text-lg">{tab.emoji}</span>
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? tab.activeText : 'text-zinc-500'}`}>
@@ -964,139 +963,139 @@ export default function FarmerDashboard() {
                     const buyerPhone = order.buyer?.phone || order.buyerPhone || '';
 
                     const statusConfig = {
-                      pending:   { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
-                      accepted:  { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500' },
-                      packed:    { bg: 'bg-purple-50',  text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
-                      collected: { bg: 'bg-indigo-50',  text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
-                      shipped:   { bg: 'bg-indigo-50',  text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
-                      delivered: { bg: 'bg-emerald-50', text: 'text-emerald-700',border: 'border-emerald-200',dot: 'bg-emerald-500' },
-                      cancelled: { bg: 'bg-red-50',     text: 'text-red-700',    border: 'border-red-200',    dot: 'bg-red-500' },
+                      pending: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500' },
+                      accepted: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+                      packed: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
+                      collected: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
+                      shipped: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
+                      delivered: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+                      cancelled: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' },
                     };
                     const sc = statusConfig[order.status] || statusConfig.pending;
 
                     return (
                       <Fragment key={order._id || order.orderId}>
-                      <div className="bg-white rounded-[20px] border border-zinc-100 shadow-[0_1px_8px_rgba(0,0,0,0.03)] hover:shadow-md transition-all overflow-hidden p-5 space-y-4">
+                        <div className="bg-white rounded-[20px] border border-zinc-100 shadow-[0_1px_8px_rgba(0,0,0,0.03)] hover:shadow-md transition-all overflow-hidden p-5 space-y-4">
 
-                        {/* Card Top Strip */}
-                        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-                          <div className="flex items-center gap-3">
-                            <div className="font-mono text-xs text-zinc-400 font-bold">
-                              #{(order._id || order.orderId)?.slice(-8) || 'N/A'}
+                          {/* Card Top Strip */}
+                          <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+                            <div className="flex items-center gap-3">
+                              <div className="font-mono text-xs text-zinc-400 font-bold">
+                                #{(order._id || order.orderId)?.slice(-8) || 'N/A'}
+                              </div>
+                              <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${sc.bg} ${sc.text} ${sc.border}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                                {order.status === 'collected' ? 'Collected by Agent' : order.status}
+                              </span>
                             </div>
-                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${sc.bg} ${sc.text} ${sc.border}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                              {order.status === 'collected' ? 'Collected by Agent' : order.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold">
-                            <Calendar size={11} />
-                            {formattedDate}
-                          </div>
-                        </div>
-
-                        {/* Card Body Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
-
-                          {/* Buyer Info */}
-                          <div className="space-y-0.5">
-                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Buyer</p>
-                            <p className="text-xs font-black text-zinc-900">{buyerName}</p>
-                            {buyerPhone && (
-                              <p className="text-[11px] text-zinc-500 flex items-center gap-1">
-                                <Phone size={10} /> {buyerPhone}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Crop */}
-                          <div className="space-y-0.5">
-                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Crop</p>
-                            <p className="text-xs font-bold text-zinc-800">🌾 {cropName}</p>
-                            <p className="text-[11px] text-zinc-500 font-medium">{qty} units</p>
-                          </div>
-
-                          {/* Amount & Payment Info */}
-                          <div className="space-y-0.5">
-                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Payment Status</p>
-                            <p className="text-base font-black text-[#166534]">₹{order.totalAmount || 0}</p>
-                            <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              {order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-6)})` : (order.status === 'paid' ? 'Paid via Razorpay' : 'Razorpay Pending')}
-                            </span>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                            {order.status === 'pending' && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, 'accepted')}
-                                className="min-h-[36px] px-3.5 py-1.5 bg-[#166534] hover:bg-[#14532d] text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-                              >
-                                <Check size={13} /> Accept Order
-                              </button>
-                            )}
-                            {['accepted', 'paid'].includes(order.status) && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, 'packed')}
-                                className="min-h-[36px] px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-                              >
-                                Mark Packed
-                              </button>
-                            )}
-                            {order.status === 'packed' && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, 'collected')}
-                                className="min-h-[36px] px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-                              >
-                                Mark Collected
-                              </button>
-                            )}
-                            {['collected', 'shipped'].includes(order.status) && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, 'delivered')}
-                                className="min-h-[36px] px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-                              >
-                                Mark Delivered
-                              </button>
-                            )}
-                            {!['delivered', 'cancelled'].includes(order.status) && (
-                              <button
-                                onClick={() => handleUpdateOrderStatus(order._id, 'cancelled')}
-                                className="min-h-[36px] px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap"
-                              >
-                                Cancel
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setInvoiceOrder(order)}
-                              className="min-h-[36px] px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
-                            >
-                              <FileText size={12} /> Invoice
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* INLINE LIVE MAP for shipped orders */}
-                      {order.status === 'shipped' && trackingFarmerOrder === order._id && (
-                        <div className="mt-4 border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
-                          <div className="flex items-center justify-between px-4 py-3 border-b border-blue-100 bg-white">
-                            <div className="flex items-center gap-2">
-                              <Truck size={15} className="text-blue-600" />
-                              <span className="text-xs font-black text-blue-900 uppercase tracking-wider">Live Route: Farm {'->'} Buyer</span>
+                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold">
+                              <Calendar size={11} />
+                              {formattedDate}
                             </div>
-                            <button
-                              onClick={() => setTrackingFarmerOrder(null)}
-                              className="text-xs text-zinc-400 hover:text-zinc-700 font-bold px-2 py-1 rounded-lg hover:bg-zinc-100 transition-all"
-                            >
-                              Close Map x
-                            </button>
                           </div>
-                          <div className="p-4">
-                            <LiveDeliveryTracker order={order} onClose={() => setTrackingFarmerOrder(null)} />
+
+                          {/* Card Body Grid */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+
+                            {/* Buyer Info */}
+                            <div className="space-y-0.5">
+                              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Buyer</p>
+                              <p className="text-xs font-black text-zinc-900">{buyerName}</p>
+                              {buyerPhone && (
+                                <p className="text-[11px] text-zinc-500 flex items-center gap-1">
+                                  <Phone size={10} /> {buyerPhone}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Crop */}
+                            <div className="space-y-0.5">
+                              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Crop</p>
+                              <p className="text-xs font-bold text-zinc-800">🌾 {cropName}</p>
+                              <p className="text-[11px] text-zinc-500 font-medium">{qty} units</p>
+                            </div>
+
+                            {/* Amount & Payment Info */}
+                            <div className="space-y-0.5">
+                              <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Payment Status</p>
+                              <p className="text-base font-black text-[#166534]">₹{order.totalAmount || 0}</p>
+                              <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-6)})` : (order.status === 'paid' ? 'Paid via Razorpay' : 'Razorpay Pending')}
+                              </span>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                              {order.status === 'pending' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, 'accepted')}
+                                  className="min-h-[36px] px-3.5 py-1.5 bg-[#166534] hover:bg-[#14532d] text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                                >
+                                  <Check size={13} /> Accept Order
+                                </button>
+                              )}
+                              {['accepted', 'paid'].includes(order.status) && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, 'packed')}
+                                  className="min-h-[36px] px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                                >
+                                  Mark Packed
+                                </button>
+                              )}
+                              {order.status === 'packed' && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, 'collected')}
+                                  className="min-h-[36px] px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                                >
+                                  Mark Collected
+                                </button>
+                              )}
+                              {['collected', 'shipped'].includes(order.status) && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, 'delivered')}
+                                  className="min-h-[36px] px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+                                >
+                                  Mark Delivered
+                                </button>
+                              )}
+                              {!['delivered', 'cancelled'].includes(order.status) && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, 'cancelled')}
+                                  className="min-h-[36px] px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setInvoiceOrder(order)}
+                                className="min-h-[36px] px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                              >
+                                <FileText size={12} /> Invoice
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      )}
+
+                        {/* INLINE LIVE MAP for shipped orders */}
+                        {order.status === 'shipped' && trackingFarmerOrder === order._id && (
+                          <div className="mt-4 border border-blue-100 rounded-2xl overflow-hidden bg-blue-50/30">
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-blue-100 bg-white">
+                              <div className="flex items-center gap-2">
+                                <Truck size={15} className="text-blue-600" />
+                                <span className="text-xs font-black text-blue-900 uppercase tracking-wider">Live Route: Farm {'->'} Buyer</span>
+                              </div>
+                              <button
+                                onClick={() => setTrackingFarmerOrder(null)}
+                                className="text-xs text-zinc-400 hover:text-zinc-700 font-bold px-2 py-1 rounded-lg hover:bg-zinc-100 transition-all"
+                              >
+                                Close Map x
+                              </button>
+                            </div>
+                            <div className="p-4">
+                              <LiveDeliveryTracker order={order} onClose={() => setTrackingFarmerOrder(null)} />
+                            </div>
+                          </div>
+                        )}
                       </Fragment>
                     );
                   })}
@@ -1255,7 +1254,7 @@ export default function FarmerDashboard() {
             onMarkAsRead={markAllAsRead}
             onDeleteNotification={(id) => {
               setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
-              api.delete(`/notifications/${id}`).catch(() => {});
+              api.delete(`/notifications/${id}`).catch(() => { });
             }}
             onRefresh={fetchDashboardData}
           />
@@ -1507,8 +1506,8 @@ export default function FarmerDashboard() {
 
                   const userCreatedYear = user?.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear();
                   const accountAgeYears = Math.max(1, new Date().getFullYear() - userCreatedYear + 1);
-                  const calculatedExperience = user?.farmerProfile?.experience 
-                    ? `${user.farmerProfile.experience} yrs` 
+                  const calculatedExperience = user?.farmerProfile?.experience
+                    ? `${user.farmerProfile.experience} yrs`
                     : `${accountAgeYears} yr${accountAgeYears > 1 ? 's' : ''}`;
 
                   return (
@@ -1793,7 +1792,7 @@ export default function FarmerDashboard() {
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Listings</span>
                   </div>
                   <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 text-center shadow-sm">
-                    <span className="block text-2xl font-black text-[#166534]">{sellerOrders?.filter(o => ['delivered','received'].includes(o.status))?.length || 0}</span>
+                    <span className="block text-2xl font-black text-[#166534]">{sellerOrders?.filter(o => ['delivered', 'received'].includes(o.status))?.length || 0}</span>
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Completed</span>
                   </div>
                   <div className="bg-white rounded-2xl border-2 border-gray-200 p-5 text-center shadow-sm">
@@ -1862,9 +1861,8 @@ export default function FarmerDashboard() {
                             </div>
                             <div className="text-right shrink-0">
                               <span className="block text-sm font-black text-[#166534]">₹{amt}</span>
-                              <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                payStatus === 'SETTLED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                              }`}>
+                              <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${payStatus === 'SETTLED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}>
                                 {payStatus}
                               </span>
                             </div>

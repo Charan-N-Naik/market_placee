@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { 
-  ShieldCheck, Zap, Bot, TrendingUp, ArrowRight, 
-  Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight, 
-  ArrowDownRight, ChevronRight 
+import {
+  ShieldCheck, Zap, Bot, TrendingUp, ArrowRight,
+  Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight,
+  ArrowDownRight, ChevronRight
 } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
 import api from '../api/axios';
@@ -269,44 +269,44 @@ export default function LandingPage() {
             </motion.div>
 
             <div className="grid md:grid-cols-4 gap-8 text-center relative">
-               <div className="hidden md:block absolute top-12 left-[12%] right-[12%] h-1 bg-slate-100 -z-10 rounded-full overflow-hidden">
-                 <motion.div
-                   initial={{ scaleX: 0 }}
-                   whileInView={{ scaleX: 1 }}
-                   viewport={{ once: true }}
-                   transition={{ duration: 1.2, ease: "easeInOut" }}
-                   className="h-full bg-gradient-to-r from-green-500 via-amber-400 to-emerald-600 origin-left"
-                 />
-               </div>
+              <div className="hidden md:block absolute top-12 left-[12%] right-[12%] h-1 bg-slate-100 -z-10 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1.2, ease: "easeInOut" }}
+                  className="h-full bg-gradient-to-r from-green-500 via-amber-400 to-emerald-600 origin-left"
+                />
+              </div>
 
-               <Step
-                 number="1"
-                 icon={<Upload className="w-6 h-6 text-white" />}
-                 title={t('landing.step1Title')}
-                 desc={t('landing.step1Desc')}
-                 delay={0}
-               />
-               <Step
-                 number="2"
-                 icon={<ShieldCheck className="w-6 h-6 text-white" />}
-                 title={t('landing.step2Title')}
-                 desc={t('landing.step2Desc')}
-                 delay={0.15}
-               />
-               <Step
-                 number="3"
-                 icon={<Handshake className="w-6 h-6 text-white" />}
-                 title={t('landing.step3Title')}
-                 desc={t('landing.step3Desc')}
-                 delay={0.3}
-               />
-               <Step
-                 number="4"
-                 icon={<Wallet className="w-6 h-6 text-white" />}
-                 title={t('landing.step4Title')}
-                 desc={t('landing.step4Desc')}
-                 delay={0.45}
-               />
+              <Step
+                number="1"
+                icon={<Upload className="w-6 h-6 text-white" />}
+                title={t('landing.step1Title')}
+                desc={t('landing.step1Desc')}
+                delay={0}
+              />
+              <Step
+                number="2"
+                icon={<ShieldCheck className="w-6 h-6 text-white" />}
+                title={t('landing.step2Title')}
+                desc={t('landing.step2Desc')}
+                delay={0.15}
+              />
+              <Step
+                number="3"
+                icon={<Handshake className="w-6 h-6 text-white" />}
+                title={t('landing.step3Title')}
+                desc={t('landing.step3Desc')}
+                delay={0.3}
+              />
+              <Step
+                number="4"
+                icon={<Wallet className="w-6 h-6 text-white" />}
+                title={t('landing.step4Title')}
+                desc={t('landing.step4Desc')}
+                delay={0.45}
+              />
             </div>
           </div>
         </section>
@@ -314,23 +314,23 @@ export default function LandingPage() {
         {/* 6. AUDIENCE SPLIT */}
         <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8">
-             <div className="bg-green-600 rounded-[2rem] p-10 lg:p-14 text-white relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
-                <h3 className="text-3xl font-extrabold mb-4">{t('landing.farmersSectionTitle')}</h3>
-                <p className="text-green-100 text-lg mb-8 max-w-md">{t('landing.farmersSectionDesc')}</p>
-                <button onClick={() => navigate('/login/farmer')} className="bg-white text-green-700 font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-green-50 transition-all hover:-translate-y-1 active:scale-95">
-                   Join as Farmer
-                </button>
-             </div>
+            <div className="bg-green-600 rounded-[2rem] p-10 lg:p-14 text-white relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+              <h3 className="text-3xl font-extrabold mb-4">{t('landing.farmersSectionTitle')}</h3>
+              <p className="text-green-100 text-lg mb-8 max-w-md">{t('landing.farmersSectionDesc')}</p>
+              <button onClick={() => navigate('/login/farmer')} className="bg-white text-green-700 font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-green-50 transition-all hover:-translate-y-1 active:scale-95">
+                Join as Farmer
+              </button>
+            </div>
 
-             <div className="bg-amber-100 rounded-[2rem] p-10 lg:p-14 text-slate-800 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/60 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
-                <h3 className="text-3xl font-extrabold mb-4">{t('landing.buyersSectionTitle')}</h3>
-                <p className="text-amber-800/80 text-lg mb-8 max-w-md">{t('landing.buyersSectionDesc')}</p>
-                <button onClick={() => navigate('/login/buyer')} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-slate-800 transition-all hover:-translate-y-1 active:scale-95">
-                   Start Buying
-                </button>
-             </div>
+            <div className="bg-amber-100 rounded-[2rem] p-10 lg:p-14 text-slate-800 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/60 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+              <h3 className="text-3xl font-extrabold mb-4">{t('landing.buyersSectionTitle')}</h3>
+              <p className="text-amber-800/80 text-lg mb-8 max-w-md">{t('landing.buyersSectionDesc')}</p>
+              <button onClick={() => navigate('/login/buyer')} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-slate-800 transition-all hover:-translate-y-1 active:scale-95">
+                Start Buying
+              </button>
+            </div>
           </div>
         </section>
       </main>
@@ -338,11 +338,11 @@ export default function LandingPage() {
       {/* 7. FOOTER & CTA */}
       <footer className="bg-slate-50 border-t border-slate-200 mt-12">
         <div className="max-w-5xl mx-auto px-4 py-20 text-center">
-           <h2 className="text-4xl font-extrabold text-slate-900 mb-6">{t('landing.ctaFooterTitle')}</h2>
-           <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">{t('landing.ctaFooterDesc')}</p>
-           <button onClick={() => navigate('/login/farmer')} className="bg-green-600 hover:bg-green-700 text-white font-bold text-lg px-10 py-4 rounded-full shadow-xl shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95">
-             Get Started Now
-           </button>
+          <h2 className="text-4xl font-extrabold text-slate-900 mb-6">{t('landing.ctaFooterTitle')}</h2>
+          <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">{t('landing.ctaFooterDesc')}</p>
+          <button onClick={() => navigate('/login/farmer')} className="bg-green-600 hover:bg-green-700 text-white font-bold text-lg px-10 py-4 rounded-full shadow-xl shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95">
+            Get Started Now
+          </button>
         </div>
         <div className="border-t border-slate-200 py-6 text-center text-slate-500 text-sm font-medium">
           © {new Date().getFullYear()} KisanBazaar 🌾 — Empowering Bharat's Farmers

@@ -108,7 +108,7 @@ export default function CheckoutPage() {
     try {
       const s = localStorage.getItem('kb_addresses');
       if (s) return JSON.parse(s);
-    } catch (_) {}
+    } catch (_) { }
     return [{
       id: 'addr_default',
       name: user?.name || 'Primary Address',
@@ -136,7 +136,7 @@ export default function CheckoutPage() {
 
   /* ── Persist addresses ── */
   useEffect(() => {
-    try { localStorage.setItem('kb_addresses', JSON.stringify(addresses)); } catch (_) {}
+    try { localStorage.setItem('kb_addresses', JSON.stringify(addresses)); } catch (_) { }
   }, [addresses]);
 
   /* ── Scroll to top on step change ── */

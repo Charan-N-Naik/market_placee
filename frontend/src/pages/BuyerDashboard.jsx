@@ -92,15 +92,17 @@ export default function BuyerDashboard() {
       { keys: ['assistant', 'ai', 'chatbot', 'chat', 'help', 'bot'], action: () => { setActiveTab('assistant'); showToast(`🎙 "${transcript}" → AI Assistant`); } },
       { keys: ['analyzer', 'analyse', 'analyze', 'verify', 'crop verify', 'verification'], action: () => { setActiveTab('analyzer'); showToast(`🎙 "${transcript}" → Crop Verification`); } },
       { keys: ['dashboard', 'home', 'main', 'overview'], action: () => { setActiveTab('dashboard'); showToast(`🎙 "${transcript}" → Dashboard`); } },
-      { keys: ['browse', 'shop', 'marketplace', 'listing', 'buy', 'search', 'find', 'show me'], action: () => {
-        // Extract what comes after action words for search
-        const searchTermMatch = cmd.match(/(?:find|search|show me|buy|browse|shop for|looking for)\s+(.+)/);
-        if (searchTermMatch) {
-          setSearchQuery(searchTermMatch[1]);
+      {
+        keys: ['browse', 'shop', 'marketplace', 'listing', 'buy', 'search', 'find', 'show me'], action: () => {
+          // Extract what comes after action words for search
+          const searchTermMatch = cmd.match(/(?:find|search|show me|buy|browse|shop for|looking for)\s+(.+)/);
+          if (searchTermMatch) {
+            setSearchQuery(searchTermMatch[1]);
+          }
+          setActiveTab('browse');
+          showToast(`🎙 "${transcript}" → Browse`);
         }
-        setActiveTab('browse');
-        showToast(`🎙 "${transcript}" → Browse`);
-      }},
+      },
     ];
 
     // ── Kannada navigation keywords ────────────────────────────────────────
@@ -1553,9 +1555,8 @@ export default function BuyerDashboard() {
                               </div>
                               <div className="text-right shrink-0">
                                 <span className="block text-xs font-black text-emerald-700">₹{amt}</span>
-                                <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                  payStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                }`}>
+                                <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${payStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  }`}>
                                   {payStatus}
                                 </span>
                               </div>

@@ -109,16 +109,28 @@ export default function DeliveryAgentDashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 4000);
-    return () => clearInterval(interval);
+    // Poll every 15s (not 4s) — reduces server load by 75%
+    const interval = setInterval(() => {
+      // Only poll if the tab is visible to the user
+      if (!document.hidden) {
+        fetchData();
+      }
+    }, 15000);
+    // Also re-fetch when user returns to the tab
+    const onVisible = () => { if (!document.hidden) fetchData(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [fetchData]);
 
   const handleRespond = async (orderId, action) => {
     try {
       try {
         await api.put(`/orders/${orderId}/driver/respond`, { action });
-      } catch (_) {}
-      
+      } catch (_) { }
+
       const newStatus = action === 'accept' ? 'driver_accepted' : 'driver_rejected';
       updateDeliveryBookingStatus(orderId, newStatus);
       fetchData();
@@ -131,7 +143,7 @@ export default function DeliveryAgentDashboard() {
     try {
       try {
         await api.put(`/orders/${orderId}/driver/status`, { status });
-      } catch (_) {}
+      } catch (_) { }
 
       updateDeliveryBookingStatus(orderId, status);
       fetchData();
@@ -690,7 +702,7 @@ function ProfileSection({ user, profile, fetchData }) {
       try {
         if (updateProfile) await updateProfile({ coverImageFile: file });
         if (fetchData) fetchData();
-      } catch (_) {}
+      } catch (_) { }
     }
   };
 
@@ -1066,7 +1078,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl border border-stone-200 animate-fadeIn my-8">
-        
+
         {/* Modal Header */}
         <div className="bg-[#1F7A4D] p-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -1078,7 +1090,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
               <p className="text-xs text-emerald-100 font-medium">Full Farm Pickup & Buyer Dropoff Route</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white cursor-pointer transition-colors"
           >
@@ -1088,7 +1100,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
 
         {/* Modal Body */}
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          
+
           {/* PRODUCE ITEM SUMMARY */}
           <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between">
             <div>
@@ -1108,7 +1120,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                 <MapPin size={16} className="text-orange-600" /> Farm Pickup Location
               </div>
               {farmerPhone !== 'N/A' && (
-                <a 
+                <a
                   href={`tel:${farmerPhone}`}
                   className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs"
                 >
@@ -1148,7 +1160,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                 <User size={16} className="text-emerald-600" /> Buyer Dropoff Destination
               </div>
               {buyerPhone !== 'N/A' && (
-                <a 
+                <a
                   href={`tel:${buyerPhone}`}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs"
                 >
