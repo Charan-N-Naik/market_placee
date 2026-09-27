@@ -204,6 +204,7 @@ export default function CheckoutPage() {
       country: 'India',
       fullAddress: `${activeAddr.line1}${activeAddr.line2 ? ', ' + activeAddr.line2 : ''}, ${activeAddr.city}, ${activeAddr.state} - ${activeAddr.pin}`,
     };
+    // TODO [Phase 2]: Open AgentPickerModal when deliveryMode === 'buyer_choice' to capture selectedAgentId before dispatching order
     const payload = {
       items: cartItems.map(i => ({
         listing: i.listing?._id || i.listing?.id || i.listing,
@@ -643,14 +644,24 @@ export default function CheckoutPage() {
                         <span className="text-sm font-black text-stone-900">Buyer's Choice</span>
                       </div>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                        Targeted
+                        Coming in Phase 2
                       </span>
                     </div>
                     <p className="text-xs text-stone-600 font-medium leading-relaxed">
-                      Send a targeted delivery offer directly to your chosen delivery partner of preference.
+                      Send a targeted delivery offer directly to your preferred delivery partner. <em>(Interactive driver picker arriving in Phase 2)</em>.
                     </p>
                   </div>
                 </div>
+
+                {/* Phase 2 Agent Selection Notice */}
+                {deliveryMode === 'buyer_choice' && (
+                  <div className="mt-3 p-3.5 bg-amber-50/90 border border-amber-200/80 rounded-2xl flex items-start gap-2.5 text-amber-900">
+                    <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-xs leading-relaxed">
+                      <span className="font-bold">Agent Selection Preview:</span> The interactive driver-picker modal will be integrated here in Phase 2. Orders tagged as <em>buyer_choice</em> will currently be flagged for targeted allocation upon farmer packing.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 2-Stage Farmer Approval Banner */}

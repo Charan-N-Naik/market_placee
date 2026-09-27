@@ -43,16 +43,17 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
     };
   }
 
-  // Store a reference order in DB for later verification
-  const dbOrder = await Order.create({
-    buyer: req.user.id,
-    razorpayOrderId: order.id,
-    amount,
-    currency,
-    status: 'created',
-    receipt: order.receipt,
-  });
-  res.json({ order, dbOrderId: dbOrder._id });
+  // Check if an existing order was specified to link the payment reference
+  let dbOrderId = null;
+  const targetOrderId = req.body.orderId || (receipt && receipt.startsWith('rcpt_') ? receipt.replace('rcpt_', '') : null);
+  if (targetOrderId) {
+    try {
+      const existing = await Order.findByIdAndUpdate(targetOrderId, { paymentId: order.id }, { new: true });
+      if (existing) dbOrderId = existing._id;
+    } catch (_) {}
+  }
+
+  res.json({ order, dbOrderId });
 });
 
 /**
@@ -78,7 +79,13 @@ export const razorpayWebhook = asyncHandler(async (req, res) => {
   const { payload: webhookPayload } = req.body;
   const paymentEntity = webhookPayload?.payment?.entity;
   if (paymentEntity && paymentEntity.status === 'captured') {
-    const order = await Order.findOne({ razorpayOrderId: paymentEntity.order_id });
+    const order = await Order.findOne({
+      $or: [
+        { paymentId: paymentEntity.order_id },
+        { paymentId: paymentEntity.id },
+        { razorpayOrderId: paymentEntity.order_id }
+      ]
+    });
     if (order) {
       order.status = 'paid';
       await order.save();
