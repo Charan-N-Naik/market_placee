@@ -278,6 +278,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     if (['pending_driver_approval', 'driver_accepted'].includes(order.deliveryRequestStatus)) {
       order.deliveryRequestStatus = 'none';
     }
+    order.deliveryAgent = undefined;
   }
 
   if (status === 'received') {
