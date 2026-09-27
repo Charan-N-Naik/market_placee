@@ -65,7 +65,7 @@ export async function checkExpiredDeliveryDeadlines() {
       await order.save();
 
       // 3. Try the next agent using the shared escalateToNextDeliveryAgent helper
-      const nextAgent = await escalateToNextDeliveryAgent(order, { notifyFarmerOnFail: true });
+      const nextAgent = await escalateToNextDeliveryAgent(order);
 
       // 4. Send alert notification to the farmer that pickup is delayed
       if (order.farmer) {

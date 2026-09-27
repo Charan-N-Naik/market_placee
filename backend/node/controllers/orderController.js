@@ -589,7 +589,7 @@ export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
  * Escalate to next-nearest available delivery agent when all previous offers were declined
  * or when the pickup deadline expired. Shared by offer decline and scheduler watchdog.
  */
-export async function escalateToNextDeliveryAgent(order, { notifyFarmerOnFail = false } = {}) {
+export async function escalateToNextDeliveryAgent(order) {
   if (!order) return null;
 
   let availableAgents = await User.find({
@@ -616,24 +616,8 @@ export async function escalateToNextDeliveryAgent(order, { notifyFarmerOnFail = 
   const attemptedAgentIds = (order.deliveryOffers || []).map(o => o.agent?.toString()).filter(Boolean);
   const eligibleAgents = availableAgents.filter(a => !attemptedAgentIds.includes(a._id.toString()));
 
-  const orderShort = order._id.toString().slice(-6).toUpperCase();
-
   if (eligibleAgents.length === 0) {
     console.warn(`[DeliveryEscalation] No further uncontacted delivery agents available for order ${order._id}`);
-    if (notifyFarmerOnFail && order.farmer) {
-      try {
-        await sendNotification({
-          recipientId: order.farmer,
-          senderId: order.buyer?._id || order.buyer,
-          type: 'custom',
-          title: '⚠️ Delivery Allocation Alert',
-          message: `All contacted delivery partners are currently unavailable for packed Order #${orderShort}. Our dispatch system will retry automatically.`,
-          relatedOrder: order._id,
-        });
-      } catch (err) {
-        console.error('[DeliveryEscalation] Error notifying farmer on failure:', err.message);
-      }
-    }
     return null;
   }
 
