@@ -24,10 +24,21 @@ import {
   TrendingUp, ChevronRight, Pencil, Save, Check, ShoppingCart, Trash2, ArrowUpRight, ArrowDownRight,
   Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, Calendar, Star, Sparkles,
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
-  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera
+  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark
 } from 'lucide-react';
 
 export default function FarmerDashboard() {
+  // Format a raw DB name into a clean, readable display name (e.g. former1 -> Former 1)
+  const formatDisplayName = (rawName) => {
+    if (!rawName) return '';
+    let n = String(rawName)
+      .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+      .replace(/[_.-]+/g, ' ')
+      .trim();
+    return n.split(' ').filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
+
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, logout, updateProfile } = useAuth();
@@ -40,6 +51,7 @@ export default function FarmerDashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Orders, Notifications, Weather data states
@@ -1311,11 +1323,11 @@ export default function FarmerDashboard() {
               </div>
             )}
 
-            {/* PREMIUM PROFILE HERO CARD */}
-            <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-xl overflow-hidden">
+            {/* PREMIUM PROFILE HERO CARD (Modeled directly after Reference Image) */}
+            <div className="bg-white rounded-[32px] border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.06)] overflow-hidden relative">
 
-              {/* Cover Banner */}
-              <div className="h-52 bg-gradient-to-br from-[#052e16] via-[#166534] to-[#15803d] relative overflow-hidden group">
+              {/* Cover Banner with Mist Fog Gradient */}
+              <div className="h-60 sm:h-72 w-full relative overflow-hidden bg-gradient-to-br from-[#072714] via-[#166534] to-[#15803d]">
                 {(editForm.coverPreview || user?.coverImage) ? (
                   <img
                     src={editForm.coverPreview || user.coverImage}
@@ -1325,20 +1337,24 @@ export default function FarmerDashboard() {
                 ) : (
                   <>
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1.5px,transparent_1.5px)] [background-size:18px_18px]" />
-                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                   </>
                 )}
-                
-                <div className="absolute top-5 right-6 flex items-center gap-3">
-                  {/* Upload Cover Background Button */}
-                  <label className="flex items-center gap-2 px-3.5 py-1.5 bg-black/50 hover:bg-black/75 backdrop-blur-md text-white text-xs font-bold rounded-full border border-white/20 cursor-pointer shadow-md transition-all hover:scale-105 active:scale-95">
-                    <Camera size={14} className="text-emerald-400" />
+
+                {/* Soft misty gradient dissolving bottom of cover image into pure white card background */}
+                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/85 via-25% to-transparent pointer-events-none" />
+
+                {/* Top Right Floating Action Controls */}
+                <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2.5 z-10">
+                  {/* Change Cover Floating Pill */}
+                  <label className="flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white/90 hover:bg-white text-gray-800 text-xs font-bold rounded-full border border-white/60 shadow-md backdrop-blur-md cursor-pointer transition-all hover:scale-105 active:scale-95">
+                    <Camera size={14} className="text-[#166534]" />
                     <span>{editForm.coverPreview || user?.coverImage ? 'Change Cover' : 'Upload Cover'}</span>
                     <input
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files[0];
                         if (file) {
                           const previewUrl = URL.createObjectURL(file);
@@ -1347,7 +1363,13 @@ export default function FarmerDashboard() {
                             coverImageFile: file,
                             coverPreview: previewUrl
                           }));
-                          if (!isEditing) setIsEditing(true);
+                          try {
+                            await updateProfile({ coverImageFile: file });
+                            setSaveSuccess(true);
+                            setTimeout(() => setSaveSuccess(false), 3000);
+                          } catch (err) {
+                            alert(err.message || 'Failed to update cover image.');
+                          }
                         }
                       }}
                     />
@@ -1355,85 +1377,207 @@ export default function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* Avatar + Name Row */}
-              <div className="px-8 pb-8 relative">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end -mt-14 gap-6">
-
-                  {/* Avatar */}
-                  <div className="flex items-end gap-5">
-                    <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-[#22C55E] to-[#166534] border-4 border-white shadow-2xl flex items-center justify-center text-4xl font-black text-white relative z-10 shrink-0 group overflow-hidden">
+              {/* Profile Body: Avatar + Details + Metrics + Action */}
+              <div className="px-6 sm:px-10 pb-8 relative -mt-16 sm:-mt-20 z-10">
+                {/* Avatar with pure white border ring */}
+                <div className="flex items-start">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white p-1 shadow-xl border-2 border-white relative group shrink-0 overflow-hidden">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-[#22C55E] to-[#166534] flex items-center justify-center text-3xl sm:text-4xl font-black text-white relative">
                       {(editForm.avatarPreview || user?.avatar) ? (
-                        <img src={editForm.avatarPreview || user.avatar} alt="Profile" className="w-full h-full object-cover rounded-3xl" />
+                        <img src={editForm.avatarPreview || user.avatar} alt="Profile" className="w-full h-full object-cover" />
                       ) : (
-                        <span>{user?.name?.charAt(0)?.toUpperCase() || 'F'}</span>
+                        <span style={{ fontFamily: "'Outfit', sans-serif" }}>
+                          {(formatDisplayName(user?.name)?.charAt(0) || user?.name?.charAt(0) || 'F').toUpperCase()}
+                        </span>
                       )}
-                      
+
                       {/* Upload Profile Picture Overlay */}
-                      <label className="absolute inset-0 bg-black/60 backdrop-blur-xs text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1">
-                        <Camera size={22} className="text-emerald-400 mb-1" />
-                        <span className="text-[10px] font-black uppercase tracking-wider">Upload Pic</span>
+                      <label className="absolute inset-0 bg-black/60 backdrop-blur-xs text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity text-center p-1 z-20">
+                        {uploadingAvatar ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mb-1" />
+                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300">Saving...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Camera size={20} className="text-emerald-400 mb-0.5" />
+                            <span className="text-[9px] font-black uppercase tracking-wider">Change Pic</span>
+                          </>
+                        )}
                         <input
                           type="file"
                           accept="image/*"
+                          disabled={uploadingAvatar}
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files[0];
                             if (file) {
-                              const previewUrl = URL.createObjectURL(file);
-                              setEditForm(prev => ({
-                                ...prev,
-                                avatarFile: file,
-                                avatarPreview: previewUrl
-                              }));
-                              if (!isEditing) setIsEditing(true);
+                              try {
+                                setUploadingAvatar(true);
+                                const previewUrl = URL.createObjectURL(file);
+                                setEditForm(prev => ({
+                                  ...prev,
+                                  avatarFile: file,
+                                  avatarPreview: previewUrl
+                                }));
+                                await updateProfile({ avatarFile: file });
+                                setSaveSuccess(true);
+                                setTimeout(() => setSaveSuccess(false), 4000);
+                              } catch (err) {
+                                alert(err.message || 'Failed to update profile picture.');
+                              } finally {
+                                setUploadingAvatar(false);
+                              }
                             }
                           }}
                         />
                       </label>
                     </div>
+                  </div>
+                </div>
 
-                    <div className="pb-2 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">{user?.name}</h2>
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border-2 border-emerald-200 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full">
-                          <Check size={11} /> Verified Farmer
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 font-semibold">
+                {/* Name, Bio, and Meta Row */}
+                <div className="mt-4 flex flex-col md:flex-row md:items-end justify-between gap-5">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2
+                        className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight"
+                        style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif" }}
+                      >
+                        {formatDisplayName(user?.name) || user?.name || 'Farmer'}
+                      </h2>
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
+                        <Check size={11} className="text-emerald-600 stroke-[3]" /> Verified Farmer
+                      </span>
+                    </div>
+
+                    {/* Subtitle / Bio like in reference */}
+                    <p className="text-sm font-medium text-gray-500 max-w-xl">
+                      {user?.farmerProfile?.bio || 'Dedicated local cultivator • High-yield sustainable organic produce'}
+                    </p>
+
+                    {/* Metadata tags */}
+                    <div className="flex items-center gap-3 pt-1 flex-wrap text-xs font-semibold text-gray-500">
+                      <span className="flex items-center gap-1.5 text-gray-600">
+                        🌾 <span className="font-bold text-gray-700">Primary:</span> {user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || 'Organic Crops'}
+                      </span>
+                      <span className="text-gray-300">•</span>
+                      <span className="flex items-center gap-1 text-gray-600">
                         📍 {typeof user?.location === 'object'
-                          ? `${user.location?.district || ''}, ${user.location?.state || ''}`
-                          : user?.location || 'Location not set'}
-                      </p>
-                      <p className="text-xs text-gray-400 font-medium">
-                        🌾 Primary: {user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || 'Not specified'}
-                      </p>
+                          ? `${user.location?.district || 'Karnataka'}, ${user.location?.state || 'India'}`
+                          : user?.location || 'Karnataka, India'}
+                      </span>
+                      {user?.farmerProfile?.farmSize && (
+                        <>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-gray-600">
+                            🚜 {user.farmerProfile.farmSize} Acres
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* Edit button */}
-                  {!isEditing && (
-                    <button
-                      onClick={() => {
-                        setEditForm({
-                          name: user?.name || '',
-                          phone: user?.phone || '',
-                          email: user?.email || '',
-                          farmSize: user?.farmerProfile?.farmSize || user?.farmSize || '',
-                          primaryCrops: user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || '',
-                          district: user?.location?.district || '',
-                          state: user?.location?.state || '',
-                          experience: user?.farmerProfile?.experience || '',
-                          bio: user?.farmerProfile?.bio || '',
-                        });
-                        setIsEditing(true);
-                        setSaveSuccess(false);
-                      }}
-                      className="flex items-center gap-2 px-5 py-3 bg-[#166534] hover:bg-[#14532d] text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 border-2 border-[#166534]"
-                    >
-                      <Edit size={15} /> Edit Profile
-                    </button>
-                  )}
+                  {/* Badges / Tools row like in reference */}
+                  <div className="flex items-center gap-2 self-start md:self-end">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Accredited</span>
+                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
+                      🌱 Organic
+                    </span>
+                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
+                      📦 Bulk Seller
+                    </span>
+                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
+                      🏛 APMC
+                    </span>
+                  </div>
                 </div>
+
+                {/* Bottom Row: Dynamic Metrics Columns + Dark Pill Action Button */}
+                {(() => {
+                  const ratedOrders = sellerOrders?.filter(o => o.rating && Number(o.rating) > 0) || [];
+                  const listingRatings = (myListings || []).filter(l => l.rating && Number(l.rating) > 0);
+                  let calculatedRating = '5.0';
+                  if (ratedOrders.length > 0) {
+                    calculatedRating = (ratedOrders.reduce((sum, o) => sum + Number(o.rating), 0) / ratedOrders.length).toFixed(1);
+                  } else if (listingRatings.length > 0) {
+                    calculatedRating = (listingRatings.reduce((sum, l) => sum + Number(l.rating), 0) / listingRatings.length).toFixed(1);
+                  } else if (user?.rating) {
+                    calculatedRating = Number(user.rating).toFixed(1);
+                  }
+
+                  const userCreatedYear = user?.createdAt ? new Date(user.createdAt).getFullYear() : new Date().getFullYear();
+                  const accountAgeYears = Math.max(1, new Date().getFullYear() - userCreatedYear + 1);
+                  const calculatedExperience = user?.farmerProfile?.experience 
+                    ? `${user.farmerProfile.experience} yrs` 
+                    : `${accountAgeYears} yr${accountAgeYears > 1 ? 's' : ''}`;
+
+                  return (
+                    <div className="mt-7 pt-5 border-t border-gray-150 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                      {/* Metrics with clean vertical dividers */}
+                      <div className="flex items-center gap-5 sm:gap-7">
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <Star size={14} className="fill-amber-400 text-amber-400" />
+                            <span className="text-base sm:text-lg font-black text-gray-900">{calculatedRating}</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rating</span>
+                        </div>
+
+                        <div className="h-7 w-px bg-gray-200" />
+
+                        <div>
+                          <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
+                            {myListings?.length || 0}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
+                        </div>
+
+                        <div className="h-7 w-px bg-gray-200" />
+
+                        <div>
+                          <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
+                            {calculatedExperience}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Experience</span>
+                        </div>
+
+                        <div className="h-7 w-px bg-gray-200 hidden sm:block" />
+
+                        <div className="hidden sm:block">
+                          <span className="text-base sm:text-lg font-black text-[#166534] block leading-tight">
+                            {sellerOrders?.filter(o => ['delivered', 'received'].includes(o.status))?.length || 0}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed</span>
+                        </div>
+                      </div>
+
+                      {/* Dark Pill Action Button */}
+                      {!isEditing && (
+                        <button
+                          onClick={() => {
+                            setEditForm({
+                              name: user?.name || '',
+                              phone: user?.phone || '',
+                              email: user?.email || '',
+                              farmSize: user?.farmerProfile?.farmSize || user?.farmSize || '',
+                              primaryCrops: user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || '',
+                              district: user?.location?.district || '',
+                              state: user?.location?.state || '',
+                              experience: user?.farmerProfile?.experience || '',
+                              bio: user?.farmerProfile?.bio || '',
+                            });
+                            setIsEditing(true);
+                            setSaveSuccess(false);
+                          }}
+                          className="px-6 py-2.5 sm:px-7 sm:py-3 bg-[#111827] hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-full transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 self-start sm:self-auto"
+                        >
+                          <Edit size={14} /> Edit Profile
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -1618,44 +1762,25 @@ export default function FarmerDashboard() {
                 ) : (
                   /* ─── VIEW MODE ─────────────────────────────── */
                   <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-lg overflow-hidden">
-                    <div className="px-8 pt-7 pb-4 border-b-2 border-gray-100 flex items-center justify-between">
+                    <div className="px-8 pt-7 pb-4 border-b-2 border-gray-100">
                       <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Farmer Profile Details</h3>
-                      <button
-                        onClick={() => {
-                          setEditForm({
-                            name: user?.name || '',
-                            phone: user?.phone || '',
-                            email: user?.email || '',
-                            farmSize: user?.farmerProfile?.farmSize || user?.farmSize || '',
-                            primaryCrops: user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || '',
-                            district: user?.location?.district || '',
-                            state: user?.location?.state || '',
-                            experience: user?.farmerProfile?.experience || '',
-                            bio: user?.farmerProfile?.bio || '',
-                          });
-                          setIsEditing(true);
-                          setSaveSuccess(false);
-                        }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-[#f0fdf4] hover:bg-[#dcfce7] text-[#166534] border-2 border-[#dcfce7] rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                      >
-                        <Edit size={13} /> Edit Details
-                      </button>
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5">Click "Edit Profile" above to make changes</p>
                     </div>
 
-                    <div className="divide-y-2 divide-gray-100">
+                    <div className="divide-y divide-gray-100">
                       {[
                         { label: 'Full Name', value: user?.name },
                         { label: 'Email', value: user?.email },
                         { label: 'Phone', value: user?.phone || 'Not provided' },
-                        { label: 'Location', value: typeof user?.location === 'object' ? `${user?.location?.district || ''}, ${user?.location?.state || ''}` : user?.location || 'Not set' },
-                        { label: 'Farm Size', value: `${user?.farmerProfile?.farmSize || user?.farmSize || '—'} Acres` },
-                        { label: 'Primary Crops', value: user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || 'Not specified' },
-                        { label: 'Experience', value: user?.farmerProfile?.experience ? `${user.farmerProfile.experience} Years` : '8 Years' },
-                        { label: 'Bio / About', value: user?.farmerProfile?.bio || 'Dedicated local cultivator focusing on high-density organic produce.' },
+                        { label: 'Location', value: typeof user?.location === 'object' ? `${user?.location?.district || ''}, ${user?.location?.state || ''}`.replace(/^,\s*|,\s*$/g, '') || 'Not set' : user?.location || 'Not set' },
+                        { label: 'Farm Size', value: user?.farmerProfile?.farmSize || user?.farmSize ? `${user?.farmerProfile?.farmSize || user?.farmSize} Acres` : 'Not specified' },
+                        { label: 'Primary Crops', value: user?.farmerProfile?.primaryCrops?.filter(Boolean).join(', ') || user?.primaryCrops || 'Not specified' },
+                        { label: 'Experience', value: user?.farmerProfile?.experience ? `${user.farmerProfile.experience} Years` : 'Not specified' },
+                        { label: 'Bio / About', value: user?.farmerProfile?.bio || 'No bio added yet.' },
                       ].map(({ label, value }) => (
-                        <div key={label} className="flex items-start justify-between gap-4 px-8 py-4">
+                        <div key={label} className="flex items-start justify-between gap-4 px-8 py-4 hover:bg-gray-50 transition-colors">
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest w-32 shrink-0 pt-0.5">{label}</span>
-                          <span className="text-sm font-semibold text-gray-800 text-right flex-1">{value}</span>
+                          <span className="text-sm font-semibold text-gray-800 text-right flex-1 break-words">{value}</span>
                         </div>
                       ))}
                     </div>

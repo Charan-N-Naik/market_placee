@@ -48,9 +48,9 @@ function getFarmingAdvice(weatherCode, rainProb, temp) {
   const isRainy = weatherCode >= 51 || rainProb > 60;
   const isHot   = temp > 34;
   const isMild  = temp >= 20 && temp <= 30 && !isRainy;
-  if (isRainy) return { icon: AlertTriangle, color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',   borderColor: '#2563eb', title: 'Rain Alert – Pause Field Operations',       advice: 'High precipitation expected. Avoid pesticide spraying and fertilizer application. Clear drainage channels to prevent waterlogging. Good time to transplant paddy seedlings if fields are prepared.' };
-  if (isHot)   return { icon: AlertTriangle, color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200',borderColor: '#f97316', title: 'Heat Advisory – Protect Crops',             advice: 'Temperatures exceeding 34°C. Irrigate crops in early morning or evening to reduce water stress. Mulch vegetable beds. Avoid daytime outdoor labor and protect livestock.' };
-  if (isMild)  return { icon: CheckCircle,   color: 'text-green-700',  bg: 'bg-green-50 border-green-200',  borderColor: '#16a34a', title: 'Ideal Conditions – Optimal Farming Window', advice: 'Perfect weather for fertilizer application, pesticide spraying, and mechanical harvesting. Good visibility for drone surveys and soil sampling. Excellent market transport conditions.' };
+  if (isRainy) return { icon: AlertTriangle, color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',   borderColor: '#2563eb', title: 'Rain Alert â€” Pause Field Operations',       advice: 'High precipitation expected. Avoid pesticide spraying and fertilizer application. Clear drainage channels to prevent waterlogging. Good time to transplant paddy seedlings if fields are prepared.' };
+  if (isHot)   return { icon: AlertTriangle, color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200',borderColor: '#f97316', title: 'Heat Advisory â€” Protect Crops',             advice: 'Temperatures exceeding 34Â°C. Irrigate crops in early morning or evening to reduce water stress. Mulch vegetable beds. Avoid daytime outdoor labor and protect livestock.' };
+  if (isMild)  return { icon: CheckCircle,   color: 'text-green-700',  bg: 'bg-green-50 border-green-200',  borderColor: '#16a34a', title: 'Ideal Conditions â€” Optimal Farming Window', advice: 'Perfect weather for fertilizer application, pesticide spraying, and mechanical harvesting. Good visibility for drone surveys and soil sampling. Excellent market transport conditions.' };
   return               { icon: Eye,           color: 'text-slate-700',  bg: 'bg-slate-50 border-slate-200',  borderColor: '#94a3b8', title: 'Monitor Conditions',                       advice: 'Moderate conditions. Monitor crop moisture levels and check weather updates before field operations. Standard irrigation schedules apply.' };
 }
 
@@ -102,7 +102,7 @@ const TempTooltip = ({ active, payload, label }) => {
       <p style={{ fontWeight:900, color:'#1c1917', marginBottom:4 }}>{label}</p>
       {payload.map(p => (
         <p key={p.name} style={{ color:p.color, fontWeight:700, margin:'2px 0' }}>
-          {p.name === 'Max' ? '?? Max' : '? Min'}: {p.value}°C
+          {p.name === 'Max' ? 'ğŸ”¥ Max' : 'â„ï¸ Min'}: {p.value}Â°C
         </p>
       ))}
     </div>
@@ -253,11 +253,11 @@ const WeatherPage = () => {
           <div className="flex flex-wrap items-end gap-4 mb-8">
             <div className="flex items-center gap-3">
               <CurrentIcon size={60} className={`${currentInfo.color} flex-shrink-0`} />
-              <span className="text-8xl font-black text-blue-950 leading-none">{temp}°</span>
+              <span className="text-8xl font-black text-blue-950 leading-none">{temp}Â°</span>
             </div>
             <div className="pb-2">
               <p className="text-2xl font-black text-blue-600">{currentInfo.desc}</p>
-              <p className="text-sm text-stone-500 font-semibold mt-1">Feels like {feelsLike}°C</p>
+              <p className="text-sm text-stone-500 font-semibold mt-1">Feels like {feelsLike}Â°C</p>
             </div>
           </div>
 
@@ -269,7 +269,7 @@ const WeatherPage = () => {
             </div>
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col items-center gap-2">
               <Thermometer size={20} className="text-slate-500" />
-              <p className="text-xl font-black text-stone-900 leading-tight">{feelsLike}° <span className="text-sm font-bold text-stone-400">C</span></p>
+              <p className="text-xl font-black text-stone-900 leading-tight">{feelsLike}<span className="text-base font-bold text-stone-500">Â°C</span></p>
               <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Feels Like</p>
             </div>
             <div className="bg-sky-50 rounded-2xl p-3 border border-sky-100 flex items-center justify-center">
@@ -322,7 +322,7 @@ const WeatherPage = () => {
             <div className="flex flex-col gap-6">
               {/* Temperature Trend */}
               <div>
-                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3">Temperature Trend (°C)</p>
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3">Temperature Trend (Â°C)</p>
                 <div style={{ width:'100%', height:200 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top:10, right:10, left:-20, bottom:0 }}>
@@ -338,7 +338,7 @@ const WeatherPage = () => {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="day" tick={{ fontSize:11, fontWeight:700, fill:'#78716c' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize:11, fill:'#78716c' }} axisLine={false} tickLine={false} unit="°" />
+                      <YAxis tick={{ fontSize:11, fill:'#78716c' }} axisLine={false} tickLine={false} unit="Â°" />
                       <Tooltip content={<TempTooltip />} />
                       <Area type="monotone" dataKey="Max" stroke="#f97316" strokeWidth={2.5} fill="url(#wMaxGrad)" dot={{ r:4, fill:'#f97316', strokeWidth:0 }} activeDot={{ r:6, fill:'#f97316' }} />
                       <Area type="monotone" dataKey="Min" stroke="#3b82f6" strokeWidth={2.5} fill="url(#wMinGrad)" dot={{ r:4, fill:'#3b82f6', strokeWidth:0 }} activeDot={{ r:6, fill:'#3b82f6' }} />
@@ -398,8 +398,8 @@ const WeatherPage = () => {
                       <span className="text-xs font-black text-blue-600">{rp}%</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-1">
-                      <span className="text-sm font-bold text-stone-400">{minT}°</span>
-                      <span className="text-base font-black text-stone-900">{maxT}°</span>
+                      <span className="text-sm font-bold text-stone-400">{minT}Â°</span>
+                      <span className="text-base font-black text-stone-900">{maxT}Â°</span>
                     </div>
                   </div>
                 );

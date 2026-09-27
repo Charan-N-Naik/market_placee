@@ -205,9 +205,10 @@ function CartItem({ item, onQuantityChange, onRemove, onToggleSaved, isSaved, na
       <div style={itemBottomRowStyle}>
         <div style={qtyGroupStyle}>
           <button
-            onClick={() => onQuantityChange(itemId, item.quantity - 1)}
-            disabled={item.quantity <= 1}
-            style={{ ...qtyBtnStyle, opacity: item.quantity <= 1 ? 0.4 : 1 }}
+            onClick={() => onQuantityChange(itemId, Math.max(50, item.quantity - 1))}
+            disabled={item.quantity <= 50}
+            style={{ ...qtyBtnStyle, opacity: item.quantity <= 50 ? 0.35 : 1, cursor: item.quantity <= 50 ? 'not-allowed' : 'pointer' }}
+            title={item.quantity <= 50 ? 'Bulk Minimum quantity is 50 kg' : 'Decrease quantity'}
           >
             <Minus size={14} />
           </button>
@@ -219,7 +220,7 @@ function CartItem({ item, onQuantityChange, onRemove, onToggleSaved, isSaved, na
           >
             <Plus size={14} />
           </button>
-          <span style={qtyUnitLabelStyle}>{unit}</span>
+          <span style={qtyUnitLabelStyle}>{unit} (Min 50 {unit})</span>
         </div>
 
         <div style={subtotalBlockStyle}>

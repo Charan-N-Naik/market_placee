@@ -31,7 +31,7 @@ export function CartProvider({ children }) {
     fetchCart();
   }, [fetchCart]);
 
-  const addToCart = async (rawListing, quantity = 1, optionalObj = null) => {
+  const addToCart = async (rawListing, quantity = 50, optionalObj = null) => {
     const listingId = (typeof rawListing === 'object' && rawListing !== null) 
       ? (rawListing._id || rawListing.id) 
       : rawListing;

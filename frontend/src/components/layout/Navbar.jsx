@@ -4,15 +4,29 @@ import { Menu, Bell, CloudSun, TrendingUp, Globe, ChevronDown } from 'lucide-rea
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
+
+// Format a raw DB name into a clean, capitalized display name (e.g. former1 -> Former 1)
+function formatDisplayName(rawName) {
+  if (!rawName) return '';
+  let n = String(rawName)
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    .replace(/[_.-]+/g, ' ')
+    .trim();
+  return n.split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 export default function Navbar({
   activeTab,
   navItems,
   setSidebarOpen,
+  setActiveTab,
   role,
   topBarExtra,
   user
 }) {
+  const { user: authUser } = useAuth();
+  const currentUser = user || authUser;
   const isFarmer = role === 'farmer';
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -46,58 +60,84 @@ export default function Navbar({
           const prices = res.data || [];
           if (prices.length > 0) {
             const first = prices[0];
-            setNavPrice(`${first.commodity || 'Crops'} ₹${first.modalPrice || first.price || '—'}/kg`);
+            const rawName = first.commodity || first.name || 'Crops';
+            const rawVal = first.modalPrice ?? first.modal_price ?? first.price ?? '—';
+            // Clean out any duplicate ₹ or /kg
+            const cleanDigits = String(rawVal).replace(/[₹\s]|Rs\.?|\/kg/gi, '').trim();
+            const priceFormatted = cleanDigits ? `₹${cleanDigits}/kg` : (String(rawVal).startsWith('₹') ? rawVal : `₹${rawVal}`);
+            setNavPrice(`${rawName} ${priceFormatted}`);
           }
         })
         .catch(() => {});
     }
   }, [isFarmer]);
 
-  // Non-farmer navbar (buyer — keep original)
+  // Non-farmer navbar (buyer)
   if (!isFarmer) {
     const currentItem = navItems?.find(item => item.id === activeTab);
     const Icon = currentItem?.icon;
     return (
       <header style={{
         background: 'var(--bg-card, #fff)',
-        borderBottom: '1px solid var(--border-subtle)',
-        padding: '0 1.5rem', height: 64,
+        borderBottom: '1px solid var(--border-subtle, #e2e8f0)',
+        padding: '0 1.5rem', height: 68,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 30,
         backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button onClick={() => setSidebarOpen(true)} className="md:hidden"
-            style={{ background: 'var(--color-primary-light)', border: 'none', borderRadius: 10, padding: '0.5rem', cursor: 'pointer', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ background: 'var(--color-primary-light, #fef3c7)', border: 'none', borderRadius: 10, padding: '0.5rem', cursor: 'pointer', color: 'var(--color-primary, #ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Menu size={20} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {Icon && (
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={18} style={{ color: 'var(--color-primary)' }} />
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: '#fff7ed', border: '1px solid #ffedd5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={19} style={{ color: '#ea580c' }} />
               </div>
             )}
             <div>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--text-main)', margin: 0, lineHeight: 1, textTransform: 'capitalize' }}>
-                {currentItem?.label || activeTab}
+              <h2 style={{
+                fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif",
+                fontSize: '1.05rem', fontWeight: 800, color: '#1c1917', margin: 0, lineHeight: 1.25,
+                letterSpacing: '-0.01em'
+              }}>
+                {t('navbar.welcomeBack', 'Welcome,')} <span style={{ color: '#ea580c', fontWeight: 800 }}>{formatDisplayName(currentUser?.name) || 'Buyer'}</span> 👋
               </h2>
-              <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {t('navbar.buyerHubBreadcrumb')} / {activeTab}
+              <p style={{
+                fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+                fontSize: '0.68rem', fontWeight: 700, color: '#78716c', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em'
+              }}>
+                {t('navbar.buyerHubBreadcrumb', 'Buyer Hub')} / {currentItem?.label || activeTab}
               </p>
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 10,
-            background: 'var(--color-primary)', color: 'white', fontWeight: 900, fontSize: '1rem',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
-          }}>
-            {user?.avatar ? (
-              <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : ((user?.name?.charAt(0) || role.charAt(0)).toUpperCase())}
-          </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          {/* Buyer Profile Avatar Button — click to go to profile tab */}
+          <button
+            onClick={() => setActiveTab?.('profile')}
+            title="View Buyer Profile"
+            style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: 'linear-gradient(135deg, #ea580c, #c2410c)',
+              color: 'white', fontWeight: 900, fontSize: '1.05rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden', padding: 0,
+              cursor: 'pointer', border: '2px solid transparent',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 10px rgba(234,88,12,0.25)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ea580c'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(234,88,12,0.3)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(234,88,12,0.25)'; }}
+          >
+            {currentUser?.avatar ? (
+              <img src={currentUser.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              (formatDisplayName(currentUser?.name)?.charAt(0) || 'B').toUpperCase()
+            )}
+          </button>
           {topBarExtra && topBarExtra}
         </div>
       </header>
@@ -127,12 +167,15 @@ export default function Navbar({
         </button>
         <div>
           <h2 style={{
-            fontSize: '0.95rem', fontWeight: 700, color: '#18181b', margin: 0, lineHeight: 1.2,
+            fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif",
+            fontSize: '1.05rem', fontWeight: 700, color: '#18181b', margin: 0, lineHeight: 1.25,
+            letterSpacing: '-0.01em',
           }}>
-            {t('navbar.welcomeBack')} <span style={{ color: '#166534' }}>{user?.name?.split(' ')[0] || 'Farmer'}</span> 👋
+            {t('navbar.welcomeBack')} <span style={{ color: '#15803d', fontWeight: 800 }}>{formatDisplayName(currentUser?.name) || 'Farmer'}</span> 👋
           </h2>
           <p style={{
-            fontSize: '0.65rem', fontWeight: 500, color: '#71717a', margin: '2px 0 0',
+            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+            fontSize: '0.68rem', fontWeight: 600, color: '#71717a', margin: '3px 0 0',
           }}>
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
@@ -200,21 +243,29 @@ export default function Navbar({
           <LanguageToggle />
         </div>
 
-        {/* Profile Avatar */}
-        <div style={{
-          width: 38, height: 38, borderRadius: 8,
-          background: 'linear-gradient(135deg, #22C55E, #166534)',
-          color: 'white', fontWeight: 900, fontSize: '1rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          overflow: 'hidden',
-          cursor: 'pointer', border: '1px solid #e4e4e7',
-        }}>
-          {user?.avatar ? (
-            <img src={user.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {/* Profile Avatar — click to go to Profile tab */}
+        <button
+          onClick={() => setActiveTab?.('profile')}
+          title="View Profile"
+          style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: 'linear-gradient(135deg, #22C55E, #166534)',
+            color: 'white', fontWeight: 900, fontSize: '1.05rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', padding: 0,
+            cursor: 'pointer', border: '2px solid transparent',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 10px rgba(22,101,52,0.22)',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#166534'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.3)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(22,101,52,0.22)'; }}
+        >
+          {currentUser?.avatar ? (
+            <img src={currentUser.avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            (user?.name?.charAt(0) || 'F').toUpperCase()
+            (formatDisplayName(currentUser?.name)?.charAt(0) || 'F').toUpperCase()
           )}
-        </div>
+        </button>
 
         {topBarExtra && topBarExtra}
       </div>

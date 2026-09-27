@@ -65,6 +65,8 @@ export const registerUser = async (req, res, next) => {
       } catch (uploadError) {
         console.error('Avatar upload failed:', uploadError);
       }
+    } else if (req.body.avatar && typeof req.body.avatar === 'string') {
+      avatarUrl = req.body.avatar;
     }
 
     const userObj = {
@@ -469,12 +471,12 @@ export const updateUserProfile = async (req, res, next) => {
     if (req.files) {
       if (req.files.avatar && req.files.avatar[0]) {
         const file = req.files.avatar[0];
-        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        const uploaded = await uploadToCloudinary(file.buffer, 'kisanbazaar/avatars');
         user.avatar = uploaded.secure_url;
       }
       if (req.files.coverImage && req.files.coverImage[0]) {
         const file = req.files.coverImage[0];
-        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        const uploaded = await uploadToCloudinary(file.buffer, 'kisanbazaar/covers');
         user.coverImage = uploaded.secure_url;
       }
     } else if (req.body.avatar) {

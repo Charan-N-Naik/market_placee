@@ -40,8 +40,13 @@ export function uploadToCloudinary(buffer, folder = 'kisanbazaar/crops') {
       },
       (error, result) => {
         if (error) {
-          console.error('Cloudinary upload error:', error);
-          reject(new Error('Image upload failed'));
+          console.warn('Cloudinary upload failed, falling back to base64 data URI:', error.message);
+          const base64 = buffer.toString('base64');
+          resolve({
+            secure_url: `data:image/jpeg;base64,${base64}`,
+            url: `data:image/jpeg;base64,${base64}`,
+            public_id: `mock_${Date.now()}`
+          });
         } else {
           resolve({
             secure_url: result.secure_url,

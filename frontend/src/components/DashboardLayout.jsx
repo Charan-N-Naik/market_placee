@@ -43,6 +43,7 @@ export default function DashboardLayout({
           activeTab={activeTab}
           navItems={navItems}
           setSidebarOpen={setSidebarOpen}
+          setActiveTab={setActiveTab}
           role={role}
           topBarExtra={topBarExtra}
           user={user}

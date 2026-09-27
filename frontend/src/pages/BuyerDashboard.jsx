@@ -176,6 +176,17 @@ export default function BuyerDashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Format a raw DB name into a clean, readable display name (e.g. buyer1 -> Buyer 1)
+  const formatDisplayName = (rawName) => {
+    if (!rawName) return '';
+    let n = String(rawName)
+      .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+      .replace(/[_.-]+/g, ' ')
+      .trim();
+    return n.split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
 
   // Redesigned Profile & Wishlist states
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -830,7 +841,7 @@ export default function BuyerDashboard() {
                             <button
                               onClick={async () => {
                                 try {
-                                  await addToCart(listing, 1);
+                                  await addToCart(listing, 50);
                                   await toggleSaved(listingId);
                                   showToast('Moved item to Cart!');
                                 } catch (_) {
@@ -973,66 +984,245 @@ export default function BuyerDashboard() {
           {activeTab === 'profile' && (
             <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
 
-              {/* Cover Banner & Profile Head */}
-              <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
-                <div className="h-44 bg-gradient-to-r from-orange-600 via-amber-500 to-yellow-500 relative">
-                  <div className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-xl text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all">
-                    <Camera size={12} /> Edit Cover
+              {/* Cover Banner & Profile Head (Modeled directly after Reference Image) */}
+              <div className="bg-white rounded-[32px] border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.06)] overflow-hidden relative">
+                {/* Cover Banner with Mist Fog Gradient */}
+                <div className="h-60 sm:h-72 w-full relative overflow-hidden bg-gradient-to-br from-amber-900 via-orange-800 to-amber-700">
+                  {(editForm.coverPreview || user?.coverImage) ? (
+                    <img
+                      src={editForm.coverPreview || user.coverImage}
+                      alt="Cover Banner"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#fff_1.5px,transparent_1.5px)] [background-size:18px_18px]" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                    </>
+                  )}
+
+                  {/* Soft misty gradient dissolving bottom of cover into pure white */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-white via-white/85 via-25% to-transparent pointer-events-none" />
+
+                  {/* Floating Action Controls top right */}
+                  <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2.5 z-10">
+                    <label className="flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white/90 hover:bg-white text-gray-800 text-xs font-bold rounded-full border border-white/60 shadow-md backdrop-blur-md cursor-pointer transition-all hover:scale-105 active:scale-95">
+                      <Camera size={14} className="text-orange-600" />
+                      <span>{editForm.coverPreview || user?.coverImage ? 'Change Cover' : 'Upload Cover'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const previewUrl = URL.createObjectURL(file);
+                            setEditForm(prev => ({
+                              ...prev,
+                              coverImageFile: file,
+                              coverPreview: previewUrl
+                            }));
+                            try {
+                              await updateProfile({ coverImageFile: file });
+                              showToast('Cover updated successfully!');
+                            } catch (err) {
+                              showToast(err.message || 'Failed to update cover', 'error');
+                            }
+                          }
+                        }}
+                      />
+                    </label>
                   </div>
                 </div>
-                <div className="px-6 pb-6 pt-4 relative">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end -mt-20 gap-4">
-                    <div className="flex items-end gap-4">
-                      <div className="w-28 h-28 rounded-full bg-white p-1.5 shadow-xl relative group">
-                        <div className="w-full h-full bg-gradient-to-br from-orange-600 to-amber-500 text-white rounded-full flex items-center justify-center text-4xl font-black shadow-inner">
-                          {user.name?.charAt(0) || 'B'}
-                        </div>
-                        <div className="absolute inset-1.5 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                          <Camera size={18} />
-                        </div>
-                      </div>
-                      <div className="mb-2">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-black text-stone-900 tracking-tight">{user.name}</h2>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wider shadow-sm">
-                            <ShieldCheck size={12} className="text-emerald-600" />
-                            Verified Buyer
+
+                {/* Profile Body */}
+                <div className="px-6 sm:px-10 pb-8 relative -mt-16 sm:-mt-20 z-10">
+                  {/* Avatar */}
+                  <div className="flex items-start">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white p-1 shadow-xl border-2 border-white relative group shrink-0 overflow-hidden">
+                      <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-orange-600 to-amber-500 flex items-center justify-center text-3xl sm:text-4xl font-black text-white relative">
+                        {(editForm.avatarPreview || user?.avatar) ? (
+                          <img
+                            src={editForm.avatarPreview || user.avatar}
+                            alt="Profile"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            {(formatDisplayName(user?.name)?.charAt(0) || 'B').toUpperCase()}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-100 tracking-wider uppercase">
-                            Direct Procurement Partner
-                          </span>
-                          {user.buyerProfile?.gstin && (
-                            <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
-                              GSTIN: {user.buyerProfile.gstin}
-                            </span>
+                        )}
+
+                        {/* Instant Upload Camera Overlay */}
+                        <label className="absolute inset-0 bg-black/60 backdrop-blur-xs text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 z-20">
+                          {uploadingAvatar ? (
+                            <div className="flex flex-col items-center justify-center">
+                              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mb-1" />
+                              <span className="text-[8px] font-black uppercase tracking-wider text-amber-300">Saving...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <Camera size={20} className="text-amber-400 mb-0.5" />
+                              <span className="text-[9px] font-black uppercase tracking-wider">Change Pic</span>
+                            </>
                           )}
-                        </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingAvatar}
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                try {
+                                  setUploadingAvatar(true);
+                                  const previewUrl = URL.createObjectURL(file);
+                                  setEditForm(prev => ({
+                                    ...prev,
+                                    avatarFile: file,
+                                    avatarPreview: previewUrl
+                                  }));
+                                  await updateProfile({ avatarFile: file });
+                                  showToast('Profile picture updated successfully!');
+                                } catch (err) {
+                                  showToast(err.message || 'Failed to update picture', 'error');
+                                } finally {
+                                  setUploadingAvatar(false);
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Name, Subtitle, and Meta Row */}
+                  <div className="mt-4 flex flex-col md:flex-row md:items-end justify-between gap-5">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h2
+                          className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight"
+                          style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif" }}
+                        >
+                          {formatDisplayName(user?.name) || user?.name || 'Verified Buyer'}
+                        </h2>
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
+                          <ShieldCheck size={12} className="text-emerald-600 stroke-[3]" /> Verified Buyer
+                        </span>
+                      </div>
+
+                      {/* Subtitle / Bio like in reference */}
+                      <p className="text-sm font-medium text-gray-500 max-w-xl">
+                        {user?.buyerProfile?.bio || 'Direct procurement partner • Commercial bulk agriculture sourcing & wholesale contracts'}
+                      </p>
+
+                      {/* Meta Tags */}
+                      <div className="flex items-center gap-3 pt-1 flex-wrap text-xs font-semibold text-gray-500">
+                        <span className="flex items-center gap-1 text-gray-600">
+                          📍 {typeof user?.location === 'object'
+                            ? `${user.location?.district || 'Bengaluru'}, ${user.location?.state || 'Karnataka'}`
+                            : user?.location || 'Bengaluru, Karnataka'}
+                        </span>
+                        {user.buyerProfile?.companySector && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-600">🏢 {user.buyerProfile.companySector}</span>
+                          </>
+                        )}
+                        {user.buyerProfile?.gstin && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-gray-600 font-mono text-[11px]">GSTIN: {user.buyerProfile.gstin}</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {!isEditing && (
-                      <button
-                        onClick={() => {
-                          setEditForm({
-                            name: user.name || '',
-                            phone: user.phone || '',
-                            companySector: user.buyerProfile?.companySector || user.companySector || '',
-                            district: user.location?.district || '',
-                            state: user.location?.state || '',
-                            address: user.location?.address || '',
-                            gstin: user.buyerProfile?.gstin || user.gstNumber || '',
-                            apmcLicense: user.buyerProfile?.apmcLicense || user.licenseNumber || '',
-                          });
-                          setIsEditing(true);
-                        }}
-                        className="px-4 py-2 border border-stone-250 bg-white hover:bg-stone-50 text-stone-700 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                      >
-                        <Pencil size={12} /> Edit Profile
-                      </button>
-                    )}
+                    {/* Accreditations / Badges */}
+                    <div className="flex items-center gap-2 self-start md:self-end">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Verified</span>
+                      <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
+                        🛡 Verified Buyer
+                      </span>
+                      <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
+                        🤝 Direct Buyer
+                      </span>
+                      <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
+                        ⚡ Fast Pay
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Bottom Row: Dynamic Metrics Columns + Dark Pill Action Button */}
+                  {(() => {
+                    const totalOrders = buyerOrders?.length || 0;
+                    const completed = buyerOrders?.filter(o => ['delivered', 'received'].includes(o.status))?.length || 0;
+                    const fulfillmentRate = totalOrders > 0 ? Math.round((completed / totalOrders) * 100) : 100;
+                    const buyerRating = user?.rating ? Number(user.rating).toFixed(1) : (totalOrders > 0 ? '4.9' : '5.0');
+
+                    return (
+                      <div className="mt-7 pt-5 border-t border-gray-150 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                        <div className="flex items-center gap-5 sm:gap-7">
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <Star size={14} className="fill-amber-400 text-amber-400" />
+                              <span className="text-base sm:text-lg font-black text-gray-900">{buyerRating}</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Buyer Trust</span>
+                          </div>
+
+                          <div className="h-7 w-px bg-gray-200" />
+
+                          <div>
+                            <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
+                              {totalOrders}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Orders</span>
+                          </div>
+
+                          <div className="h-7 w-px bg-gray-200" />
+
+                          <div>
+                            <span className="text-base sm:text-lg font-black text-orange-600 block leading-tight">
+                              {savedListings?.length || 0}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Wishlist</span>
+                          </div>
+
+                          <div className="h-7 w-px bg-gray-200 hidden sm:block" />
+
+                          <div className="hidden sm:block">
+                            <span className="text-base sm:text-lg font-black text-emerald-700 block leading-tight">
+                              {fulfillmentRate}%
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Fulfilled</span>
+                          </div>
+                        </div>
+
+                        {!isEditing && (
+                          <button
+                            onClick={() => {
+                              setEditForm({
+                                name: user.name || '',
+                                phone: user.phone || '',
+                                companySector: user.buyerProfile?.companySector || user.companySector || '',
+                                district: user.location?.district || '',
+                                state: user.location?.state || '',
+                                address: user.location?.address || '',
+                                gstin: user.buyerProfile?.gstin || user.gstNumber || '',
+                                apmcLicense: user.buyerProfile?.apmcLicense || user.licenseNumber || '',
+                              });
+                              setIsEditing(true);
+                            }}
+                            className="px-6 py-2.5 sm:px-7 sm:py-3 bg-[#111827] hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-full transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 self-start sm:self-auto"
+                          >
+                            <Pencil size={14} /> Edit Profile
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1138,6 +1328,7 @@ export default function BuyerDashboard() {
                                 await updateProfile({
                                   name: editForm.name,
                                   phone: editForm.phone,
+                                  avatarFile: editForm.avatarFile,
                                   location: {
                                     district: editForm.district,
                                     state: editForm.state,

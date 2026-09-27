@@ -317,33 +317,7 @@ export default function AuthPage({ mode = 'login' }) {
             }}
           >
             {/* Card Header */}
-            <div style={{ padding: '2rem 2rem 1.5rem', borderBottom: `1px solid ${primaryLight}`, textAlign: 'center', position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                title="Back to Home"
-                style={{
-                  position: 'absolute',
-                  left: '1.25rem',
-                  top: '1.75rem',
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  border: `1px solid ${primaryLight}`,
-                  background: '#f9fafb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: '#4b5563',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = primaryLight; e.currentTarget.style.color = primary; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.color = '#4b5563'; }}
-              >
-                <ArrowLeft size={18} />
-              </button>
-
+            <div style={{ padding: '2rem 2rem 1.5rem', borderBottom: `1px solid ${primaryLight}`, textAlign: 'center' }}>
               <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 12,

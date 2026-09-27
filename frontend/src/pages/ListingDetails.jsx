@@ -27,7 +27,8 @@ export default function ListingDetails() {
   const [apiListing, setApiListing] = useState(null);
   const listing = contextListing || apiListing;
 
-  const [quantity, setQuantity] = useState(1);
+  const MIN_BULK_QTY = 50;
+  const [quantity, setQuantity] = useState(MIN_BULK_QTY);
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -137,6 +138,11 @@ export default function ListingDetails() {
   };
 
   const handleAddToCart = async () => {
+    if (quantity < MIN_BULK_QTY) {
+      setCartError(`Bulk Marketplace Requirement: Minimum purchase quantity is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}.`);
+      setTimeout(() => setCartError(''), 4000);
+      return;
+    }
     try {
       setAddingToCart(true);
       setCartError('');
@@ -154,6 +160,11 @@ export default function ListingDetails() {
   };
 
   const handleBuyNow = async () => {
+    if (quantity < MIN_BULK_QTY) {
+      setCartError(`Bulk Marketplace Requirement: Minimum purchase quantity is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}.`);
+      setTimeout(() => setCartError(''), 4000);
+      return;
+    }
     try {
       setAddingToCart(true);
       await addToCart(listingId, quantity, listing);
@@ -630,22 +641,31 @@ export default function ListingDetails() {
 
               {/* Quantity Counter */}
               {!isFarmer && (
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <span className="text-xs font-black text-gray-700 uppercase tracking-wider">Select Quantity ({listing.unit || 'kg'}):</span>
-                  <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-                    <button 
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
-                    <button 
-                      onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                      className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                    >
-                      <Plus size={16} />
-                    </button>
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Select Quantity ({listing.unit || 'kg'}):</span>
+                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 inline-flex items-center gap-1 mt-0.5">
+                        📦 Bulk Minimum: 50 {listing?.unit || 'kg'}
+                      </span>
+                    </div>
+                    <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+                      <button 
+                        onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
+                        disabled={quantity <= MIN_BULK_QTY}
+                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-14 text-center text-sm font-black text-gray-900">{quantity}</span>
+                      <button 
+                        onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -936,24 +956,31 @@ export default function ListingDetails() {
       {!isFarmer && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
           <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-                <button 
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                >
-                  <Minus size={16} />
-                </button>
-                <span className="w-10 text-center text-sm font-black text-gray-900">{quantity}</span>
-                <button 
-                  onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                  className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer"
-                >
-                  <Plus size={16} />
-                </button>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
+                  Min Bulk: {MIN_BULK_QTY} {listing?.unit || 'kg'}
+                </span>
+                <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+                  <button 
+                    onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
+                    disabled={quantity <= MIN_BULK_QTY}
+                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
               </div>
 
-              <div className="hidden sm:block">
+              <div className="hidden sm:block pl-2 border-l border-gray-200">
                 <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
                 <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
               </div>

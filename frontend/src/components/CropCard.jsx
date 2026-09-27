@@ -82,7 +82,7 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
     e.stopPropagation();
     try {
       setAdding(true);
-      await addToCart(listingId, 1);
+      await addToCart(listingId, 50);
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
     } catch (err) {

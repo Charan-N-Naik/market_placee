@@ -11,6 +11,19 @@ import {
   Leaf, BookmarkCheck, Bookmark, ShoppingBag, Heart
 } from 'lucide-react';
 
+// Format raw DB username into clean display name (e.g. former1 -> Former 1)
+function formatDisplayName(rawName) {
+  if (!rawName) return '';
+  return String(rawName)
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    .replace(/[_.-]+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export default function Sidebar({
   user,
   onLogout,
@@ -155,7 +168,7 @@ export default function Sidebar({
                 ) : (user?.name?.charAt(0)?.toUpperCase() || 'U')}
               </div>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'User'}</p>
+                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
                 <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-primary)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   📍 {typeof user?.location === 'object'
                     ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
@@ -328,7 +341,7 @@ export default function Sidebar({
                 ) : (user?.name?.charAt(0)?.toUpperCase() || 'F')}
               </div>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name || 'Farmer'}</p>
+                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'Farmer'}</p>
                 <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(132,204,22,0.8)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   📍 {typeof user?.location === 'object'
                     ? `${user?.location?.district || user?.location?.address || 'India'}, ${user?.location?.state || 'KA'}`
