@@ -36,7 +36,7 @@ function LocationMarker({ onLocationSelected }) {
     <Marker position={position}></Marker>
   );
 }
-import { loginSchema, farmerRegisterSchema, buyerRegisterSchema } from '../lib/validations/authSchema';
+import { loginSchema, farmerRegisterSchema, buyerRegisterSchema, commonRegisterSchema } from '../lib/validations/authSchema';
 
 export default function AuthPage({ mode = 'login' }) {
   const { role } = useParams();
@@ -92,7 +92,7 @@ export default function AuthPage({ mode = 'login' }) {
 
   const schema = isLogin
     ? loginSchema
-    : (isFarmer ? farmerRegisterSchema : buyerRegisterSchema);
+    : (isFarmer ? farmerRegisterSchema : isDeliveryAgent ? commonRegisterSchema : buyerRegisterSchema);
 
   const {
     register: formRegister,
@@ -163,9 +163,11 @@ export default function AuthPage({ mode = 'login' }) {
   };
 
   // Design tokens resolved per role
-  const primary = isFarmer ? '#15803d' : '#ea580c';
-  const primaryLight = isFarmer ? '#dcfce7' : '#ffedd5';
-  const bgPage = isFarmer ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f4fbf7 100%)' : 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fff7ed 100%)';
+  const primary = isFarmer ? '#15803d' : isDeliveryAgent ? '#059669' : '#ea580c';
+  const primaryLight = isFarmer ? '#dcfce7' : isDeliveryAgent ? '#d1fae5' : '#ffedd5';
+  const bgPage = isFarmer ? 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f4fbf7 100%)' :
+                 isDeliveryAgent ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #ecfdf5 100%)' :
+                 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fff7ed 100%)';
 
   const inputStyle = (hasError) => ({
     width: '100%', padding: '0.875rem 1rem 0.875rem 2.75rem',
@@ -224,8 +226,8 @@ export default function AuthPage({ mode = 'login' }) {
               </h2>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600, margin: 0 }}>
                 {isLogin
-                  ? `Sign in to your ${isFarmer ? 'Farmer' : 'Buyer'} portal`
-                  : `Join as a ${isFarmer ? 'Farmer 🌾' : 'Buyer 🛒'} today`}
+                  ? `Sign in to your ${isFarmer ? 'Farmer' : isDeliveryAgent ? 'Delivery Agent' : 'Buyer'} portal`
+                  : `Join as a ${isFarmer ? 'Farmer 🌾' : isDeliveryAgent ? 'Delivery Agent 🚚' : 'Buyer 🛒'} today`}
               </p>
             </div>
 
@@ -379,7 +381,7 @@ export default function AuthPage({ mode = 'login' }) {
                     )}
 
                     {/* Buyer-specific */}
-                    {!isFarmer && (
+                    {!isFarmer && !isDeliveryAgent && (
                       <div className="space-y-3">
                         <div>
                           <label style={labelStyle}>Business Name</label>

@@ -86,7 +86,7 @@ export function AuthProvider({ children }) {
       let dataToSend = userData;
       let headers = { 'Content-Type': 'application/json' };
 
-      if (userData.avatar) {
+      if (userData.avatar || userData.vehiclePhoto) {
         const formData = new FormData();
         Object.keys(userData).forEach(key => {
           if (userData[key] !== undefined && userData[key] !== null) {
@@ -117,13 +117,14 @@ export function AuthProvider({ children }) {
       if (profileData instanceof FormData) {
         dataToSend = profileData;
         headers = { 'Content-Type': 'multipart/form-data' };
-      } else if (profileData.avatarFile || profileData.coverImageFile) {
+      } else if (profileData.avatarFile || profileData.coverImageFile || profileData.vehiclePhotoFile) {
         const formData = new FormData();
         if (profileData.avatarFile) formData.append('avatar', profileData.avatarFile);
         if (profileData.coverImageFile) formData.append('coverImage', profileData.coverImageFile);
+        if (profileData.vehiclePhotoFile) formData.append('vehiclePhoto', profileData.vehiclePhotoFile);
 
         Object.keys(profileData).forEach(key => {
-          if (key !== 'avatarFile' && key !== 'coverImageFile' && profileData[key] !== undefined) {
+          if (!['avatarFile', 'coverImageFile', 'vehiclePhotoFile'].includes(key) && profileData[key] !== undefined) {
             if (typeof profileData[key] === 'object') {
               formData.append(key, JSON.stringify(profileData[key]));
             } else {

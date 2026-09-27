@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['farmer', 'buyer', 'admin'],
+      enum: ['farmer', 'buyer', 'admin', 'delivery_agent', 'driver'],
       required: true,
     },
     location: {
@@ -79,6 +79,28 @@ const userSchema = new mongoose.Schema(
       orderVolume: String,
       gstin: String,
       apmcLicense: String,
+    },
+    
+    // Delivery Agent specific fields
+    deliveryAgentProfile: {
+      vehicleType: String, // e.g. "Truck", "Mini-van", "Bike", "Tractor"
+      vehicleNumber: String,
+      drivingLicense: String,
+      vehiclePhoto: String,
+      perKmCharge: {
+        type: Number,
+        default: 15
+      },
+      availabilityStatus: {
+        type: String,
+        enum: ['available', 'busy', 'offline'],
+        default: 'offline'
+      },
+      currentLocation: {
+        lat: Number,
+        lng: Number,
+        lastUpdated: Date
+      }
     }
   },
   {

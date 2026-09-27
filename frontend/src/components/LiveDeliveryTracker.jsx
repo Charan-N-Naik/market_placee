@@ -5,9 +5,9 @@ import 'leaflet/dist/leaflet.css';
 import { 
   Truck, MapPin, ShieldCheck, CheckCircle2, Clock, Navigation, AlertTriangle, 
   PhoneCall, RefreshCw, Radio, Lock, Activity, Cpu, ChevronRight, PackageCheck,
-  Building2, UserCheck, MessageSquare, DollarSign
+  Building2, UserCheck, MessageSquare, DollarSign, Star
 } from 'lucide-react';
-import { calculateDistance, calculateTransportExpenditure, getAvailableDeliveryAgents, getDeliveryBooking, createDeliveryBooking } from '../utils/deliveryService';
+import { calculateDistance, calculateTransportExpenditure, getAvailableDeliveryAgents, getDeliveryBooking, createDeliveryBooking, addAgentReview } from '../utils/deliveryService';
 
 /* ─── Custom Crisp DivIcons for Leaflet ─── */
 const createCustomIcon = (type, label) => {
@@ -70,8 +70,26 @@ function MapBoundsFitter({ bounds }) {
 }
 
 export default function LiveDeliveryTracker({ order, onClose }) {
-  const status = order?.status || 'pending';
+  const status = order?.deliveryRequestStatus || order?.status || 'pending';
   
+  const [selectedAgent, setSelectedAgent] = useState(() => {
+    const list = getAvailableDeliveryAgents();
+    return order?.driver || list[0] || {
+      id: 'agent_driver_1',
+      name: 'Ramesh Gowda',
+      vehicleType: 'Mahindra Bolero Pickup 🚚',
+      vehicleNumber: 'KA-06-EA-4821',
+      rating: 4.9,
+      phone: '9845012345',
+      ratePerKm: 18
+    };
+  });
+
+  const originLoc = order?.farmerDetails?.pickupDistrict || order?.farmer?.location?.district || 'Hubli';
+  const destLoc = order?.buyerDropDetails?.dropDistrict || order?.buyer?.location?.district || 'Mangaluru';
+  const distanceKm = order?.deliveryDistance || order?.expenditureDetails?.distanceKm || calculateDistance(originLoc, destLoc) || 15;
+  const expenditure = order?.expenditureDetails || calculateTransportExpenditure(distanceKm, selectedAgent?.ratePerKm || 18);
+
   // Coordinates setup: Origin (Farmer Hub) -> Destination (Buyer Address)
   const origin = [15.3647, 75.1240]; // Hub A (Hubli / Dharwad Agri Storage)
   const dest = [12.9141, 74.8560];   // Hub B (Mangaluru / District Destination)
@@ -123,14 +141,11 @@ export default function LiveDeliveryTracker({ order, onClose }) {
     return () => clearInterval(timer);
   }, []);
 
-  // E-commerce Stepper Config
+  // Streamlined Delivery Pipeline Stepper Config
   const steps = [
     { id: 'placed', label: 'Order Placed', desc: 'Order received by farmer', done: true },
-    { id: 'accepted', label: 'Confirmed', desc: 'Accepted by farmer', done: ['accepted', 'packed', 'paid', 'shipped', 'delivered', 'received'].includes(status) },
-    { id: 'packed', label: 'Packed', desc: 'Produce packaged & quality checked', done: ['packed', 'shipped', 'delivered', 'received'].includes(status) },
-    { id: 'shipped', label: 'Dispatched', desc: 'In-transit via Agri-Express', done: ['shipped', 'delivered', 'received'].includes(status) },
-    { id: 'out_for_delivery', label: 'Out for Delivery', desc: 'Agent delivering to your address', done: ['delivered', 'received'].includes(status) },
-    { id: 'delivered', label: 'Delivered', desc: 'Produce handed over', done: status === 'delivered' || status === 'received' },
+    { id: 'collected', label: 'Crops Collected', desc: 'Agent collected crops & in-transit', done: ['collected', 'shipped', 'delivered', 'received'].includes(status) },
+    { id: 'delivered', label: 'Delivered', desc: 'Produce handed over to buyer', done: status === 'delivered' || status === 'received' },
   ];
 
   const orderIdShort = order?._id?.slice(-8)?.toUpperCase() || order?.orderId || 'KB-ORDER';
@@ -370,10 +385,84 @@ export default function LiveDeliveryTracker({ order, onClose }) {
             </div>
           </div>
 
+          {/* POST-DELIVERY DRIVER RATING CARD */}
+          {(status === 'delivered' || status === 'received' || status === 'completed') && (
+            <div className="bg-amber-50 rounded-[20px] border border-amber-200 p-5 shadow-sm space-y-3">
+              <div className="flex items-center gap-2 text-amber-900 font-black text-xs uppercase tracking-wider">
+                <Star size={16} className="text-amber-500 fill-amber-500" /> Rate Delivery Experience
+              </div>
+              <p className="text-xs text-amber-800 font-medium">
+                Delivery complete! Rate driver <span className="font-bold">{selectedAgent?.name || 'Ramesh Gowda'}</span> to update their verified service score.
+              </p>
+
+              <DriverRatingWidget 
+                agentId={selectedAgent?.id || 'agent_driver_1'} 
+                orderId={order?._id || order?.orderId} 
+              />
+            </div>
+          )}
+
         </div>
 
       </div>
 
     </div>
+  );
+}
+
+function DriverRatingWidget({ agentId, orderId }) {
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    addAgentReview(agentId, {
+      rating,
+      reviewText: comment,
+      reviewerName: 'Verified Buyer/Farmer',
+      orderId
+    });
+    setSubmitted(true);
+  };
+
+  if (submitted) {
+    return (
+      <div className="bg-emerald-100/80 border border-emerald-300 text-emerald-900 p-3 rounded-xl text-xs font-bold text-center">
+        ✓ Rating submitted! Thank you for rating your delivery agent.
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 pt-1">
+      <div className="flex items-center gap-2 justify-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => setRating(star)}
+            className="p-1 text-xl hover:scale-125 transition-transform"
+          >
+            <Star size={24} className={star <= rating ? 'text-amber-500 fill-amber-500' : 'text-amber-200'} />
+          </button>
+        ))}
+      </div>
+
+      <input
+        type="text"
+        placeholder="Write a quick review for the driver (optional)..."
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-amber-500"
+      />
+
+      <button
+        type="submit"
+        className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer shadow-sm"
+      >
+        Submit Driver Rating
+      </button>
+    </form>
   );
 }

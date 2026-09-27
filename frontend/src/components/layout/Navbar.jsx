@@ -82,7 +82,7 @@ export default function Navbar({
                 {currentItem?.label || activeTab}
               </h2>
               <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {t('navbar.buyerHubBreadcrumb')} / {activeTab}
+                {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : t('navbar.buyerHubBreadcrumb')} / {activeTab}
               </p>
             </div>
           </div>
