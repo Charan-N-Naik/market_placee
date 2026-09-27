@@ -686,22 +686,44 @@ export const getDeliveryAgents = async (req, res, next) => {
 
 // @desc    Add review for a delivery agent
 // @route   POST /api/auth/delivery-agents/:agentId/reviews
-// @access  Public
+// @access  Private (logged-in buyer or farmer with a completed order)
 export const addDeliveryAgentReview = async (req, res, next) => {
   try {
     const { agentId } = req.params;
     const { rating, reviewText, reviewerName, orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required to verify your delivery experience.' });
+    }
 
     const agent = await User.findById(agentId);
     if (!agent) {
       return res.status(404).json({ message: 'Delivery agent not found' });
     }
 
+    // Verify reviewer had a completed order with this delivery agent
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const isAssignedAgent = order.deliveryAgent && order.deliveryAgent.toString() === agentId.toString();
+    const isBuyerOrFarmer =
+      (order.buyer && order.buyer.toString() === req.user._id.toString()) ||
+      (order.farmer && order.farmer.toString() === req.user._id.toString());
+    const isCompleted = ['received', 'delivered'].includes(order.status) || order.deliveryRequestStatus === 'delivered';
+
+    if (!isAssignedAgent || !isBuyerOrFarmer || !isCompleted) {
+      return res.status(403).json({
+        message: 'You can only review a delivery agent for a completed order (delivered or received) assigned to them.'
+      });
+    }
+
     const review = await Review.create({
       agent: agent._id,
-      order: orderId || null,
-      reviewer: req.user?._id || null,
-      reviewerName: reviewerName || req.user?.name || 'Verified Buyer/Farmer',
+      order: order._id,
+      reviewer: req.user._id,
+      reviewerName: reviewerName || req.user?.name || 'Verified Customer',
       rating: Math.min(5, Math.max(1, Number(rating) || 5)),
       reviewText: reviewText || '',
     });

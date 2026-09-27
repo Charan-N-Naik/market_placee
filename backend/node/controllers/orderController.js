@@ -12,7 +12,7 @@ import { calculateDistance, rankAgentsByProximityAndRating } from '../services/d
 // @route   POST /api/orders
 // @access  Private (buyer)
 export const createOrder = asyncHandler(async (req, res) => {
-  const { items, deliveryAddress, paymentMethod, deliveryMode } = req.body;
+  const { items, deliveryAddress, paymentMethod, deliveryMode, chosenAgentId, selectedAgentId } = req.body;
   if (!items || !items.length) {
     return res.status(400).json({ message: 'No items provided' });
   }
@@ -62,6 +62,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   const orderIds = [];
   const chats = [];
   const payments = [];
+  const resolvedChosenAgentId = chosenAgentId || selectedAgentId || undefined;
 
   // Create ONE Order document per farmer
   for (const [farmerKey, group] of farmerGroups.entries()) {
@@ -77,6 +78,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       paymentMethod: paymentMethod || 'pending_farmer_approval',
       deliveryAddress,
       deliveryMode,
+      chosenAgentId: resolvedChosenAgentId,
       status: 'pending',
     });
 
@@ -131,15 +133,6 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     await order.save();
-
-    // Automatically trigger delivery offer dispatch based on deliveryMode chosen at checkout
-    try {
-      const chosenAgentId = req.body.chosenAgentId || req.body.selectedAgentId;
-      await dispatchDeliveryOffers(order, chosenAgentId);
-    } catch (dispatchErr) {
-      console.error('[CreateOrder] Error auto-dispatching delivery offers:', dispatchErr.message);
-    }
-
     createdOrders.push(order);
     orderIds.push(order._id);
   }
@@ -223,6 +216,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (status === 'packed') {
     order.packedAt = new Date();
     order.pickupDeadline = new Date(order.packedAt.getTime() + 6 * 60 * 60 * 1000);
+    // Trigger delivery offer dispatch upon farmer packing
+    try {
+      await dispatchDeliveryOffers(order, order.chosenAgentId);
+    } catch (dispatchErr) {
+      console.error('[UpdateOrderStatus] Error dispatching delivery offers on packed:', dispatchErr.message);
+    }
   }
   await order.save();
 

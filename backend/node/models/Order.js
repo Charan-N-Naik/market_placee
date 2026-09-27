@@ -45,6 +45,7 @@ const orderSchema = new mongoose.Schema(
       enum: ['buyer_choice', 'auto_assign'],
       required: true,
     },
+    chosenAgentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     packedAt: { type: Date },
     pickupDeadline: { type: Date },
     deliveryOffers: [

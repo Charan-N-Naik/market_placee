@@ -29,7 +29,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
 router.get('/delivery-agents', getDeliveryAgents);
-router.post('/delivery-agents/:agentId/reviews', addDeliveryAgentReview);
+router.post('/delivery-agents/:agentId/reviews', protect, addDeliveryAgentReview);
 router.get('/me', protect, getUserProfile);
 router.put('/me', protect, upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), updateUserProfile);
 
