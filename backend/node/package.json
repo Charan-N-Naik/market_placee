@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node --max-old-space-size=4096 server.js",
-    "dev": "nodemon --exec \"node --max-old-space-size=4096\" server.js"
+    "dev": "nodemon --exec \"node --max-old-space-size=4096\" server.js",
+    "test": "node tests/orderDeliveryIntegration.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

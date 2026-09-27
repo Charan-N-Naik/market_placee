@@ -60,84 +60,121 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
   }
 
+  // Atomically reserve inventory with quantity floor check ($gte: item.quantity)
+  const reservedItems = []; // Array of { listingId, quantity, cropName }
+  for (const item of items) {
+    const listingId = item.listing?._id || item.listing?.id || item.listing;
+    const reservedListing = await Listing.findOneAndUpdate(
+      { _id: listingId, quantity: { $gte: item.quantity } },
+      { $inc: { quantity: -item.quantity } },
+      { new: true }
+    );
+
+    if (!reservedListing) {
+      // Rollback all previously decremented items in this transaction
+      for (const resItem of reservedItems) {
+        await Listing.findByIdAndUpdate(resItem.listingId, { $inc: { quantity: resItem.quantity } });
+      }
+      const currentListing = await Listing.findById(listingId);
+      const cropName = currentListing?.cropName || item.cropName || 'Crop';
+      const available = currentListing?.quantity || 0;
+      return res.status(409).json({
+        message: `Insufficient stock for ${cropName}. Available: ${available}, Requested: ${item.quantity}`
+      });
+    }
+
+    reservedItems.push({
+      listingId,
+      quantity: item.quantity,
+      cropName: reservedListing.cropName,
+    });
+  }
+
   const createdOrders = [];
   const orderIds = [];
   const chats = [];
   const payments = [];
   const resolvedChosenAgentId = chosenAgentId || selectedAgentId || undefined;
 
-  // Create ONE Order document per farmer
-  for (const [farmerKey, group] of farmerGroups.entries()) {
-    const order = await Order.create({
-      buyer: req.user._id,
-      farmer: group.farmerId, // Store farmer directly for fast lookup
-      items: group.items.map(i => ({
-        listing: i.listing,
-        quantity: i.quantity,
-        priceAtPurchase: i.priceAtPurchase,
-      })),
-      totalAmount: group.totalAmount,
-      paymentMethod: paymentMethod || 'pending_farmer_approval',
-      deliveryAddress,
-      deliveryMode,
-      chosenAgentId: resolvedChosenAgentId,
-      status: 'pending',
-    });
+  try {
+    // Create ONE Order document per farmer
+    for (const [farmerKey, group] of farmerGroups.entries()) {
+      const order = await Order.create({
+        buyer: req.user._id,
+        farmer: group.farmerId, // Store farmer directly for fast lookup
+        items: group.items.map(i => ({
+          listing: i.listing,
+          quantity: i.quantity,
+          priceAtPurchase: i.priceAtPurchase,
+        })),
+        totalAmount: group.totalAmount,
+        paymentMethod: paymentMethod || 'pending_farmer_approval',
+        deliveryAddress,
+        deliveryMode,
+        chosenAgentId: resolvedChosenAgentId,
+        status: 'pending',
+      });
 
-    // Reduce quantity immediately (optimistic)
-    for (const item of group.items) {
-      await Listing.findByIdAndUpdate(item.listing, { $inc: { quantity: -item.quantity } });
-    }
-
-    // Create or get existing chat with farmer
-    let chat = await Chat.findOne({
-      participants: { $all: [req.user._id, group.farmerId] },
-      isGroup: false,
-    });
-
-    if (!chat) {
-      chat = await Chat.create({
-        participants: [req.user._id, group.farmerId],
-        messages: [],
+      // Create or get existing chat with farmer
+      let chat = await Chat.findOne({
+        participants: { $all: [req.user._id, group.farmerId] },
         isGroup: false,
       });
+
+      if (!chat) {
+        chat = await Chat.create({
+          participants: [req.user._id, group.farmerId],
+          messages: [],
+          isGroup: false,
+        });
+      }
+
+      // Link chat to order
+      order.relatedChat = chat._id;
+      chats.push(chat._id);
+
+      // Send notification to farmer
+      try {
+        await sendNotification({
+          recipientId: group.farmerId,
+          senderId: req.user._id,
+          type: 'order_placed',
+          title: 'New Order Received',
+          message: `A new order has been placed for ₹${group.totalAmount}. Total quantity: ${group.items.reduce((sum, i) => sum + i.quantity, 0)} units.`,
+          relatedOrder: order._id,
+          relatedChat: chat._id,
+        });
+      } catch (error) {
+        console.error('Error sending notification:', error);
+      }
+
+      // If online payment (not cod or pending_farmer_approval), create a payment record
+      if (paymentMethod && !['cod', 'pending_farmer_approval'].includes(paymentMethod)) {
+        const payment = await Payment.create({
+          order: order._id,
+          amount: group.totalAmount,
+          currency: 'INR',
+          status: 'initiated',
+        });
+        order.paymentId = payment._id;
+        payments.push(payment._id);
+      }
+
+      await order.save();
+      createdOrders.push(order);
+      orderIds.push(order._id);
     }
-
-    // Link chat to order
-    order.relatedChat = chat._id;
-    chats.push(chat._id);
-
-    // Send notification to farmer
-    try {
-      await sendNotification({
-        recipientId: group.farmerId,
-        senderId: req.user._id,
-        type: 'order_placed',
-        title: 'New Order Received',
-        message: `A new order has been placed for ₹${group.totalAmount}. Total quantity: ${group.items.reduce((sum, i) => sum + i.quantity, 0)} units.`,
-        relatedOrder: order._id,
-        relatedChat: chat._id,
-      });
-    } catch (error) {
-      console.error('Error sending notification:', error);
+  } catch (creationErr) {
+    // Rollback reserved stock
+    for (const resItem of reservedItems) {
+      await Listing.findByIdAndUpdate(resItem.listingId, { $inc: { quantity: resItem.quantity } });
     }
-
-    // If online payment (not cod or pending_farmer_approval), create a payment record
-    if (paymentMethod && !['cod', 'pending_farmer_approval'].includes(paymentMethod)) {
-      const payment = await Payment.create({
-        order: order._id,
-        amount: group.totalAmount,
-        currency: 'INR',
-        status: 'initiated',
-      });
-      order.paymentId = payment._id;
-      payments.push(payment._id);
+    for (const createdOrder of createdOrders) {
+      await Order.findByIdAndDelete(createdOrder._id);
     }
-
-    await order.save();
-    createdOrders.push(order);
-    orderIds.push(order._id);
+    throw creationErr;
   }
+
 
   res.status(201).json({
     message: 'Orders placed successfully',
@@ -741,6 +778,7 @@ export async function escalateToNextDeliveryAgent(order) {
   const deadlineStr = order.pickupDeadline
     ? new Date(order.pickupDeadline).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
     : `${windowHours} hours`;
+  const orderShort = order._id.toString().slice(-6).toUpperCase();
 
   try {
     await sendNotification({
@@ -856,31 +894,61 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
   }
 
   if (action === 'accept') {
-    // Check if another agent already accepted (first-accept-wins)
-    if (
-      order.deliveryRequestStatus === 'driver_accepted' &&
-      order.deliveryAgent &&
-      order.deliveryAgent.toString() !== agentId.toString()
-    ) {
+    // Collect sibling offers that will expire upon this accept
+    const siblingOffers = order.deliveryOffers.filter(
+      o => o.agent?.toString() !== agentId.toString() && (o.status === 'offered' || o.status === 'accepted')
+    );
+
+    const hasOffer = order.deliveryOffers.some(o => o.agent?.toString() === agentId.toString());
+
+    const updateDoc = {
+      $set: {
+        deliveryAgent: agentId,
+        deliveryRequestStatus: 'driver_accepted',
+        'deliveryOffers.$[siblingOffers].status': 'expired'
+      }
+    };
+    const arrayFilters = [
+      { 'siblingOffers.agent': { $ne: agentId }, 'siblingOffers.status': 'offered' }
+    ];
+
+    if (hasOffer) {
+      updateDoc.$set['deliveryOffers.$[acceptedOffer].status'] = 'accepted';
+      arrayFilters.push({ 'acceptedOffer.agent': agentId });
+    } else {
+      updateDoc.$push = {
+        deliveryOffers: {
+          agent: agentId,
+          offeredAt: new Date(),
+          status: 'accepted'
+        }
+      };
+    }
+
+    // Atomic findOneAndUpdate with status guard: deliveryRequestStatus: { $ne: 'driver_accepted' }
+    // Only the first accept wins atomically, preventing double-assignment under concurrency
+    const updatedOrder = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        $or: [
+          { deliveryRequestStatus: { $ne: 'driver_accepted' } },
+          { deliveryAgent: agentId } // allow idempotent retry by the same agent
+        ]
+      },
+      updateDoc,
+      {
+        new: true,
+        arrayFilters
+      }
+    );
+
+    if (!updatedOrder) {
+      const currentOrder = await Order.findById(orderId);
       return res.status(409).json({
         message: 'This delivery job has already been accepted by another agent.',
-        order
+        order: currentOrder
       });
     }
-
-    currentOffer.status = 'accepted';
-
-    // Mark all sibling pending offers as expired
-    const siblingOffers = order.deliveryOffers.filter(
-      o => o.agent?.toString() !== agentId.toString() && o.status === 'offered'
-    );
-    for (const sibling of siblingOffers) {
-      sibling.status = 'expired';
-    }
-
-    order.deliveryAgent = agentId;
-    order.deliveryRequestStatus = 'driver_accepted';
-    await order.save();
 
     const agentUser = await User.findById(agentId).select('name phone');
     const agentName = agentUser?.name || 'Assigned Delivery Agent';
@@ -888,25 +956,25 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
     // Notify Buyer
     try {
       await sendNotification({
-        recipientId: order.buyer,
+        recipientId: updatedOrder.buyer,
         senderId: agentId,
         type: 'custom',
         title: '🚚 Delivery Agent Confirmed!',
-        message: `${agentName} has accepted delivery for your order #${order._id.toString().slice(-6)}.`,
-        relatedOrder: order._id,
+        message: `${agentName} has accepted delivery for your order #${updatedOrder._id.toString().slice(-6)}.`,
+        relatedOrder: updatedOrder._id,
       });
     } catch (e) {}
 
     // Notify Farmer
-    if (order.farmer) {
+    if (updatedOrder.farmer) {
       try {
         await sendNotification({
-          recipientId: order.farmer,
+          recipientId: updatedOrder.farmer,
           senderId: agentId,
           type: 'custom',
           title: '🚚 Delivery Agent Assigned',
-          message: `${agentName} will pick up order #${order._id.toString().slice(-6)}. Please have items packed.`,
-          relatedOrder: order._id,
+          message: `${agentName} will pick up order #${updatedOrder._id.toString().slice(-6)}. Please have items packed.`,
+          relatedOrder: updatedOrder._id,
         });
       } catch (e) {}
     }
@@ -919,25 +987,25 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
           senderId: agentId,
           type: 'custom',
           title: 'Job Taken',
-          message: `Delivery job for order #${order._id.toString().slice(-6)} has been taken by another agent.`,
-          relatedOrder: order._id,
+          message: `Delivery job for order #${updatedOrder._id.toString().slice(-6)} has been taken by another agent.`,
+          relatedOrder: updatedOrder._id,
         });
       } catch (e) {}
     }
 
     if (req.io) {
-      req.io.to(`order:${order._id}`).emit('orderUpdate', {
-        orderId: order._id,
+      req.io.to(`order:${updatedOrder._id}`).emit('orderUpdate', {
+        orderId: updatedOrder._id,
         deliveryRequestStatus: 'driver_accepted',
         deliveryAgent: agentId,
-        order
+        order: updatedOrder
       });
     }
 
     return res.json({
       success: true,
       message: 'Delivery offer accepted successfully',
-      order
+      order: updatedOrder
     });
   }
 
