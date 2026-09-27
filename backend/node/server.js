@@ -37,6 +37,9 @@ import cropVerificationRoutes from './routes/cropVerificationRoutes.js';
 import { seedAgriData } from './utils/seedAgriData.js';
 import { initDeliveryScheduler } from './services/deliverySchedulerService.js';
 import Order from './models/Order.js';
+import User from './models/User.js';
+import jwt from 'jsonwebtoken';
+import { isUserAuthorizedForOrder } from './controllers/orderController.js';
 
 // Initialize Express app
 const app = express();
@@ -59,6 +62,39 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
     credentials: true,
   },
+});
+
+// Socket.io Authentication Middleware
+io.use(async (socket, next) => {
+  try {
+    let token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    if (token && typeof token === 'string' && token.startsWith('Bearer ')) {
+      token = token.slice(7).trim();
+    }
+
+    if (!token) {
+      return next(new Error('Authentication error: Token missing'));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-passwordHash');
+    if (!user) {
+      return next(new Error('Authentication error: User not found'));
+    }
+
+    socket.user = {
+      _id: user._id,
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    next();
+  } catch (err) {
+    console.warn(`[Socket Auth] Failed connection for socket ${socket.id}:`, err.message);
+    return next(new Error('Authentication error: Invalid or expired token'));
+  }
 });
 
 // Attach io to req for use in controllers
@@ -94,11 +130,35 @@ app.use('/api', marketRoutes);
 
 // Socket.io handlers
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+  console.log(`A user connected: ${socket.id} (${socket.user?.name}, role: ${socket.user?.role})`);
 
-  socket.on('join_room', (roomId) => {
-    socket.join(roomId);
-    console.log(`User ${socket.id} joined room ${roomId}`);
+  socket.on('join_room', async (roomId) => {
+    try {
+      if (!roomId) return;
+
+      // Guard rooms of the form order:<orderId>
+      const orderMatch = typeof roomId === 'string' && roomId.match(/^order:(.+)$/);
+      if (orderMatch) {
+        const orderId = orderMatch[1];
+        const order = await Order.findById(orderId);
+        if (!order) {
+          socket.emit('error', { message: 'Order not found', roomId });
+          return;
+        }
+
+        if (!isUserAuthorizedForOrder(order, socket.user)) {
+          console.warn(`[Socket] User ${socket.user?.id} (${socket.user?.name}) unauthorized for room ${roomId}`);
+          socket.emit('error', { message: 'Not authorized for this order room', roomId });
+          return;
+        }
+      }
+
+      socket.join(roomId);
+      console.log(`User ${socket.id} joined room ${roomId}`);
+    } catch (err) {
+      console.error('[Socket] Error in join_room:', err);
+      socket.emit('error', { message: 'Failed to join room', roomId });
+    }
   });
 
   socket.on('leave_room', (roomId) => {
@@ -106,11 +166,25 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} left room ${roomId}`);
   });
 
-  // Live delivery agent GPS location update
+  // Guarded live delivery agent GPS location update
   socket.on('agent_location_update', async (data) => {
     try {
       const { orderId, lat, lng } = data || {};
       if (!orderId || lat === undefined || lng === undefined) return;
+
+      const order = await Order.findById(orderId);
+      if (!order) {
+        console.warn(`[Socket] Order not found for agent_location_update: ${orderId}`);
+        return;
+      }
+
+      const assignedAgentId = (order.deliveryAgent?._id || order.deliveryAgent || '').toString();
+      const currentUserId = (socket.user?._id || socket.user?.id || '').toString();
+
+      if (!assignedAgentId || assignedAgentId !== currentUserId) {
+        console.warn(`[Socket] Location update ignored: User ${currentUserId} is not the assigned deliveryAgent (${assignedAgentId}) for order ${orderId}`);
+        return;
+      }
 
       const updatedAt = new Date();
       // Relay to scoped order room

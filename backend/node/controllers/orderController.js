@@ -149,6 +149,21 @@ export const createOrder = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Helper to verify if a user is authorized to access/track an order
+export const isUserAuthorizedForOrder = (order, user) => {
+  if (!order || !user) return false;
+  const userId = (user._id || user.id || '').toString();
+  const isBuyer = (order.buyer?._id || order.buyer || '').toString() === userId;
+  const isFarmer = (order.farmer?._id || order.farmer || '').toString() === userId;
+  const isAgent = (order.deliveryAgent?._id || order.deliveryAgent || '').toString() === userId;
+  const isOfferedAgent = (order.deliveryOffers || []).some(
+    o => (o.agent?._id || o.agent || '').toString() === userId
+  );
+  const isAdmin = user.role === 'admin';
+
+  return isBuyer || isFarmer || isAgent || isOfferedAgent || isAdmin;
+};
+
 // @desc    Get single order by ID
 // @route   GET /api/orders/:orderId
 // @access  Private
@@ -161,14 +176,8 @@ export const getOrderById = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
   }
-  const userId = req.user._id.toString();
-  const isBuyer = order.buyer?._id?.toString() === userId || order.buyer?.toString() === userId;
-  const isFarmer = order.farmer?._id?.toString() === userId || order.farmer?.toString() === userId;
-  const isAgent = order.deliveryAgent?._id?.toString() === userId || order.deliveryAgent?.toString() === userId;
-  const isOfferedAgent = (order.deliveryOffers || []).some(o => o.agent?.toString() === userId);
-  const isAdmin = req.user.role === 'admin';
 
-  if (!isBuyer && !isFarmer && !isAgent && !isOfferedAgent && !isAdmin) {
+  if (!isUserAuthorizedForOrder(order, req.user)) {
     return res.status(403).json({ message: 'Not authorized to view this order' });
   }
 

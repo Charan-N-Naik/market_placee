@@ -112,6 +112,7 @@ export default function OrderTrackingMap({ order, onClose }) {
     ];
   });
 
+  const [authError, setAuthError] = useState(null);
   const [hasLiveSignal, setHasLiveSignal] = useState(false);
   const isDelivered = ['delivered', 'received'].includes(currentStatus);
 
@@ -146,12 +147,22 @@ export default function OrderTrackingMap({ order, onClose }) {
       }
     };
 
+    // Listen for room authorization or connection errors
+    const handleSocketError = (err) => {
+      const msg = err?.message || String(err);
+      if (msg.toLowerCase().includes('authorized') || msg.toLowerCase().includes('authentication') || err?.roomId === roomId) {
+        setAuthError(msg);
+      }
+    };
+
     socket.on('agent_location', handleLocationUpdate);
     socket.on('orderUpdate', handleOrderUpdate);
+    socket.on('error', handleSocketError);
 
     return () => {
       socket.off('agent_location', handleLocationUpdate);
       socket.off('orderUpdate', handleOrderUpdate);
+      socket.off('error', handleSocketError);
       socket.emit('leave_room', roomId);
       console.log(`[OrderTrackingMap] Left room ${roomId}`);
     };
@@ -219,6 +230,19 @@ export default function OrderTrackingMap({ order, onClose }) {
           )}
         </div>
       </div>
+
+      {/* ─── AUTHORIZATION ERROR BANNER ─── */}
+      {authError && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2.5 flex items-center justify-between text-xs text-red-800">
+          <div className="flex items-center gap-2 font-bold">
+            <AlertCircle size={16} className="text-red-600 shrink-0" />
+            <span>Room Access Error: {authError}</span>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded-md">
+            Unauthorized
+          </span>
+        </div>
+      )}
 
       {/* ─── STATUS NOTICE BANNER ─── */}
       {isDelivered ? (
