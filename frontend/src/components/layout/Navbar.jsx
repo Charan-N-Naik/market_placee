@@ -108,7 +108,7 @@ export default function Navbar({
                 fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                 fontSize: '0.68rem', fontWeight: 700, color: '#78716c', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em'
               }}>
-                {t('navbar.buyerHubBreadcrumb', 'Buyer Hub')} / {currentItem?.label || activeTab}
+                {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : t('navbar.buyerHubBreadcrumb', 'Buyer Hub')} / {currentItem?.label || activeTab}
               </p>
             </div>
           </div>

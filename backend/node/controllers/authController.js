@@ -56,9 +56,28 @@ export const registerUser = async (req, res, next) => {
     const verificationToken = crypto.randomBytes(20).toString('hex');
     const verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
-    // Handle Avatar Upload
+    // Handle Uploads
     let avatarUrl = '';
-    if (req.file) {
+    let vehiclePhotoUrl = '';
+    
+    if (req.files) {
+      if (req.files.avatar && req.files.avatar[0]) {
+        try {
+          const cloudinaryResult = await uploadToCloudinary(req.files.avatar[0].buffer, 'kisanbazaar/avatars');
+          avatarUrl = cloudinaryResult.secure_url;
+        } catch (uploadError) {
+          console.error('Avatar upload failed:', uploadError);
+        }
+      }
+      if (req.files.vehiclePhoto && req.files.vehiclePhoto[0]) {
+        try {
+          const cloudinaryResult = await uploadToCloudinary(req.files.vehiclePhoto[0].buffer, 'kisanbazaar/vehicles');
+          vehiclePhotoUrl = cloudinaryResult.secure_url;
+        } catch (uploadError) {
+          console.error('Vehicle photo upload failed:', uploadError);
+        }
+      }
+    } else if (req.file) { // Fallback for single upload
       try {
         const cloudinaryResult = await uploadToCloudinary(req.file.buffer, 'kisanbazaar/avatars');
         avatarUrl = cloudinaryResult.secure_url;
@@ -105,6 +124,15 @@ export const registerUser = async (req, res, next) => {
         gstin: gstNumber || `29ABCDE${Math.floor(1000 + Math.random() * 9000)}F1Z5`,
         apmcLicense: licenseNumber || `APMC-KA-${Math.floor(10000 + Math.random() * 90000)}`,
       };
+    } else if (role === 'delivery_agent' || role === 'driver') {
+      userObj.deliveryAgentProfile = {
+        vehicleType: req.body.vehicleType || 'Mini-Truck',
+        vehicleNumber: req.body.vehicleNumber || `KA-${Math.floor(10 + Math.random() * 90)}-${Math.floor(1000 + Math.random() * 9000)}`,
+        drivingLicense: req.body.drivingLicense || `DL-${Math.floor(1000000 + Math.random() * 9000000)}`,
+        vehiclePhoto: vehiclePhotoUrl || undefined,
+        perKmCharge: req.body.perKmCharge ? Number(req.body.perKmCharge) : 15,
+        availabilityStatus: 'available'
+      };
     }
 
     const user = await User.create(userObj);
@@ -146,6 +174,7 @@ export const registerUser = async (req, res, next) => {
           isVerified: user.isVerified,
           avatar: user.avatar,
           location: user.location,
+          deliveryAgentProfile: user.deliveryAgentProfile,
         },
         token: accessToken,
       });
@@ -203,6 +232,7 @@ export const loginUser = async (req, res, next) => {
           isVerified: user.isVerified,
           avatar: user.avatar,
           location: user.location,
+          deliveryAgentProfile: user.deliveryAgentProfile,
         },
         token: accessToken,
       });
@@ -479,6 +509,12 @@ export const updateUserProfile = async (req, res, next) => {
         const uploaded = await uploadToCloudinary(file.buffer, 'kisanbazaar/covers');
         user.coverImage = uploaded.secure_url;
       }
+      if (req.files.vehiclePhoto && req.files.vehiclePhoto[0]) {
+        const file = req.files.vehiclePhoto[0];
+        const uploaded = await uploadToCloudinary(file.buffer, file.originalname);
+        if (!user.deliveryAgentProfile) user.deliveryAgentProfile = {};
+        user.deliveryAgentProfile.vehiclePhoto = uploaded.secure_url;
+      }
     } else if (req.body.avatar) {
       user.avatar = req.body.avatar;
     } else if (req.body.coverImage) {
@@ -526,6 +562,17 @@ export const updateUserProfile = async (req, res, next) => {
       };
     }
 
+    if ((user.role === 'delivery_agent' || user.role === 'driver') && req.body.deliveryAgentProfile) {
+      let deliveryAgentProfile = req.body.deliveryAgentProfile;
+      if (typeof deliveryAgentProfile === 'string') {
+        try { deliveryAgentProfile = JSON.parse(deliveryAgentProfile); } catch (e) {}
+      }
+      user.deliveryAgentProfile = {
+        ...user.deliveryAgentProfile?.toObject?.() || user.deliveryAgentProfile || {},
+        ...deliveryAgentProfile,
+      };
+    }
+
     const updatedUser = await user.save();
 
     res.json({
@@ -540,7 +587,41 @@ export const updateUserProfile = async (req, res, next) => {
       location: updatedUser.location,
       farmerProfile: updatedUser.farmerProfile,
       buyerProfile: updatedUser.buyerProfile,
+      deliveryAgentProfile: updatedUser.deliveryAgentProfile,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all registered delivery agents / drivers
+// @route   GET /api/auth/delivery-agents
+// @access  Public
+export const getDeliveryAgents = async (req, res, next) => {
+  try {
+    const agents = await User.find({ role: { $in: ['delivery_agent', 'driver'] } }).select('-passwordHash');
+    
+    const formattedAgents = agents.map(agent => ({
+      id: agent._id.toString(),
+      name: agent.name,
+      phone: agent.phone,
+      email: agent.email,
+      location: agent.location?.district || agent.location?.address || 'Karnataka',
+      district: agent.location?.district || 'Karnataka',
+      state: agent.location?.state || 'Karnataka',
+      profilePhoto: agent.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+      vehiclePhoto: agent.deliveryAgentProfile?.vehiclePhoto || '',
+      vehicleType: agent.deliveryAgentProfile?.vehicleType || 'Mahindra Bolero Pickup 🚚',
+      vehicleNumber: agent.deliveryAgentProfile?.vehicleNumber || 'KA-06-EA-4821',
+      ratePerKm: agent.deliveryAgentProfile?.perKmCharge || 18,
+      capacity: '1.5 Tons',
+      rating: null, // Real rating calculated from post-delivery reviews
+      tripsCompleted: 0,
+      isAvailable: agent.deliveryAgentProfile?.availabilityStatus !== 'offline',
+      availabilityStatus: agent.deliveryAgentProfile?.availabilityStatus || 'available'
+    }));
+
+    res.json({ success: true, agents: formattedAgents });
   } catch (error) {
     next(error);
   }

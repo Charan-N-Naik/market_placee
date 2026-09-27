@@ -12,8 +12,9 @@ import AICropAnalyzer from '../components/AICropAnalyzer';
 import DashboardLayout from '../components/DashboardLayout';
 import IndiaCropMap from '../components/IndiaCropMap';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
+import DeliveryLogisticsSection from '../components/DeliveryLogisticsSection';
 import {
-  Search, Heart, Bot, Eye, User, Sparkles,
+  Search, Heart, Bot, Eye, User, Sparkles, Truck,
   ShoppingBag, Bookmark, Filter, X, ArrowRight, ShoppingCart, Pencil, Save, Check,
   CloudSun, TrendingUp, Bell, MapPin, ShieldCheck, RefreshCw, Star, Layers, Package,
   Phone, Info, CheckCircle2, ChevronRight, SlidersHorizontal, ArrowUpRight,
@@ -292,6 +293,7 @@ export default function BuyerDashboard() {
   const navItems = [
     { id: 'dashboard', icon: ShoppingBag, label: t('sidebar.dashboard') },
     { id: 'browse', icon: Search, label: t('sidebar.browseMarketplace') },
+    { id: 'delivery', icon: Truck, label: 'Agri Logistics & Drivers', badge: 'New' },
     { id: 'saved', icon: Bookmark, label: t('sidebar.savedListings') },
     { id: 'orders', icon: ShoppingCart, label: t('sidebar.orders'), external: '/buyer/pending-orders' },
     { id: 'wishlist', icon: Heart, label: t('sidebar.wishlist') },
@@ -866,6 +868,7 @@ export default function BuyerDashboard() {
           {/* ========================================================== */}
           {/* OTHER TABS */}
           {/* ========================================================== */}
+          {activeTab === 'delivery' && <DeliveryLogisticsSection user={user} showToast={showToast} />}
           {activeTab === 'assistant' && <AIChatbot />}
           {activeTab === 'analyzer' && <AICropAnalyzer />}
 
@@ -1501,6 +1504,64 @@ export default function BuyerDashboard() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Payment & Transaction History Card */}
+                  <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <CreditCard size={15} className="text-emerald-600" />
+                        <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">Payment & Transaction History</h3>
+                      </div>
+                      <span className="text-[10px] font-bold text-stone-400">
+                        {buyerOrders.length} {buyerOrders.length === 1 ? 'Transaction' : 'Transactions'}
+                      </span>
+                    </div>
+
+                    {buyerOrders.length === 0 ? (
+                      <div className="py-8 text-center space-y-2 bg-stone-50/60 rounded-2xl border border-dashed border-stone-200">
+                        <CreditCard size={24} className="text-stone-300 mx-auto" />
+                        <p className="text-xs font-bold text-stone-500">No payment history yet</p>
+                        <p className="text-[10px] text-stone-400">Completed crop order payments will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-80 overflow-y-auto pr-1 divide-y divide-stone-100">
+                        {buyerOrders.map((ord) => {
+                          const ordId = ord._id || ord.id || ord.orderId;
+                          const cropTitle = ord.items?.[0]?.listing?.cropName || ord.items?.[0]?.cropName || 'Crop Harvest';
+                          const qty = ord.items?.reduce((acc, i) => acc + (i.quantity || 1), 0) || 1;
+                          const amt = ord.totalAmount || 0;
+                          const payStatus = ['paid', 'accepted', 'shipped', 'delivered', 'received'].includes(ord.status) ? 'PAID' : ord.status.toUpperCase();
+                          const dateStr = ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+
+                          return (
+                            <div key={ordId} className="pt-3 first:pt-0 flex items-center justify-between gap-3">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-stone-900">{cropTitle}</span>
+                                  <span className="text-[9px] font-mono text-stone-400">#{String(ordId).slice(-6).toUpperCase()}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-stone-500 font-medium">
+                                  <span>{qty} units</span>
+                                  <span>•</span>
+                                  <span>{dateStr}</span>
+                                  <span>•</span>
+                                  <span className="text-stone-600 font-semibold">{ord.paymentMethod || 'Online Payment'}</span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="block text-xs font-black text-emerald-700">₹{amt}</span>
+                                <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                  payStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}>
+                                  {payStatus}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

@@ -5,9 +5,11 @@ export const cropOptions = [
 ];
 
 export const locations = [
-  'Ramanagara', 'Tumkur', 'Hassan', 'Gadag', 'Mandya', 'Kolar',
-  'Mysuru', 'Bengaluru Rural', 'Belgaum', 'Dharwad', 'Shimoga',
-  'Davangere', 'Chitradurga', 'Bellary', 'Raichur', 'Haveri'
+  'Bengaluru Urban', 'Bengaluru Rural', 'Ramanagara', 'Tumakuru', 'Kolar', 'Chikkaballapura',
+  'Mysuru', 'Mandya', 'Hassan', 'Kodagu', 'Chamarajanagar', 'Dakshina Kannada', 'Udupi',
+  'Uttara Kannada', 'Belagavi', 'Dharwad', 'Gadag', 'Haveri', 'Vijayapura', 'Bagalkote',
+  'Kalaburagi', 'Yadgir', 'Ballari', 'Vijayanagara', 'Bidar', 'Raichur', 'Koppal',
+  'Davanagere', 'Chitradurga', 'Shivamogga', 'Chikkamagaluru'
 ];
 
 export const cropColors = {

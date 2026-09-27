@@ -85,8 +85,49 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
     });
   };
 
-  // Filter feed based on tab & search
-  const filteredFeed = rawFeed.filter(item => {
+  // Dismiss & remove notification handler
+  const handleDismissNotification = (item, e) => {
+    if (e) e.stopPropagation();
+    const targetId = item._id || item.id;
+    const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      if (targetId) next.add(targetId);
+      if (orderId) {
+        next.add(orderId);
+        next.add(`order_notif_${orderId}`);
+      }
+      try {
+        localStorage.setItem('kb_dismissed_notifications', JSON.stringify(Array.from(next)));
+      } catch (_) {}
+      return next;
+    });
+
+    setSeenIds(prev => {
+      const next = new Set(prev);
+      if (targetId) next.add(targetId);
+      if (orderId) {
+        next.add(orderId);
+        next.add(`order_notif_${orderId}`);
+      }
+      try {
+        localStorage.setItem('kb_seen_notifications', JSON.stringify(Array.from(next)));
+      } catch (_) {}
+      return next;
+    });
+
+    if (onDeleteNotification) onDeleteNotification(targetId, orderId);
+    if (targetId && !String(targetId).startsWith('order_notif_')) {
+      api.delete(`/notifications/${targetId}`).catch(() => {});
+    }
+    if (activeNotificationId === targetId) {
+      setActiveNotificationId(null);
+    }
+  };
+
+  // Base active feed excluding dismissed items
+  const activeFeed = rawFeed.filter(item => {
     const itemId = item._id || item.id;
     const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
 
@@ -94,12 +135,19 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                         (orderId && dismissedIds.has(orderId)) ||
                         (orderId && dismissedIds.has(`order_notif_${orderId}`));
 
+    return !isDismissed;
+  });
+
+  // Filter feed based on tab & search
+  const filteredFeed = activeFeed.filter(item => {
+    const itemId = item._id || item.id;
+    const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+
     const isSeen = (itemId && seenIds.has(itemId)) ||
                    (orderId && seenIds.has(orderId)) ||
                    (orderId && seenIds.has(`order_notif_${orderId}`));
 
-    if (isDismissed || isSeen) return false;
-    if (selectedTab === 'unread' && item.isRead) return false;
+    if (selectedTab === 'unread' && (item.isRead || isSeen)) return false;
     if (selectedTab === 'starred' && !starredIds.has(item._id)) return false;
     if (selectedTab === 'orders' && item.type !== 'order_placed') return false;
 
@@ -190,7 +238,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                   : 'border-transparent hover:bg-gray-50 text-gray-500'
               }`}
             >
-              <Mail size={15} /> All Mail ({rawFeed.length})
+              <Mail size={15} /> All Mail ({activeFeed.length})
             </button>
             <button
               onClick={() => setSelectedTab('orders')}
@@ -200,7 +248,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                   : 'border-transparent hover:bg-gray-50 text-gray-500'
               }`}
             >
-              <ShoppingBag size={15} /> Order Requests ({rawFeed.filter(i => i.type === 'order_placed').length})
+              <ShoppingBag size={15} /> Order Requests ({activeFeed.filter(i => i.type === 'order_placed').length})
             </button>
             <button
               onClick={() => setSelectedTab('unread')}
@@ -210,7 +258,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                   : 'border-transparent hover:bg-gray-50 text-gray-500'
               }`}
             >
-              <AlertCircle size={15} /> Unread ({rawFeed.filter(i => !i.isRead).length})
+              <AlertCircle size={15} /> Unread ({activeFeed.filter(i => !i.isRead && !seenIds.has(i._id)).length})
             </button>
             <button
               onClick={() => setSelectedTab('starred')}
@@ -220,7 +268,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                   : 'border-transparent hover:bg-gray-50 text-gray-500'
               }`}
             >
-              <Star size={15} className="fill-yellow-400 text-yellow-500" /> Starred ({starredIds.size})
+              <Star size={15} className="fill-yellow-400 text-yellow-500" /> Starred ({activeFeed.filter(i => starredIds.has(i._id)).length})
             </button>
           </div>
 
@@ -307,8 +355,17 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                       </span>
                     )}
 
+                    {/* Trash / Dismiss action on row */}
+                    <button
+                      onClick={(e) => handleDismissNotification(item, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition-all cursor-pointer shrink-0"
+                      title="Dismiss & Remove Message"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+
                     {/* Date timestamp */}
-                    <div className="text-[11px] text-gray-400 font-semibold shrink-0 text-right w-24">
+                    <div className="text-[11px] text-gray-400 font-semibold shrink-0 text-right w-20">
                       {new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </div>
                   </div>
@@ -471,42 +528,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                       </button>
 
                       <button
-                        onClick={() => {
-                          const targetId = item._id || item.id;
-                          const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
-
-                          setDismissedIds(prev => {
-                            const next = new Set(prev);
-                            if (targetId) next.add(targetId);
-                            if (orderId) {
-                              next.add(orderId);
-                              next.add(`order_notif_${orderId}`);
-                            }
-                            try {
-                              localStorage.setItem('kb_dismissed_notifications', JSON.stringify(Array.from(next)));
-                            } catch (_) {}
-                            return next;
-                          });
-
-                          setSeenIds(prev => {
-                            const next = new Set(prev);
-                            if (targetId) next.add(targetId);
-                            if (orderId) {
-                              next.add(orderId);
-                              next.add(`order_notif_${orderId}`);
-                            }
-                            try {
-                              localStorage.setItem('kb_seen_notifications', JSON.stringify(Array.from(next)));
-                            } catch (_) {}
-                            return next;
-                          });
-
-                          if (onDeleteNotification) onDeleteNotification(targetId, orderId);
-                          if (targetId && !String(targetId).startsWith('order_notif_')) {
-                            api.delete(`/notifications/${targetId}`).catch(() => {});
-                          }
-                          setActiveNotificationId(null);
-                        }}
+                        onClick={(e) => handleDismissNotification(item, e)}
                         className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
                       >
                         <Trash2 size={15} /> Dismiss & Remove Message

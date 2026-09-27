@@ -24,7 +24,7 @@ import {
   TrendingUp, ChevronRight, Pencil, Save, Check, ShoppingCart, Trash2, ArrowUpRight, ArrowDownRight,
   Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, Calendar, Star, Sparkles,
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
-  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark
+  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark, CreditCard
 } from 'lucide-react';
 
 export default function FarmerDashboard() {
@@ -883,13 +883,12 @@ export default function FarmerDashboard() {
             </div>
 
             {/* Pipeline Status Cards — Compact Centered Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {[
                 { id: 'pending',   label: 'Pending',   emoji: '🕐', activeBg: 'bg-orange-50',  activeBorder: 'border-orange-400',  activeText: 'text-orange-700',  countBg: 'bg-orange-500' },
                 { id: 'accepted',  label: 'Accepted',  emoji: '✅', activeBg: 'bg-blue-50',    activeBorder: 'border-blue-400',    activeText: 'text-blue-700',    countBg: 'bg-blue-500' },
                 { id: 'packed',    label: 'Packed',    emoji: '📦', activeBg: 'bg-purple-50',  activeBorder: 'border-purple-400',  activeText: 'text-purple-700',  countBg: 'bg-purple-500' },
                 { id: 'collected', label: 'Collected', emoji: '🚛', activeBg: 'bg-indigo-50',  activeBorder: 'border-indigo-400',  activeText: 'text-indigo-700',  countBg: 'bg-indigo-500' },
-                { id: 'delivered', label: 'Delivered', emoji: '🎉', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-400', activeText: 'text-emerald-700', countBg: 'bg-emerald-500' },
                 { id: 'cancelled', label: 'Cancelled', emoji: '❌', activeBg: 'bg-red-50',     activeBorder: 'border-red-400',     activeText: 'text-red-700',     countBg: 'bg-red-500' },
               ].map((tab) => {
                 const count = sellerOrders.filter(o => {
@@ -1804,7 +1803,7 @@ export default function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: Buyer Reviews */}
+              {/* RIGHT COLUMN: Buyer Reviews & Payment History */}
               <div className="space-y-6">
                 <div className="bg-white rounded-3xl border-2 border-gray-200 p-7 shadow-lg space-y-5">
                   <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Buyer Reviews</h4>
@@ -1817,6 +1816,64 @@ export default function FarmerDashboard() {
                   </div>
                 </div>
 
+                {/* Earnings & Payment History Card */}
+                <div className="bg-white rounded-3xl border-2 border-gray-200 p-7 shadow-lg space-y-5">
+                  <div className="flex items-center justify-between border-b-2 border-gray-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={18} className="text-[#166534]" />
+                      <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Earnings & Payment History</h4>
+                    </div>
+                    <span className="text-xs font-bold text-gray-400">
+                      {sellerOrders?.length || 0} {sellerOrders?.length === 1 ? 'Order' : 'Orders'}
+                    </span>
+                  </div>
+
+                  {!sellerOrders || sellerOrders.length === 0 ? (
+                    <div className="py-8 text-center space-y-2 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                      <CreditCard size={28} className="text-gray-300 mx-auto" />
+                      <p className="text-xs font-bold text-gray-500">No payout transactions yet</p>
+                      <p className="text-[10px] text-gray-400">Earnings from crop sales orders will be listed here.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1 divide-y-2 divide-gray-100">
+                      {sellerOrders.map((ord) => {
+                        const ordId = ord._id || ord.id || ord.orderId;
+                        const cropTitle = ord.items?.[0]?.listing?.cropName || ord.items?.[0]?.cropName || 'Crop Harvest';
+                        const buyerName = ord.buyer?.name || 'KisanBazaar Buyer';
+                        const qty = ord.items?.reduce((acc, i) => acc + (i.quantity || 1), 0) || 1;
+                        const amt = ord.totalAmount || 0;
+                        const payStatus = ['delivered', 'received', 'collected', 'shipped', 'accepted'].includes(ord.status) ? 'SETTLED' : 'PENDING';
+                        const dateStr = ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent';
+
+                        return (
+                          <div key={ordId} className="pt-3 first:pt-0 flex items-center justify-between gap-3">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-gray-900">{cropTitle}</span>
+                                <span className="text-[9px] font-mono text-gray-400">#{String(ordId).slice(-6).toUpperCase()}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-500 font-medium">
+                                <span>Buyer: <strong className="text-gray-700">{buyerName}</strong></span>
+                                <span>•</span>
+                                <span>{qty} units</span>
+                                <span>•</span>
+                                <span>{dateStr}</span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="block text-sm font-black text-[#166534]">₹{amt}</span>
+                              <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                payStatus === 'SETTLED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                              }`}>
+                                {payStatus}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
             </div>

@@ -141,7 +141,9 @@ export default function Sidebar({
                 <p style={{
                   fontSize: '0.58rem', fontWeight: 800, color: 'var(--color-primary, #1F7A4D)',
                   textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
-                }}>🍃 {t('sidebar.buyerHub')}</p>
+                }}>
+                  🚚 {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : `🍃 ${t('sidebar.buyerHub')}`}
+                </p>
               </div>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="md:hidden"

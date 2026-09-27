@@ -151,7 +151,7 @@ export default function LandingPage() {
 
                 <button
                   onClick={() => navigate('/login/delivery_agent')}
-                  className="group flex items-center justify-between p-4 bg-[#1F7A4D] text-white rounded-2xl hover:bg-[#165b38] hover:shadow-xl hover:shadow-emerald-700/30 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
+                  className="group flex items-center justify-between p-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl hover:shadow-xl hover:shadow-emerald-500/40 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">🚚</span>

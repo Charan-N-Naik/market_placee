@@ -9,7 +9,8 @@ import {
   googleAuth, 
   verifyEmail, 
   forgotPassword, 
-  resetPassword 
+  resetPassword,
+  getDeliveryAgents
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 import multer from 'multer';
@@ -17,7 +18,7 @@ import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
-router.post('/register', upload.single('avatar'), registerUser);
+router.post('/register', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), registerUser);
 router.post('/login', loginUser);
 router.get('/refresh', refreshToken);
 router.post('/logout', logoutUser);
@@ -26,7 +27,8 @@ router.get('/verify/:token', verifyEmail);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
+router.get('/delivery-agents', getDeliveryAgents);
 router.get('/me', protect, getUserProfile);
-router.put('/me', protect, upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), updateUserProfile);
+router.put('/me', protect, upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), updateUserProfile);
 
 export default router;

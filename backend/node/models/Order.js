@@ -38,6 +38,16 @@ const orderSchema = new mongoose.Schema(
     rating: { type: Number, min: 1, max: 5 },
     ratingComment: { type: String },
     receivedDate: { type: Date },
+    
+    // Delivery Agent Ecosystem integration
+    deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deliveryDistance: { type: Number }, // in km
+    deliveryFare: { type: Number }, // total cost for delivery
+    deliveryRequestStatus: {
+      type: String,
+      enum: ['none', 'pending_driver_approval', 'driver_accepted', 'driver_rejected', 'collected', 'delivered'],
+      default: 'none'
+    },
   },
   { timestamps: true }
 );

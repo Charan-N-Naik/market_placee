@@ -42,7 +42,10 @@ export const buyerRegisterSchema = commonRegisterSchema.extend({
 
 export const deliveryAgentRegisterSchema = commonRegisterSchema.extend({
   vehicleType: z.string().optional(),
+  vehicleNumber: z.string().optional(),
+  drivingLicense: z.string().optional(),
   licenseNumber: z.string().optional(),
+  perKmCharge: z.string().optional(),
 });
 
 export const forgotPasswordSchema = z.object({
