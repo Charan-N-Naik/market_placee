@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema(
     },
     avatar: String,
     coverImage: String,
+    fcmToken: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     
     // Verification and credential fields
     isVerified: {

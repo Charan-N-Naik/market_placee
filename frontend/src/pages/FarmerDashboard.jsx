@@ -1529,7 +1529,13 @@ export default function FarmerDashboard() {
                             coverPreview: previewUrl
                           }));
                           try {
-                            await updateProfile({ coverImageFile: file });
+                            const uploadData = new FormData();
+                            uploadData.append('file', file);
+                            uploadData.append('folder', 'kisanbazaar/covers');
+                            const { data } = await api.post('/upload', uploadData, {
+                              headers: { 'Content-Type': 'multipart/form-data' }
+                            });
+                            await updateProfile({ coverImage: data.url });
                             setSaveSuccess(true);
                             setTimeout(() => setSaveSuccess(false), 3000);
                           } catch (err) {
@@ -1585,7 +1591,13 @@ export default function FarmerDashboard() {
                                   avatarFile: file,
                                   avatarPreview: previewUrl
                                 }));
-                                await updateProfile({ avatarFile: file });
+                                const uploadData = new FormData();
+                                uploadData.append('file', file);
+                                uploadData.append('folder', 'kisanbazaar/avatars');
+                                const { data } = await api.post('/upload', uploadData, {
+                                  headers: { 'Content-Type': 'multipart/form-data' }
+                                });
+                                await updateProfile({ avatar: data.url });
                                 setSaveSuccess(true);
                                 setTimeout(() => setSaveSuccess(false), 4000);
                               } catch (err) {

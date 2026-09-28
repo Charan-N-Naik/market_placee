@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import { analyzeCropMultiAngle } from '../services/cropVerification';
 import { cropOptions, locations } from '../data/mockData';
+import api from '../api/axios';
 import {
   Upload, CheckCircle2, XCircle, Loader2, ImagePlus, Mic, MicOff,
   Camera, ArrowRight, ShieldCheck, RefreshCw, Sparkles, Check,
@@ -175,6 +176,21 @@ export default function AddListingPage({ onSuccess }) {
 
     setSubmitting(true);
     try {
+      let uploadedUrl = null;
+      if (images.front.file) {
+        try {
+          const uploadData = new FormData();
+          uploadData.append('file', images.front.file);
+          uploadData.append('folder', 'kisanbazaar/crops');
+          const { data } = await api.post('/upload', uploadData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          uploadedUrl = data.url;
+        } catch (uploadErr) {
+          console.warn('Direct /api/upload failed, falling back to multipart listing form:', uploadErr);
+        }
+      }
+
       await addListing({
         cropName:   formData.cropName,
         variety:    formData.variety,
@@ -185,7 +201,9 @@ export default function AddListingPage({ onSuccess }) {
         harvestDate: formData.harvestDate,
         location:    formData.location,
         isOrganic:   false,
-        photoFile:   images.front.file,
+        photoFile:   uploadedUrl ? null : images.front.file,
+        photo:       uploadedUrl,
+        imageUrl:    uploadedUrl,
         aiVerify:    'true',
         report:      verificationReport,
       });

@@ -42,6 +42,7 @@ import chatRoutes from './routes/chatRoutes.js';
 import marketRoutes from './routes/marketRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import schemeRoutes from './routes/schemeRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 import agriChatRoutes from './routes/agriChatRoutes.js';
 import assistantRoutes from './routes/assistantRoutes.js';
@@ -165,6 +166,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/product', productVerificationRoutes); // CropVerify AI — report proxy
 app.use('/api/crop-verification', cropVerificationRoutes); // Real 3-photo AI verification
 app.use('/api/schemes', schemeRoutes);
+app.use('/api/upload', uploadRoutes);
 app.use('/api', marketRoutes);
 
 // Socket.io handlers

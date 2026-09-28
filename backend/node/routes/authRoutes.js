@@ -11,7 +11,8 @@ import {
   forgotPassword, 
   resetPassword,
   getDeliveryAgents,
-  addDeliveryAgentReview
+  addDeliveryAgentReview,
+  updateDeviceToken
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 import multer from 'multer';
@@ -32,5 +33,10 @@ router.get('/delivery-agents', getDeliveryAgents);
 router.post('/delivery-agents/:agentId/reviews', protect, addDeliveryAgentReview);
 router.get('/me', protect, getUserProfile);
 router.put('/me', protect, upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), updateUserProfile);
+
+// Device token registration for push notifications (supports both POST and PUT)
+router.route('/device-token')
+  .post(protect, updateDeviceToken)
+  .put(protect, updateDeviceToken);
 
 export default router;

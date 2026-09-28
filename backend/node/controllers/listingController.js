@@ -26,10 +26,25 @@ export const createListing = asyncHandler(async (req, res) => {
     throw new Error('KisanBazaar is a bulk marketplace. Minimum listing quantity is 50 kg or 1 quintal.');
   }
 
-  // images are uploaded via multipart/form-data; expecting field "images" array
+  // Handle images: support both multipart files and pre-uploaded Cloudinary/CDN URLs
+  let images = [];
   const imageFiles = req.files || [];
-  const uploadResults = await Promise.all(imageFiles.map(f => uploadToCloudinary(f.buffer, f.originalname)));
-  const images = uploadResults.map(r => ({ url: r.secure_url, public_id: r.public_id }));
+  if (imageFiles.length > 0) {
+    const uploadResults = await Promise.all(imageFiles.map(f => uploadToCloudinary(f.buffer, f.originalname)));
+    images = uploadResults.map(r => ({ url: r.secure_url, public_id: r.public_id }));
+  } else if (req.body.imageUrl) {
+    images = [{ url: req.body.imageUrl }];
+  } else if (req.body.photo) {
+    images = [{ url: req.body.photo }];
+  } else if (req.body.images) {
+    let raw = req.body.images;
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (_) { raw = [raw]; }
+    }
+    if (Array.isArray(raw)) {
+      images = raw.map(img => typeof img === 'string' ? { url: img } : img);
+    }
+  }
 
   // Parse location correctly from nested object or form fields
   let locationData = {};
@@ -221,10 +236,21 @@ export const updateListing = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized' });
   }
   const updates = req.body;
-  // handle optional new images
+  // handle optional new images (files or URL fields)
   if (req.files && req.files.length > 0) {
     const uploadResults = await Promise.all(req.files.map(f => uploadToCloudinary(f.buffer, f.originalname)));
     updates.images = uploadResults.map(r => ({ url: r.secure_url, public_id: r.public_id }));
+  } else if (updates.imageUrl) {
+    updates.images = [{ url: updates.imageUrl }];
+  } else if (updates.photo) {
+    updates.images = [{ url: updates.photo }];
+  } else if (typeof updates.images === 'string') {
+    try {
+      const parsed = JSON.parse(updates.images);
+      updates.images = Array.isArray(parsed) ? parsed.map(img => typeof img === 'string' ? { url: img } : img) : [{ url: updates.images }];
+    } catch (_) {
+      updates.images = [{ url: updates.images }];
+    }
   }
   // Allow updating premiumVerified flag
   if (updates.premiumVerified !== undefined) {
