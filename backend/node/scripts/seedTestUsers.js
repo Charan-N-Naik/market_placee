@@ -248,6 +248,12 @@ async function seedTestUsers() {
       unit: 'kg',
       pricePerUnit: 30,
       description: 'Fresh organic farm tomatoes from Kolar.',
+      images: [
+        {
+          url: 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=800&q=80',
+          public_id: 'seed_tomato_kolar',
+        },
+      ],
       location: farmerA.location,
       isVerified: true,
       status: 'active',
@@ -261,6 +267,12 @@ async function seedTestUsers() {
       unit: 'kg',
       pricePerUnit: 25,
       description: 'High-quality storage onions from Tumakuru.',
+      images: [
+        {
+          url: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=800&q=80',
+          public_id: 'seed_onion_tumakuru',
+        },
+      ],
       location: farmerB.location,
       isVerified: true,
       status: 'active',

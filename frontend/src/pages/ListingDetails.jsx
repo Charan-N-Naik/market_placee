@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import VerificationBadge from '../components/VerificationBadge';
 import VerificationReport from '../components/VerificationReport';
-import CheckoutModal from '../components/CheckoutModal';
 import api from '../api/axios';
 import {
   ArrowLeft, Star, ShoppingCart, Minus, Plus, Bookmark,
@@ -38,13 +37,17 @@ export default function ListingDetails() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [heroImageError, setHeroImageError] = useState(false);
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Live APMC Market Comparison state
   const [apmcPriceData, setApmcPriceData] = useState(null);
+
+  useEffect(() => {
+    setHeroImageError(false);
+  }, [currentPhoto]);
 
   useEffect(() => {
     if (!contextListing && id) {
@@ -134,10 +137,17 @@ export default function ListingDetails() {
     .slice(0, 4);
 
   const handleGoBack = () => {
-    if (location.key !== 'default') {
-      navigate(-1);
+    if (location.state?.from) {
+      navigate(location.state.from);
     } else {
-      navigate(user?.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard');
+      const role = user?.role || user?.userType;
+      if (role === 'farmer') {
+        navigate('/farmer/dashboard');
+      } else if (role === 'delivery_agent' || role === 'driver') {
+        navigate('/delivery/dashboard');
+      } else {
+        navigate('/buyer/dashboard');
+      }
     }
   };
 
@@ -155,7 +165,7 @@ export default function ListingDetails() {
     try {
       setAddingToCart(true);
       setCartError('');
-      await addToCart(listingId, quantity, listing);
+      await addToCart(listing, quantity);
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2500);
     } catch (error) {
@@ -176,11 +186,14 @@ export default function ListingDetails() {
     }
     try {
       setAddingToCart(true);
-      await addToCart(listingId, quantity, listing);
-      setShowCheckoutModal(true);
+      setCartError('');
+      await addToCart(listing, quantity);
+      navigate('/checkout');
     } catch (error) {
       console.error('Buy Now failed:', error);
-      setShowCheckoutModal(true);
+      const msg = error?.response?.data?.message || error?.message || 'Failed to add item to checkout.';
+      setCartError(msg);
+      setTimeout(() => setCartError(''), 4000);
     } finally {
       setAddingToCart(false);
     }
@@ -464,7 +477,7 @@ export default function ListingDetails() {
             onClick={handleGoBack}
             className="inline-flex items-center gap-2 text-xs font-black text-[#1F7A4D] hover:text-[#165b38] uppercase tracking-wider cursor-pointer bg-[#E8F7EE] px-4 py-2 rounded-xl transition-all"
           >
-            <ArrowLeft size={16} /> Back to Marketplace
+            <ArrowLeft size={16} /> {location.state?.from?.includes('/cart') ? 'Back' : 'Back to Marketplace'}
           </button>
 
           <span className="text-xs font-black text-gray-500 uppercase tracking-widest hidden md:inline-block">
@@ -507,23 +520,36 @@ export default function ListingDetails() {
             {/* Main Showcase Container */}
             <div className="relative rounded-3xl overflow-hidden bg-white border-2 border-[#E8F7EE] shadow-xl aspect-square sm:aspect-[4/3] lg:aspect-square flex items-center justify-center group">
 
-              {/* Zoom Effect Image */}
-              <div className="w-full h-full overflow-hidden">
-                <CropImage
-                  cropName={listing.cropName}
-                  photo={currentPhoto}
-                  size="lg"
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in"
-                />
+              {/* Hero Image with Neutral Fallback */}
+              <div className="w-full h-full overflow-hidden flex items-center justify-center bg-gray-50">
+                {(!currentPhoto || heroImageError) ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8 select-none">
+                    <div className="w-20 h-20 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3 shadow-inner">
+                      <Leaf size={40} className="text-[#1F7A4D]" />
+                    </div>
+                    <span className="text-xl font-bold text-gray-800 tracking-wide">{listing.cropName || 'Crop Listing'}</span>
+                    <span className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-semibold">No Image Available</span>
+                  </div>
+                ) : (
+                  <img
+                    src={currentPhoto}
+                    alt={listing.cropName || 'Crop'}
+                    onError={() => setHeroImageError(true)}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-zoom-in"
+                    onClick={() => setShowFullImage(true)}
+                  />
+                )}
               </div>
 
               {/* Fullscreen Button */}
-              <button
-                onClick={() => setShowFullImage(true)}
-                className="absolute bottom-5 right-5 px-4 py-2 bg-white/95 backdrop-blur-md border border-gray-200 hover:bg-white text-gray-900 text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
-              >
-                <Maximize2 size={16} /> Fullscreen Mode
-              </button>
+              {currentPhoto && !heroImageError && (
+                <button
+                  onClick={() => setShowFullImage(true)}
+                  className="absolute bottom-5 right-5 px-4 py-2 bg-white/95 backdrop-blur-md border border-gray-200 hover:bg-white text-gray-900 text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg flex items-center gap-2 cursor-pointer hover:scale-105 transition-all z-10"
+                >
+                  <Maximize2 size={16} /> Fullscreen Mode
+                </button>
+              )}
 
               {/* Top Left Badges */}
               <div className="absolute top-5 left-5 flex flex-wrap gap-2.5 z-10">
@@ -1121,18 +1147,6 @@ export default function ListingDetails() {
             onClick={(e) => e.stopPropagation()}
           />
         </div>
-      )}
-
-      {/* CHECKOUT MODAL FOR DIRECT BUY REQUEST */}
-      {showCheckoutModal && (
-        <CheckoutModal
-          listing={{
-            ...listing,
-            quantityNeeded: quantity,
-            totalPrice: (price * quantity)
-          }}
-          onClose={() => setShowCheckoutModal(false)}
-        />
       )}
 
     </div>

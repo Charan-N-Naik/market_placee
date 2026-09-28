@@ -416,7 +416,7 @@ export default function MapComponent({ listings, aggregated = false }) {
                     </p>
                     <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 10px 0' }}>📍 {item.location.address || item.location.district}</p>
                     <button 
-                      onClick={() => navigate(`/listing/${item._id || item.id}`)}
+                      onClick={() => navigate(`/listing/${item._id || item.id}`, { state: { from: '/buyer/dashboard' } })}
                       style={{
                         background: '#10b981', color: 'white', border: 'none', padding: '8px', width: '100%',
                         borderRadius: '8px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase',

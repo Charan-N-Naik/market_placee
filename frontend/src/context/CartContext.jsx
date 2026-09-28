@@ -35,43 +35,12 @@ export function CartProvider({ children }) {
     const listingId = (typeof rawListing === 'object' && rawListing !== null) 
       ? (rawListing._id || rawListing.id) 
       : rawListing;
-    const listingObj = (typeof rawListing === 'object' && rawListing !== null) 
-      ? rawListing 
-      : optionalObj;
 
-    try {
-      console.log('Adding to cart:', { listingId, quantity });
-      const { data } = await api.post('/cart/add', { listingId, quantity });
-      console.log('Cart updated via API:', data);
-      setCart(data);
-      return data;
-    } catch (error) {
-      console.warn('API cart add failed, using robust local cart fallback:', error);
-      
-      // Fallback local state update
-      setCart(prevCart => {
-        const currentItems = prevCart?.items ? [...prevCart.items] : [];
-        const existingIndex = currentItems.findIndex(item => {
-          const id = item.listing?._id || item.listing?.id || item.listing;
-          return String(id) === String(listingId);
-        });
-        
-        if (existingIndex > -1) {
-          currentItems[existingIndex] = {
-            ...currentItems[existingIndex],
-            quantity: (currentItems[existingIndex].quantity || 0) + quantity
-          };
-        } else {
-          currentItems.push({
-            listing: listingObj || { _id: listingId },
-            quantity,
-            priceAtAdd: listingObj?.pricePerUnit || listingObj?.price || 0
-          });
-        }
-        return { ...prevCart, items: currentItems };
-      });
-      return { success: true };
-    }
+    console.log('Adding to cart:', { listingId, quantity });
+    const { data } = await api.post('/cart/add', { listingId, quantity });
+    console.log('Cart updated via API:', data);
+    setCart(data);
+    return data;
   };
 
   const updateQuantity = async (listingId, quantity) => {

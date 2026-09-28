@@ -6,7 +6,6 @@ import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/axios';
 import CropCard from '../components/CropCard';
-import CheckoutModal from '../components/CheckoutModal';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import AIChatbot from './AIChatbot';
 import DashboardLayout from '../components/DashboardLayout';
@@ -72,8 +71,15 @@ export default function BuyerDashboard() {
   const [filterVerified, setFilterVerified] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
 
-  // Checkout Modal State
-  const [activeCheckoutListing, setActiveCheckoutListing] = useState(null);
+  const handleCardBuyNow = async (item) => {
+    const minQty = item.minQuantity || item.minOrder || 50;
+    try {
+      await addToCart(item, minQty);
+      navigate('/checkout');
+    } catch (err) {
+      console.error('Failed to buy now from card:', err);
+    }
+  };
 
   // Voice & Image Search State
   const [isListening, setIsListening] = useState(false);
@@ -557,7 +563,7 @@ export default function BuyerDashboard() {
                         key={listing._id || listing.id}
                         listing={listing}
                         showContact={true}
-                        onBuyNow={(item) => setActiveCheckoutListing(item)}
+                        onBuyNow={handleCardBuyNow}
                       />
                     ))}
                   </div>
@@ -686,7 +692,7 @@ export default function BuyerDashboard() {
                           isSaved: isSaved(listing._id || listing.id)
                         }}
                         showContact={true}
-                        onBuyNow={(item) => setActiveCheckoutListing(item)}
+                        onBuyNow={handleCardBuyNow}
                       />
                     </div>
                   ))}
@@ -841,7 +847,7 @@ export default function BuyerDashboard() {
                           {/* Action Grid */}
                           <div className="grid grid-cols-2 gap-2 mt-5 pt-4 border-t border-stone-100">
                             <button
-                              onClick={() => navigate(`/listing/${listingId}`)}
+                              onClick={() => navigate(`/listing/${listingId}`, { state: { from: '/buyer/dashboard' } })}
                               className="py-2.5 border border-stone-200 hover:border-stone-450 text-stone-600 hover:text-stone-900 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-sm"
                             >
                               <Eye size={13} /> View Product
@@ -1798,17 +1804,7 @@ export default function BuyerDashboard() {
             </div>
           </div>
         )}
-        {/* Checkout Modal for Buy Now Flow */}
-        {activeCheckoutListing && (
-          <CheckoutModal
-            listing={activeCheckoutListing}
-            onClose={() => setActiveCheckoutListing(null)}
-            onSuccess={() => {
-              // Refresh orders list
-              api.get('/orders/my').then(res => setBuyerOrders(res.data || [])).catch(() => { });
-            }}
-          />
-        )}
+
 
         {/* Direct Farmer/Buyer Chat Modal */}
         {activeChatData && (

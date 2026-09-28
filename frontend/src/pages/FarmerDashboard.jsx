@@ -768,7 +768,7 @@ export default function FarmerDashboard() {
                         {/* Action buttons */}
                         <div className="grid grid-cols-2 gap-2 pt-1.5">
                           <button
-                            onClick={() => navigate(`/listing/${listing._id || listing.id}`)}
+                            onClick={() => navigate(`/listing/${listing._id || listing.id}`, { state: { from: '/farmer/dashboard' } })}
                             className="py-2.5 bg-gray-50 hover:bg-[#FFFDF5] border border-gray-200 text-[#166534] rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
                           >
                             View

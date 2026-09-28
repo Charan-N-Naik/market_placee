@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
@@ -14,6 +14,7 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
   const { toggleSaved, isSaved, incrementView } = useListings();
   const { addToCart } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const listingId = listing._id || listing.id;
 
   const [isSavedLocal, setIsSavedLocal] = useState(
@@ -94,7 +95,9 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
 
   const handleFullView = (e) => {
     if (e) e.stopPropagation();
-    navigate(`/crop/${listingId}`);
+    navigate(`/crop/${listingId}`, {
+      state: { from: location.pathname + (location.search || '') || '/buyer/dashboard' }
+    });
   };
 
   const handleBuyNowClick = (e) => {
@@ -102,7 +105,9 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
     if (onBuyNow) {
       onBuyNow(listing);
     } else {
-      navigate(`/crop/${listingId}`);
+      navigate(`/crop/${listingId}`, {
+        state: { from: location.pathname + (location.search || '') || '/buyer/dashboard' }
+      });
     }
   };
 
@@ -271,7 +276,12 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowPreviewModal(false); navigate(`/crop/${listingId}`); }}
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  navigate(`/crop/${listingId}`, {
+                    state: { from: location.pathname + (location.search || '') || '/buyer/dashboard' }
+                  });
+                }}
                 className="flex-1 py-3 bg-[#1F7A4D] text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer"
               >
                 Open Full Detail Page

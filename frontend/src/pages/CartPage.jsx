@@ -160,7 +160,7 @@ function CartItem({ item, onQuantityChange, onRemove, onToggleSaved, isSaved, na
   return (
     <div style={itemCardStyle}>
       <div style={itemTopRowStyle}>
-        <div style={itemImageWrapStyle} onClick={() => navigate(`/listing/${itemId}`)}>
+        <div style={itemImageWrapStyle} onClick={() => navigate(`/listing/${itemId}`, { state: { from: '/cart' } })}>
           <CropImage cropName={cropName} photo={photo} size="sm" className="w-full h-full" />
           {isAiVerified && (
             <div style={aiBadgeStyle}>
@@ -171,7 +171,7 @@ function CartItem({ item, onQuantityChange, onRemove, onToggleSaved, isSaved, na
         </div>
 
         <div style={itemDetailsStyle}>
-          <h3 style={itemNameStyle} onClick={() => navigate(`/listing/${itemId}`)}>{cropName}</h3>
+          <h3 style={itemNameStyle} onClick={() => navigate(`/listing/${itemId}`, { state: { from: '/cart' } })}>{cropName}</h3>
           {variety && <p style={itemVarietyStyle}>{variety}</p>}
 
           {farmerName && (
@@ -239,7 +239,7 @@ function CartItem({ item, onQuantityChange, onRemove, onToggleSaved, isSaved, na
           {isSaved ? 'Saved' : 'Save for Later'}
         </button>
         <span style={actionDividerStyle} />
-        <button onClick={() => navigate(`/listing/${itemId}`)} style={actionBtnStyle} title="View Product">
+        <button onClick={() => navigate(`/listing/${itemId}`, { state: { from: '/cart' } })} style={actionBtnStyle} title="View Product">
           <ExternalLink size={14} /> View
         </button>
         {whatsappLink && (
