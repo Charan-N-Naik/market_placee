@@ -17,7 +17,7 @@ export default function ProtectedRoute({ roleRequired }) {
   }
 
   if (roleRequired && user.role !== roleRequired) {
-    return <Navigate to={user.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard'} replace />;
+    return <Navigate to={user.role === 'farmer' ? '/farmer/dashboard' : user.role === 'delivery_agent' ? '/delivery/dashboard' : '/buyer/dashboard'} replace />;
   }
 
   return <Outlet />;

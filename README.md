@@ -141,6 +141,19 @@ npm run dev
 ```
 Open your browser and navigate to `http://localhost:5173`.
 
+#### 5. Running Tests & Multi-Account Testing
+```bash
+# Seed test database (kisanbazaar_test) with test users and listings
+cd backend/node
+npm run seed:test
+
+# Run order & delivery flow integration test suite
+npm test
+```
+
+> ⚠️ **Multi-Account Testing Note**:
+> When testing multi-role workflows (Farmer, Buyer, and Delivery Agent) concurrently, **test each account in a separate Chrome profile or a different browser**; multiple incognito windows share one session and `localStorage`, which can cause user state and token collisions.
+
 ---
 
 ## 🛠️ Technology Stack

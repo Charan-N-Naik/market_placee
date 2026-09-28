@@ -16,12 +16,19 @@ export function ListingProvider({ children }) {
         const { data } = await api.get('/listings/my');
         setListings(data);
       } else if (user?.role === 'buyer') {
-        const [allListingsRes, savedListingsRes] = await Promise.all([
+        const [allListingsSettled, savedListingsSettled] = await Promise.allSettled([
           api.get('/listings'),
           api.get('/listings/saved')
         ]);
-        setListings(allListingsRes.data.listings || allListingsRes.data);
-        setSavedListings(savedListingsRes.data);
+        if (allListingsSettled.status === 'fulfilled') {
+          const allData = allListingsSettled.value.data;
+          setListings(allData.listings || allData);
+        }
+        if (savedListingsSettled.status === 'fulfilled') {
+          setSavedListings(savedListingsSettled.value.data || []);
+        } else {
+          setSavedListings([]);
+        }
       } else {
         const { data } = await api.get('/listings');
         setListings(data.listings || data);

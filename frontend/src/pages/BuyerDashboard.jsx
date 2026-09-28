@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
+import api from '../api/axios';
 import CropCard from '../components/CropCard';
 import CheckoutModal from '../components/CheckoutModal';
 import LoadingSkeleton from '../components/LoadingSkeleton';
@@ -250,7 +251,7 @@ export default function BuyerDashboard() {
       setLoading(true);
       try {
         // Fetch buyer orders
-        const ordersRes = await api.get('/orders/buyer').catch(() => ({ data: [] }));
+        const ordersRes = await api.get('/orders/my').catch(() => ({ data: [] }));
         setBuyerOrders(ordersRes.data || []);
 
         // Fetch notifications
@@ -1797,7 +1798,7 @@ export default function BuyerDashboard() {
             onClose={() => setActiveCheckoutListing(null)}
             onSuccess={() => {
               // Refresh orders list
-              api.get('/orders/buyer').then(res => setBuyerOrders(res.data || [])).catch(() => { });
+              api.get('/orders/my').then(res => setBuyerOrders(res.data || [])).catch(() => { });
             }}
           />
         )}

@@ -44,6 +44,61 @@ export function AuthProvider({ children }) {
     initializeAuth();
   }, []);
 
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'kisanbazaar_user') {
+        try {
+          const newUser = e.newValue ? JSON.parse(e.newValue) : null;
+          setUser((prevUser) => {
+            const prevId = prevUser?._id || prevUser?.id;
+            const newId = newUser?._id || newUser?.id;
+            const prevRole = prevUser?.role;
+            const newRole = newUser?.role;
+
+            if (newId !== prevId || newRole !== prevRole) {
+              if (newUser?.token) {
+                api.defaults.headers.common['Authorization'] = `Bearer ${newUser.token}`;
+              } else {
+                delete api.defaults.headers.common['Authorization'];
+              }
+
+              const path = window.location.pathname;
+              if (!newUser) {
+                if (path.startsWith('/farmer') || path.startsWith('/buyer') || path.startsWith('/delivery') || path.startsWith('/cart') || path.startsWith('/checkout')) {
+                  window.location.href = prevRole ? `/login/${prevRole}` : '/';
+                }
+              } else if (newRole !== prevRole) {
+                if (path.startsWith('/farmer') && newRole !== 'farmer') {
+                  window.location.href = newRole === 'buyer' ? '/buyer/dashboard' : newRole === 'delivery_agent' ? '/delivery/dashboard' : `/login/${newRole}`;
+                } else if (path.startsWith('/buyer') && newRole !== 'buyer') {
+                  window.location.href = newRole === 'farmer' ? '/farmer/dashboard' : newRole === 'delivery_agent' ? '/delivery/dashboard' : `/login/${newRole}`;
+                } else if (path.startsWith('/delivery') && newRole !== 'delivery_agent') {
+                  window.location.href = newRole === 'farmer' ? '/farmer/dashboard' : newRole === 'buyer' ? '/buyer/dashboard' : `/login/${newRole}`;
+                }
+              }
+
+              return newUser;
+            }
+
+            if (newUser?.token && newUser.token !== prevUser?.token) {
+              api.defaults.headers.common['Authorization'] = `Bearer ${newUser.token}`;
+              return newUser;
+            }
+
+            return prevUser;
+          });
+        } catch (err) {
+          console.error('Error handling storage event for kisanbazaar_user:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   const login = useCallback(async (credentials) => {
     try {
       const { data } = await api.post('/auth/login', credentials);
