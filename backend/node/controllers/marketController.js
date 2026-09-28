@@ -73,7 +73,7 @@ export const getMarketPrices = async (req, res, next) => {
       return res.status(200).json({
         stale: true,
         source: 'sample',
-        updatedAt: new Date().toISOString(),
+        updatedAt: null,
         data: STATIC_FALLBACK_PRICES
       });
     }
@@ -104,7 +104,7 @@ export const getMarketPrices = async (req, res, next) => {
     return res.status(200).json({
       stale: true,
       source: 'sample',
-      updatedAt: new Date().toISOString(),
+      updatedAt: null,
       data: STATIC_FALLBACK_PRICES
     });
   }

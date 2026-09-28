@@ -61,7 +61,7 @@ const MarketPricePage = () => {
 
       const timeStr = meta.updatedAt
         ? new Date(meta.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-        : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        : null;
       setLastUpdated(timeStr);
     } catch (error) {
       console.error('Failed to fetch APMC data:', error);
@@ -77,8 +77,10 @@ const MarketPricePage = () => {
     ? marketData
     : marketData.filter(d => d.mandi?.includes(selectedMandi.split(' ')[0]));
 
-  const gainers = marketData.filter(d => d.up).length;
-  const losers = marketData.filter(d => !d.up).length;
+  const rowsWithChange = marketData.filter(d => d.change !== undefined && d.change !== null && d.change !== '');
+  const hasTrends = rowsWithChange.length > 0;
+  const gainers = rowsWithChange.filter(d => d.up === true || (typeof d.change === 'string' && d.change.startsWith('+'))).length;
+  const losers = rowsWithChange.filter(d => d.up === false || (typeof d.change === 'string' && d.change.startsWith('-'))).length;
 
   return (
     <div className="max-w-[1200px] mx-auto px-[5%] pb-32 bg-[#fafaf9] min-h-screen font-sans">
@@ -125,8 +127,20 @@ const MarketPricePage = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: t('marketPrice.commodities'), value: marketData.length, color: 'text-stone-900', border: 'border-t-stone-700', sub: t('marketPrice.commoditiesSub') },
-            { label: t('marketPrice.gainersToday'), value: gainers, color: 'text-green-600', border: 'border-t-green-500', sub: t('marketPrice.gainersSub') },
-            { label: t('marketPrice.losersToday'), value: losers, color: 'text-red-600', border: 'border-t-red-500', sub: t('marketPrice.losersSub') },
+            { 
+              label: t('marketPrice.gainersToday'), 
+              value: hasTrends ? gainers : '—', 
+              color: hasTrends ? 'text-green-600' : 'text-stone-400', 
+              border: 'border-t-green-500', 
+              sub: hasTrends ? t('marketPrice.gainersSub') : 'Trend data unavailable' 
+            },
+            { 
+              label: t('marketPrice.losersToday'), 
+              value: hasTrends ? losers : '—', 
+              color: hasTrends ? 'text-red-600' : 'text-stone-400', 
+              border: 'border-t-red-500', 
+              sub: hasTrends ? t('marketPrice.losersSub') : 'Trend data unavailable' 
+            },
             { label: t('marketPrice.activeMandis'), value: APMC_MANDIS.length, color: 'text-blue-600', border: 'border-t-blue-500', sub: t('marketPrice.activeMandisSub') },
           ].map(({ label, value, color, border, sub }) => (
             <div key={label} className={`bg-white rounded-2xl border-x border-b border-stone-100 border-t-4 ${border} p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow`}>
