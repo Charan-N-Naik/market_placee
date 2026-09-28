@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { uploadToCloudinary } from '../services/uploadService.js';
 import { protect } from '../middleware/auth.js';
+import { uploadLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 const upload = multer({
@@ -15,6 +16,7 @@ const upload = multer({
 router.post(
   '/',
   protect,
+  uploadLimiter,
   upload.fields([{ name: 'file', maxCount: 1 }, { name: 'image', maxCount: 1 }]),
   async (req, res, next) => {
     try {

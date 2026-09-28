@@ -93,12 +93,26 @@ export async function checkExpiredDeliveryDeadlines() {
   }
 }
 
+let schedulerTask = null;
+
 /**
  * Initialize cron job checking every 15 minutes
  */
 export function initDeliveryScheduler() {
-  cron.schedule('*/15 * * * *', () => {
+  schedulerTask = cron.schedule('*/15 * * * *', () => {
     checkExpiredDeliveryDeadlines();
   });
   console.log('[DeliveryScheduler] Delivery deadline watchdog active (running every 15 min).');
+  return schedulerTask;
 }
+
+/**
+ * Stop cron job for graceful shutdown
+ */
+export function stopDeliveryScheduler() {
+  if (schedulerTask) {
+    schedulerTask.stop();
+    console.log('[DeliveryScheduler] Delivery deadline watchdog cron stopped.');
+  }
+}
+

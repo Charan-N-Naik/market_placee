@@ -15,13 +15,14 @@ import {
   updateDeviceToken
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
+import { loginLimiter } from '../middleware/rateLimiters.js';
 import multer from 'multer';
 
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
 router.post('/register', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), registerUser);
-router.post('/login', loginUser);
+router.post('/login', loginLimiter, loginUser);
 router.get('/refresh', refreshToken);
 router.post('/logout', logoutUser);
 router.post('/google', googleAuth);
