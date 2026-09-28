@@ -6,6 +6,7 @@ import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/axios';
 import CropCard from '../components/CropCard';
+import CropImage from '../components/CropImage';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import AIChatbot from './AIChatbot';
 import DashboardLayout from '../components/DashboardLayout';

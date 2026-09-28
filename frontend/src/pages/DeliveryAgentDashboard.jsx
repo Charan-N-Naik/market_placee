@@ -962,6 +962,15 @@ export default function DeliveryAgentDashboard() {
           </div>
         )}
 
+        {/* Tri-Party Order Chat Modal */}
+        {activeChatOrder && (
+          <DirectBuyerChatModal
+            buyerName={activeChatOrder.buyer?.name || 'Buyer'}
+            order={activeChatOrder}
+            onClose={() => setActiveChatOrder(null)}
+          />
+        )}
+
       </div>
     </DashboardLayout>
   );
@@ -1362,15 +1371,6 @@ function ProfileSection({ user, profile, fetchData }) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Tri-Party Order Chat Modal */}
-      {activeChatOrder && (
-        <DirectBuyerChatModal
-          buyerName={activeChatOrder.buyer?.name || 'Buyer'}
-          order={activeChatOrder}
-          onClose={() => setActiveChatOrder(null)}
-        />
       )}
     </div>
   );
