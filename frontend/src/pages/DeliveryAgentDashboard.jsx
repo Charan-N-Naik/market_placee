@@ -6,11 +6,12 @@ import {
   LayoutDashboard, Truck, PackageCheck, Bell, User, Phone, CheckCircle2,
   Navigation, RefreshCw, Star, DollarSign, MapPin, Check, X, ShieldCheck,
   TrendingUp, Calendar, AlertCircle, ArrowUpRight, ChevronRight, LogOut,
-  Pencil, Camera, Eye, MessageSquare, Clock, Save, Edit, Bookmark
+  Pencil, Camera, Eye, MessageSquare, Clock, Save, Edit, Bookmark, Trash2, CheckCheck
 } from 'lucide-react';
 import api from '../api/axios';
 import { getAgentDeliveryRequests, getAllDeliveryBookings, updateDeliveryBookingStatus } from '../utils/deliveryService';
 import { getSocket } from '../utils/socket';
+import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 
 const OrderTrackingMap = lazy(() => import('../components/OrderTrackingMap'));
 
@@ -40,7 +41,10 @@ export default function DeliveryAgentDashboard() {
   });
   const [selectedFullDetailOrder, setSelectedFullDetailOrder] = useState(null);
   const [selectedTrackingOrder, setSelectedTrackingOrder] = useState(null);
+  const [activeChatOrder, setActiveChatOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [activeAgentNotificationId, setActiveAgentNotificationId] = useState(null);
 
   const profile = user?.deliveryAgentProfile || {};
 
@@ -50,6 +54,7 @@ export default function DeliveryAgentDashboard() {
     { id: 'requests', icon: Bell, label: 'Book Requests', badge: requests.length > 0 ? `${requests.length}` : null },
     { id: 'active', icon: Truck, label: 'Active Jobs', badge: stats.activeOrders > 0 ? `${stats.activeOrders}` : null },
     { id: 'completed', icon: PackageCheck, label: 'Completed Deliveries' },
+    { id: 'notifications', icon: Bell, label: 'Notifications' },
     { id: 'profile', icon: User, label: 'Vehicle & Profile' },
   ];
 
@@ -60,14 +65,22 @@ export default function DeliveryAgentDashboard() {
     let apiStats = stats;
 
     try {
-      const [jobsRes, requestsRes, statsRes] = await Promise.allSettled([
+      const [jobsRes, requestsRes, statsRes, notifsRes] = await Promise.allSettled([
         api.get('/orders/driver/jobs'),
         api.get('/orders/driver/requests'),
         api.get('/orders/driver/stats'),
+        api.get('/notifications'),
       ]);
       if (jobsRes.status === 'fulfilled') apiJobs = jobsRes.value.data || [];
       if (requestsRes.status === 'fulfilled') apiRequests = requestsRes.value.data || [];
       if (statsRes.status === 'fulfilled') apiStats = statsRes.value.data || stats;
+      if (notifsRes.status === 'fulfilled') {
+        setNotifications((notifsRes.value.data || []).map(n => ({
+          ...n,
+          read: !!(n.read ?? n.isRead),
+          isRead: !!(n.read ?? n.isRead),
+        })));
+      }
     } catch (e) {
       console.error('Failed to fetch driver data:', e);
     }
@@ -128,6 +141,75 @@ export default function DeliveryAgentDashboard() {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [fetchData]);
+
+  // Real-time synchronization of notifications across tabs & popovers
+  useEffect(() => {
+    const handleGlobalAllRead = () => {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+    };
+    const handleGlobalDeleted = (e) => {
+      const id = e.detail?.id;
+      if (id) {
+        setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
+      }
+    };
+    const handleGlobalRead = (e) => {
+      const id = e.detail?.id;
+      if (id) {
+        setNotifications(prev => prev.map(n => ((n._id || n.id) === id ? { ...n, read: true, isRead: true } : n)));
+      }
+    };
+
+    window.addEventListener('kb:notifications_all_read', handleGlobalAllRead);
+    window.addEventListener('kb:notification_deleted', handleGlobalDeleted);
+    window.addEventListener('kb:notification_read', handleGlobalRead);
+
+    return () => {
+      window.removeEventListener('kb:notifications_all_read', handleGlobalAllRead);
+      window.removeEventListener('kb:notification_deleted', handleGlobalDeleted);
+      window.removeEventListener('kb:notification_read', handleGlobalRead);
+    };
+  }, []);
+
+  const handleMarkAllAgentNotificationsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
+    try {
+      await api.put('/notifications/all/read');
+    } catch (err) {
+      console.warn('Failed to mark all as read:', err);
+    }
+  };
+
+  const handleDeleteAgentNotification = async (notifId, e) => {
+    if (e) e.stopPropagation();
+    const target = notifications.find(n => (n._id || n.id) === notifId);
+    const wasUnread = target ? !target.read : true;
+
+    setNotifications(prev => prev.filter(n => (n._id || n.id) !== notifId));
+    if (activeAgentNotificationId === notifId) {
+      setActiveAgentNotificationId(null);
+    }
+    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
+
+    try {
+      await api.delete(`/notifications/${notifId}`);
+    } catch (err) {
+      console.warn('Failed to delete notification:', err);
+    }
+  };
+
+  const handleAgentNotificationClick = async (n) => {
+    const notifId = n._id || n.id;
+    setActiveAgentNotificationId(notifId);
+    if (!n.read) {
+      setNotifications(prev => prev.map(item => ((item._id || item.id) === notifId ? { ...item, read: true, isRead: true } : item)));
+      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
+      try {
+        await api.put(`/notifications/${notifId}/read`);
+      } catch (_) {}
+    }
+  };
 
   const handleRespond = async (orderId, action) => {
     try {
@@ -502,6 +584,13 @@ export default function DeliveryAgentDashboard() {
                           <Eye size={14} /> Full View Details
                         </button>
 
+                        <button
+                          onClick={() => setActiveChatOrder(order)}
+                          className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center gap-1"
+                        >
+                          <MessageSquare size={14} /> Live Chat 💬
+                        </button>
+
                         {(order.deliveryRequestStatus === 'driver_accepted' || order.status === 'driver_accepted') && (
                           <button
                             onClick={() => handleStatusUpdate(order._id || order.id, 'collected')}
@@ -697,6 +786,146 @@ export default function DeliveryAgentDashboard() {
             )}
           </div>
         )}
+
+        {/* NOTIFICATIONS TAB */}
+        {activeTab === 'notifications' && (() => {
+          const activeNotif = notifications.find(n => (n._id || n.id) === activeAgentNotificationId);
+          const unreadCount = notifications.filter(n => !n.read).length;
+
+          return (
+            <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-6">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">Delivery Agent Alerts</h2>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">Pickup alerts, dispatch calls & order delivery notifications</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllAgentNotificationsRead}
+                      className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
+                    >
+                      <CheckCheck size={14} />
+                      <span>Mark all read</span>
+                    </button>
+                  )}
+                  {unreadCount > 0 && (
+                    <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full">
+                      {unreadCount} New
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {activeNotif ? (
+                /* INTERIOR MESSAGE READER VIEW */
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🔔</span>
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900">{activeNotif.title || 'Delivery Notification'}</h3>
+                        <span className="text-[10px] text-gray-500 font-medium">
+                          {new Date(activeNotif.createdAt).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full uppercase">
+                      Delivery Alert
+                    </span>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 border border-gray-200 space-y-2">
+                    <p className="text-xs text-gray-800 leading-relaxed font-semibold">{activeNotif.message}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <button
+                      onClick={() => setActiveTab('requests')}
+                      className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      <Truck size={15} /> View Delivery Requests
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteAgentNotification(activeNotif._id || activeNotif.id)}
+                      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <Trash2 size={15} /> Delete Notification
+                    </button>
+
+                    <button
+                      onClick={() => setActiveAgentNotificationId(null)}
+                      className="ml-auto text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-2 cursor-pointer"
+                    >
+                      Done (Back to Notifications)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* NOTIFICATION LIST FEED */
+                <div className="space-y-3">
+                  {notifications.map((n) => {
+                    const isUnread = !n.read;
+                    const notifId = n._id || n.id;
+                    return (
+                      <div
+                        key={notifId}
+                        onClick={() => handleAgentNotificationClick(n)}
+                        className={`p-4 rounded-2xl border transition-all shadow-xs flex items-center justify-between gap-4 group cursor-pointer ${
+                          isUnread
+                            ? 'bg-orange-50/70 border-orange-300 font-bold'
+                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-black ${
+                            isUnread ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            🔔
+                          </div>
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <p className={`text-xs truncate ${isUnread ? 'font-black text-gray-900' : 'font-medium text-gray-700'}`}>
+                              {n.title || n.message}
+                            </p>
+                            {n.title && n.message && (
+                              <p className="text-[11px] text-gray-500 font-normal line-clamp-1">
+                                {n.message}
+                              </p>
+                            )}
+                            <span className="text-[10px] text-gray-400 block font-medium">
+                              {new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isUnread && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                          )}
+                          <button
+                            onClick={(e) => handleDeleteAgentNotification(notifId, e)}
+                            title="Delete notification"
+                            className="p-1.5 hover:bg-red-100 text-gray-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {notifications.length === 0 && (
+                    <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
+                      <span className="text-3xl block">🔔</span>
+                      <p className="text-xs text-gray-500 font-bold">No active notifications</p>
+                      <p className="text-[11px] text-gray-400">All delivery alerts and dispatch notifications are caught up.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* PROFILE TAB (Matching Reference Image 1 Design) */}
         {activeTab === 'profile' && (
@@ -1133,6 +1362,15 @@ function ProfileSection({ user, profile, fetchData }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tri-Party Order Chat Modal */}
+      {activeChatOrder && (
+        <DirectBuyerChatModal
+          buyerName={activeChatOrder.buyer?.name || 'Buyer'}
+          order={activeChatOrder}
+          onClose={() => setActiveChatOrder(null)}
+        />
       )}
     </div>
   );

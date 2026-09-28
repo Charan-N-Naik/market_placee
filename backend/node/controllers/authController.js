@@ -484,7 +484,22 @@ export const getUserProfile = async (req, res, next) => {
     const user = await User.findById(req.user._id).select('-passwordHash');
 
     if (user) {
-      res.json(user);
+      const userObj = user.toObject();
+      if (user.role === 'farmer') {
+        const stats = await Order.aggregate([
+          { $match: { farmer: user._id, rating: { $exists: true, $ne: null } } },
+          { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+        ]);
+        const avg = stats[0] ? Number(stats[0].avgRating.toFixed(1)) : (user.rating || 5.0);
+        const count = stats[0] ? stats[0].count : (user.numReviews || 0);
+
+        if (!userObj.farmerProfile) userObj.farmerProfile = {};
+        userObj.farmerProfile.rating = avg;
+        userObj.farmerProfile.numReviews = count;
+        userObj.rating = avg;
+        userObj.numReviews = count;
+      }
+      res.json(userObj);
     } else {
       res.status(404);
       throw new Error('User not found');

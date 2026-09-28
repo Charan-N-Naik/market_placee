@@ -100,8 +100,13 @@ export default function OrderTrackingMap({ order, onClose }) {
       ? [order.deliveryAddress.lat, order.deliveryAddress.lng]
       : defaultBuyerCoords;
 
+  const isDelivered = ['delivered', 'received'].includes(currentStatus);
+
   // Agent location initialized from persistent order.lastKnownAgentLocation
   const [agentCoords, setAgentCoords] = useState(() => {
+    if (['delivered', 'received'].includes(initialStatus)) {
+      return buyerCoords;
+    }
     if (order?.lastKnownAgentLocation?.lat && order?.lastKnownAgentLocation?.lng) {
       return [order.lastKnownAgentLocation.lat, order.lastKnownAgentLocation.lng];
     }
@@ -114,7 +119,13 @@ export default function OrderTrackingMap({ order, onClose }) {
 
   const [authError, setAuthError] = useState(null);
   const [hasLiveSignal, setHasLiveSignal] = useState(false);
-  const isDelivered = ['delivered', 'received'].includes(currentStatus);
+
+  // Snap agent to destination when delivered
+  useEffect(() => {
+    if (isDelivered) {
+      setAgentCoords(buyerCoords);
+    }
+  }, [isDelivered, buyerCoords]);
 
   // Socket.IO Room Connection & Event Handling
   useEffect(() => {

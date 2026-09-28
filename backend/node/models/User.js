@@ -69,6 +69,22 @@ const userSchema = new mongoose.Schema(
       experience: String, // years of farming experience
       bio: String,        // about the farmer
       kisanCardNo: String,
+      rating: {
+        type: Number,
+        default: 5.0,
+      },
+      numReviews: {
+        type: Number,
+        default: 0,
+      },
+    },
+    rating: {
+      type: Number,
+      default: 5.0,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
     },
     
     // Buyer specific fields

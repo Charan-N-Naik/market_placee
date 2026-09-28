@@ -133,19 +133,27 @@ export const createOrder = asyncHandler(async (req, res) => {
       order.relatedChat = chat._id;
       chats.push(chat._id);
 
-      // Send notification to farmer
+      // Send notification to farmer with buyer name and crop name
       try {
+        const buyerName = req.user.name || 'Buyer';
+        const cropNames = group.items.map(i => i.cropName).filter(Boolean).join(', ') || 'Agricultural Crops';
+        const orderShortId = String(order.orderNumber || order._id).slice(-6).toUpperCase();
+        const totalQty = group.items.reduce((sum, i) => sum + i.quantity, 0);
+
         await sendNotification({
           recipientId: group.farmerId,
           senderId: req.user._id,
           type: 'order_placed',
-          title: 'New Order Received',
-          message: `A new order has been placed for ₹${group.totalAmount}. Total quantity: ${group.items.reduce((sum, i) => sum + i.quantity, 0)} units.`,
+          title: `New Order from ${buyerName} • ${cropNames}`,
+          message: `${buyerName} placed an order for ${cropNames} (Order #${orderShortId}). Total: ₹${group.totalAmount} (${totalQty} units).`,
           relatedOrder: order._id,
           relatedChat: chat._id,
-        });
+          buyerName,
+          cropName: cropNames,
+          orderNumber: orderShortId,
+        }, req.io);
       } catch (error) {
-        console.error('Error sending notification:', error);
+        console.error('Error sending notification to farmer:', error);
       }
 
       // If online payment (not cod or pending_farmer_approval), create a payment record
@@ -297,6 +305,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   if (ownsListing) {
+    if (['collected', 'delivered', 'shipped'].includes(status) && req.user.role !== 'admin') {
+      return res.status(403).json({
+        message: 'Only the assigned delivery agent can mark an order as collected or delivered.'
+      });
+    }
     if (status === 'cancelled' && !['pending', 'accepted', 'packed'].includes(order.status)) {
       return res.status(400).json({
         message: `Cannot cancel order after it has been collected or delivered. Please use POST /api/orders/${order._id}/refund to issue a refund once logistics are in motion.`
@@ -511,9 +524,9 @@ export const rateOrder = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized to rate this order' });
   }
 
-  // Only allow rating if order is received
-  if (order.status !== 'received') {
-    return res.status(400).json({ message: 'Can only rate received orders' });
+  // Only allow rating if order is received or delivered
+  if (order.status !== 'received' && order.status !== 'delivered') {
+    return res.status(400).json({ message: 'Can only rate delivered or received orders' });
   }
 
   order.rating = rating;
@@ -521,7 +534,7 @@ export const rateOrder = asyncHandler(async (req, res) => {
   await order.save();
 
   // Update crop rating in Listing model (average rating)
-  const listing = await Listing.findById(order.items[0].listing);
+  const listing = await Listing.findById(order.items[0]?.listing);
   if (listing) {
     // Use aggregation to calculate average rating efficiently without loading all documents
     const ratingStats = await Order.aggregate([
@@ -533,28 +546,58 @@ export const rateOrder = asyncHandler(async (req, res) => {
     await Listing.findByIdAndUpdate(
       listing._id,
       {
-        rating: stats.avgRating,
+        rating: Number(stats.avgRating.toFixed(1)),
         numReviews: stats.count
       },
       { new: true }
     );
   }
 
+  // Update overall farmer rating and review counts on User model
+  const farmerId = order.farmer || (listing ? listing.farmer : null);
+  if (farmerId) {
+    try {
+      const farmerStats = await Order.aggregate([
+        { $match: { farmer: farmerId, rating: { $exists: true, $ne: null } } },
+        { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+      ]);
+      const avg = farmerStats[0] ? Number(farmerStats[0].avgRating.toFixed(1)) : rating;
+      const count = farmerStats[0] ? farmerStats[0].count : 1;
+
+      await User.findByIdAndUpdate(farmerId, {
+        $set: {
+          'farmerProfile.rating': avg,
+          'farmerProfile.numReviews': count,
+          rating: avg,
+          numReviews: count
+        }
+      });
+    } catch (fErr) {
+      console.error('Error updating farmer rating metrics:', fErr.message);
+    }
+  }
+
   // Send notification to farmer
   try {
-    const listing = await Listing.findById(order.items[0].listing);
-    const farmerId = listing.farmer;
+    if (farmerId) {
+      const cropName = order.items?.[0]?.cropName || order.items?.[0]?.listing?.cropName || 'Crop Harvest';
+      const orderShortId = String(order.orderNumber || order._id).slice(-6).toUpperCase();
+      const buyerName = req.user.name || 'Buyer';
 
-    await sendNotification({
-      recipientId: farmerId,
-      senderId: req.user._id,
-      type: 'rating',
-      title: `New ${rating}-star Rating Received`,
-      message: `Your crop received a ${rating}-star rating. Comment: "${ratingComment}"`,
-      relatedOrder: order._id,
-    });
+      await sendNotification({
+        recipientId: farmerId,
+        senderId: req.user._id,
+        type: 'rating',
+        title: `⭐ ${rating}-Star Review from ${buyerName} • ${cropName}`,
+        message: `${buyerName} rated your order #${orderShortId} (${cropName}) with ${rating} stars: "${ratingComment || 'Great harvest!'}"`,
+        relatedOrder: order._id,
+        buyerName,
+        cropName,
+        orderNumber: orderShortId,
+      }, req.io);
+    }
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error('Error sending rating notification:', error);
   }
 
   res.json({ message: 'Rating submitted successfully', order });

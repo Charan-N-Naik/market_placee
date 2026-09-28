@@ -13,6 +13,9 @@ const notificationSchema = new mongoose.Schema(
     message: { type: String, required: true },
     relatedOrder: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
     relatedChat: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat' },
+    buyerName: { type: String },
+    cropName: { type: String },
+    orderNumber: { type: String },
     read: { type: Boolean, default: false },
     readAt: { type: Date },
   },
@@ -23,3 +26,4 @@ notificationSchema.index({ recipient: 1, createdAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 export default Notification;
+

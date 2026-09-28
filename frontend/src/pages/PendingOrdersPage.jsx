@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
+import PaymentModal from '../components/PaymentModal';
 import api from '../api/axios';
 import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
@@ -49,33 +50,36 @@ function OrderStepper({ status }) {
   }
 
   return (
-    <div className="px-5 sm:px-6 pb-4">
-      <div className="flex items-center gap-0 overflow-x-auto no-scrollbar">
+    <div className="w-full px-2 sm:px-4 py-2">
+      <div className="flex items-center justify-between w-full overflow-hidden no-scrollbar py-1">
         {steps.map((step, idx) => {
           const isCompleted = idx < currentIdx;
           const isActive = idx === currentIdx;
           const isLast = idx === steps.length - 1;
           return (
-            <div key={step.key} className="flex items-center shrink-0">
+            <div key={step.key} className="flex items-center flex-1 last:flex-none">
               {/* Step Node */}
-              <div className="flex flex-col items-center gap-1">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${isCompleted ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' :
-                    isActive ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/30 ring-4 ring-orange-100' :
-                      'bg-white border-zinc-300 text-zinc-400'
-                  }`}>
-                  {isCompleted ? <CheckCircle2 size={14} /> : <span className="text-[11px]">{step.icon}</span>}
+              <div className="flex flex-col items-center gap-1.5 shrink-0">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
+                  isCompleted ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' :
+                  isActive ? 'bg-orange-500 border-orange-500 text-white shadow-sm ring-4 ring-orange-100' :
+                  'bg-white border-zinc-300 text-zinc-400'
+                }`}>
+                  {isCompleted ? <CheckCircle2 size={15} /> : <span className="text-[12px]">{step.icon}</span>}
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-wider whitespace-nowrap ${isCompleted ? 'text-emerald-600' :
-                    isActive ? 'text-orange-600' :
-                      'text-zinc-400'
-                  }`}>
+                <span className={`text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                  isCompleted ? 'text-emerald-700' :
+                  isActive ? 'text-orange-600' :
+                  'text-zinc-400 font-semibold'
+                }`}>
                   {step.label}
                 </span>
               </div>
               {/* Connector */}
               {!isLast && (
-                <div className={`h-0.5 w-8 sm:w-10 mx-1 shrink-0 rounded-full ${isCompleted ? 'bg-emerald-500' : 'bg-zinc-200'
-                  }`} />
+                <div className={`h-0.5 flex-1 min-w-[20px] mx-2 sm:mx-3 rounded-full mb-5 transition-all ${
+                  isCompleted ? 'bg-emerald-500' : 'bg-zinc-200'
+                }`} />
               )}
             </div>
           );
@@ -171,6 +175,7 @@ export default function BuyerOrdersPage() {
   const [ratingOrder, setRatingOrder] = useState(null);
   const [approvedPayOrder, setApprovedPayOrder] = useState(null);
   const [activeChatOrder, setActiveChatOrder] = useState(null);
+  const [inlineMapOrder, setInlineMapOrder] = useState(null);
 
   // Rating states
   const [ratingVal, setRatingVal] = useState(5);
@@ -289,10 +294,11 @@ export default function BuyerOrdersPage() {
     }
   };
 
-  const handleContactFarmer = async (farmerId, order) => {
+  const handleContactFarmer = (farmerId, order) => {
+    const targetOrder = order || contactingOrder;
     setContactingOrder(null);
-    if (order) {
-      setActiveChatOrder(order);
+    if (targetOrder) {
+      setActiveChatOrder(targetOrder);
     } else {
       showToast('Opening live chat with farmer...', 'success');
     }
@@ -393,12 +399,12 @@ export default function BuyerOrdersPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-8 sm:px-10 lg:px-12 pt-16 pb-8 space-y-8 flex flex-col items-center">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Title Block */}
-        <div className="bg-white rounded-[20px] border border-zinc-100 p-6 sm:p-8 md:p-10 shadow-[0_1px_8px_rgba(0,0,0,0.03)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="w-full bg-white rounded-2xl border border-zinc-200/80 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-stone-900 tracking-tight">My Crop Orders</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">My Crop Orders</h1>
             <p className="text-stone-500 text-xs sm:text-sm font-semibold">Track updates, download receipts, and contact farmers directly</p>
           </div>
           <div className="flex items-center gap-4 w-full md:w-auto">
@@ -407,50 +413,53 @@ export default function BuyerOrdersPage() {
               placeholder="Search by Crop or Order ID..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full md:w-72 px-5 py-3 rounded-xl border border-zinc-200 bg-zinc-50 text-xs sm:text-sm font-bold outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all placeholder:text-zinc-400"
+              className="w-full md:w-72 px-4 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-xs sm:text-sm font-bold outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition-all placeholder:text-zinc-400"
             />
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-5 rounded-[20px] text-xs sm:text-sm font-bold flex items-center gap-3">
+          <div className="w-full bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-3">
             <AlertTriangle size={18} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Tab Controls */}
-        <div className="flex border-b border-zinc-200 gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
-          {[
-            { id: 'approved', label: 'Approved (Pay Now) 💳', color: 'border-emerald-600 text-emerald-700 bg-emerald-50' },
-            { id: 'pending', label: 'Pending Approval', color: 'border-amber-600 text-amber-600 bg-amber-50/50' },
-            { id: 'confirmed', label: 'Paid & Processing', color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
-            { id: 'collected', label: 'Collected by Agent 🚛', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
-            { id: 'delivered', label: 'Delivered', color: 'border-emerald-600 text-emerald-600 bg-emerald-50/50' },
-            { id: 'cancelled', label: 'Cancelled', color: 'border-red-600 text-red-600 bg-red-50/50' },
-          ].map(tab => {
-            const isActive = activeTab === tab.id;
-            const count = getTabCount(tab.id);
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3.5 border-b-3 font-black text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-2.5 cursor-pointer rounded-t-xl ${isActive
-                    ? `${tab.color} border-current`
-                    : 'border-transparent text-stone-400 hover:text-stone-700 hover:bg-stone-50'
-                  }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${isActive ? 'bg-white shadow-xs border border-stone-200' : 'bg-stone-200 text-stone-600'
-                  }`}>{count}</span>
-              </button>
-            );
-          })}
+        {/* Tab Controls — Single Line Full-Width Edge-to-Edge */}
+        <div className="w-full border-b border-zinc-200">
+          <div className="w-full flex items-stretch no-scrollbar overflow-x-hidden">
+            {[
+              { id: 'approved', label: 'Approved (Pay Now)', shortLabel: 'Approved', icon: '💳', color: 'border-emerald-600 text-emerald-700 bg-emerald-50/70' },
+              { id: 'pending', label: 'Pending Approval', shortLabel: 'Pending', icon: null, color: 'border-amber-600 text-amber-600 bg-amber-50/50' },
+              { id: 'confirmed', label: 'Paid & Processing', shortLabel: 'Paid & Proc', icon: null, color: 'border-orange-600 text-orange-600 bg-orange-50/50' },
+              { id: 'collected', label: 'Collected by Agent', shortLabel: 'Collected', icon: '🚛', color: 'border-indigo-600 text-indigo-600 bg-indigo-50/50' },
+              { id: 'delivered', label: 'Delivered', shortLabel: 'Delivered', icon: null, color: 'border-emerald-600 text-emerald-600 bg-emerald-50/50' },
+              { id: 'cancelled', label: 'Cancelled', shortLabel: 'Cancelled', icon: null, color: 'border-red-600 text-red-600 bg-red-50/50' },
+            ].map(tab => {
+              const isActive = activeTab === tab.id;
+              const count = getTabCount(tab.id);
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 min-w-0 py-3.5 px-1 sm:px-2 md:px-3 border-b-2 font-black text-xs md:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer text-center select-none ${isActive
+                      ? `${tab.color} border-current shadow-xs`
+                      : 'border-transparent text-stone-500 hover:text-stone-800 hover:bg-stone-50/80'
+                    }`}
+                >
+                  <span className="hidden lg:inline truncate">{tab.label} {tab.icon}</span>
+                  <span className="inline lg:hidden truncate">{tab.shortLabel} {tab.icon}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-black shrink-0 transition-colors ${isActive ? 'bg-white shadow-xs border border-current text-current' : 'bg-stone-200/80 text-stone-600'
+                    }`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Orders Stack */}
+        {/* Orders Stack — FULL-WIDTH HORIZONTAL CARDS */}
         {filteredOrders.length === 0 ? (
-          <div className="text-center py-20 bg-white border border-zinc-100 rounded-[20px] shadow-[0_1px_8px_rgba(0,0,0,0.03)] space-y-4">
+          <div className="w-full text-center py-20 bg-white border border-zinc-200/80 rounded-2xl shadow-xs space-y-4">
             <div className="w-20 h-20 rounded-full bg-zinc-100 flex items-center justify-center mx-auto text-zinc-400 border border-zinc-200">
               <ShoppingBag size={28} />
             </div>
@@ -464,173 +473,228 @@ export default function BuyerOrdersPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-8 max-w-6xl mx-auto px-4 w-full">
+          <div className="space-y-6 w-full">
             {filteredOrders.map(order => {
               const shortId = order._id?.slice(-8).toUpperCase() || 'KB-ORDER';
               const formattedDate = new Date(order.createdAt).toLocaleDateString('en-IN', {
-                day: 'numeric', month: 'short', year: 'numeric'
+                day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
               });
+              const isTracking = ['packed', 'collected', 'shipped', 'delivered'].includes(order.status);
+              const isInlineMapOpen = inlineMapOrder === order._id;
 
               return (
-                <div key={order._id} className="bg-white rounded-[20px] border border-zinc-100 overflow-hidden shadow-[0_1px_8px_rgba(0,0,0,0.03)] hover:shadow-md transition-all duration-300">
+                <div key={order._id} className="w-full bg-white rounded-2xl border border-zinc-200/80 shadow-xs hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
 
-                  {/* Card Header */}
-                  <div className="bg-zinc-50/80 border-b border-zinc-100 p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-6 flex-wrap">
-                      <div>
-                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase">ORDER ID</span>
-                        <h3 className="text-base font-black text-stone-900 tracking-tight">#{shortId}</h3>
+                  {/* Card Header Strip: Order ID, Date, Amount, Status */}
+                  <div className="bg-zinc-50/90 border-b border-zinc-200/80 p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-stone-400 tracking-widest uppercase">ORDER ID</span>
+                        <span className="font-mono text-xs font-black text-stone-900 bg-white px-2 py-0.5 rounded border border-zinc-200">#{shortId}</span>
                       </div>
-                      <div className="hidden sm:block h-8 w-0.5 bg-stone-200" />
-                      <div>
-                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase">ORDER DATE</span>
-                        <h4 className="text-xs sm:text-sm font-bold text-stone-700">{formattedDate}</h4>
+                      <div className="hidden sm:block h-4 w-px bg-zinc-300" />
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-stone-500">
+                        <Calendar size={13} className="text-stone-400" />
+                        <span>{formattedDate}</span>
                       </div>
+                      {order.deliveryAgent?.name && (
+                        <>
+                          <div className="hidden sm:block h-4 w-px bg-zinc-300" />
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                            <Truck size={12} />
+                            <span>Driver: {order.deliveryAgent.name}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-8 flex-wrap justify-between w-full sm:w-auto">
-                      <div>
-                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase">TOTAL AMOUNT</span>
-                        <span className="text-xl sm:text-2xl font-black text-orange-600">₹{order.totalAmount.toLocaleString('en-IN')}</span>
+                    <div className="flex items-center gap-4 sm:gap-6 justify-between w-full sm:w-auto">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[9px] font-black text-stone-400 tracking-widest block uppercase">TOTAL AMOUNT</span>
+                        <span className="text-lg sm:text-xl font-black text-emerald-700">₹{order.totalAmount.toLocaleString('en-IN')}</span>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase mb-1">STATUS</span>
-                        <StatusBadge status={order.status} />
-                      </div>
+                      <StatusBadge status={order.status} />
                     </div>
                   </div>
 
-                  {/* Card Items & details */}
-                  <div className="p-5 sm:p-6 flex flex-col lg:flex-row gap-6">
+                  {/* Horizontal Stepper Strip */}
+                  <div className="bg-white border-b border-zinc-100 py-3.5 px-4 sm:px-6">
+                    <OrderStepper status={order.status} />
+                  </div>
 
-                    {/* Items List */}
-                    <div className="flex-1 flex flex-col gap-4">
-                      {order.items?.map((item, idx) => {
-                        const listingId = item.listing?._id || item.listing;
-                        const cache = listingCache[listingId] || {};
-                        const cropName = cache.cropName || item.listing?.cropName || 'Crop';
-                        const variety = cache.variety || item.listing?.variety || '';
-                        const unit = cache.unit || item.listing?.unit || 'kg';
-                        const farmerName = cache.farmer?.name || item.listing?.farmer?.name || (typeof order.farmer === 'object' ? order.farmer?.name : null) || 'Farmer';
-                        const cropPhoto = cache.images?.[0]?.url || cache.photo || item.listing?.photo || null;
+                  {/* Horizontal Card Content: Items (Left) + Logistics & Delivery (Right) */}
+                  <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    
+                    {/* Items Section (8 cols on desktop) */}
+                    <div className="lg:col-span-8 space-y-3">
+                      <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase">ORDERED CROPS ({order.items?.length || 0})</span>
+                      <div className="space-y-2.5">
+                        {order.items?.map((item, idx) => {
+                          const listingId = item.listing?._id || item.listing;
+                          const cache = listingCache[listingId] || {};
+                          const cropName = cache.cropName || item.listing?.cropName || 'Crop';
+                          const variety = cache.variety || item.listing?.variety || '';
+                          const unit = cache.unit || item.listing?.unit || 'kg';
+                          const pricePerUnit = cache.pricePerUnit || item.pricePerUnit || item.listing?.pricePerUnit || item.price || 0;
+                          const farmerName = cache.farmer?.name || item.listing?.farmer?.name || (typeof order.farmer === 'object' ? order.farmer?.name : null) || 'Farmer';
+                          const cropPhoto = cache.images?.[0]?.url || cache.photo || item.listing?.photo || null;
 
-                        return (
-                          <div key={idx} className="flex gap-4 items-center bg-zinc-50 border border-zinc-100 rounded-2xl p-4">
-                            <div className="w-18 h-18 rounded-xl overflow-hidden border border-zinc-200 shrink-0">
-                              <CropImage cropName={cropName} photo={cropPhoto} size="sm" className="w-full h-full object-cover" />
+                          return (
+                            <div key={idx} className="flex items-center justify-between gap-4 p-3 rounded-xl bg-zinc-50 border border-zinc-100 hover:border-zinc-200 transition-colors">
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <div className="w-14 h-14 rounded-lg overflow-hidden border border-zinc-200 shrink-0 bg-white">
+                                  <CropImage cropName={cropName} photo={cropPhoto} size="sm" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="text-sm font-bold text-stone-900 truncate">{cropName}</h4>
+                                  <div className="flex items-center gap-2 text-xs text-stone-500 font-medium mt-0.5 flex-wrap">
+                                    {variety && <span className="text-[10px] font-bold text-stone-500 bg-zinc-200/60 px-1.5 py-0.5 rounded">{variety}</span>}
+                                    <span>Farmer: <strong className="text-stone-700">{farmerName}</strong></span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-xs font-bold text-orange-600 block">₹{pricePerUnit} × {item.quantity} {unit}</span>
+                                <span className="text-sm font-black text-stone-900">₹{(pricePerUnit * item.quantity).toLocaleString('en-IN')}</span>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-black text-stone-900 truncate">{cropName}</h4>
-                              {variety && <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mt-0.5">{variety}</span>}
-                              <p className="text-xs font-semibold text-stone-500 mt-1">Farmer: <span className="text-stone-800 font-extrabold">{farmerName}</span></p>
-                              <p className="text-xs font-black text-orange-600 mt-1">₹{price} × {item.quantity} {unit}</p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-base font-black text-stone-900">₹{(price * item.quantity).toLocaleString('en-IN')}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    {/* Delivery Block */}
-                    <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-zinc-100 pt-6 lg:pt-0 lg:pl-6 flex flex-col justify-between space-y-4">
+                    {/* Delivery & Payment Info (4 cols on desktop) */}
+                    <div className="lg:col-span-4 bg-zinc-50/80 rounded-xl border border-zinc-100 p-4 space-y-3">
                       <div>
-                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase mb-2">DELIVERY ADDRESS</span>
-                        <div className="bg-zinc-50 rounded-2xl border border-zinc-100 p-4 space-y-1">
-                          <p className="text-xs sm:text-sm font-black text-stone-800">{order.deliveryAddress?.name || user?.name}</p>
-                          <p className="text-xs font-semibold text-stone-600 leading-relaxed">
+                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase mb-1.5 flex items-center gap-1.5">
+                          <MapPin size={12} className="text-stone-500" /> DELIVERY DESTINATION
+                        </span>
+                        <div className="bg-white rounded-lg p-2.5 border border-zinc-100 text-xs">
+                          <p className="font-bold text-stone-800">{order.deliveryAddress?.name || user?.name}</p>
+                          <p className="text-stone-600 font-medium leading-relaxed mt-0.5">
                             {order.deliveryAddress?.fullAddress ||
                               `${order.deliveryAddress?.addressLine1 || ''}, ${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''}`}
                           </p>
                         </div>
                       </div>
 
+                      {/* Payment Method Details */}
+                      <div>
+                        <span className="text-[10px] font-black text-stone-400 tracking-widest block uppercase mb-1 flex items-center gap-1.5">
+                          <CreditCard size={12} className="text-stone-500" /> PAYMENT STATUS
+                        </span>
+                        <div className="bg-white rounded-lg p-2.5 border border-zinc-100 text-xs flex items-center justify-between">
+                          <span className="font-medium text-stone-600">
+                            {order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-6)})` : (order.status === 'paid' ? 'Paid via Razorpay' : 'Pending Payment')}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${['paid', 'collected', 'shipped', 'delivered', 'received'].includes(order.status) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                            {['paid', 'collected', 'shipped', 'delivered', 'received'].includes(order.status) ? 'Confirmed' : 'Awaiting'}
+                          </span>
+                        </div>
+                      </div>
+
                       {/* Rating details display if already rated */}
                       {order.rating && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
-                          <div>
-                            <span className="text-[9px] font-black text-amber-800 block uppercase tracking-wider">YOUR RATING</span>
-                            <p className="text-xs font-semibold text-amber-700 italic mt-0.5">"{order.ratingComment || 'No comments'}"</p>
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-amber-800 uppercase tracking-wider">YOUR RATING</span>
+                            <div className="flex items-center gap-1 text-xs font-black text-amber-800">
+                              <Star size={12} className="fill-amber-400 text-amber-400" />
+                              <span>{order.rating}/5</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 bg-white border border-amber-300 px-3 py-1.5 rounded-xl shrink-0">
-                            <Star size={14} className="text-amber-500 fill-current" />
-                            <span className="text-xs font-black text-amber-800">{order.rating}/5</span>
-                          </div>
+                          {order.ratingComment && (
+                            <p className="text-xs font-semibold text-amber-800 italic mt-1 bg-white/70 p-1.5 rounded border border-amber-200/50">
+                              "{order.ratingComment}"
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Card Footer Actions — BOUNDED BUTTON TEXT */}
-                  <div className="bg-zinc-50/50 border-t border-zinc-100 p-5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-wrap">
+                  {/* Horizontal Action Bar */}
+                  <div className="bg-zinc-50 border-t border-zinc-200/80 px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+                    {/* Left Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         onClick={() => downloadInvoice(order)}
-                        className="min-h-[44px] px-5 py-2.5 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+                        className="min-h-[38px] px-3.5 py-1.5 bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
                       >
-                        <Download size={15} className="shrink-0" />
+                        <Download size={13} />
                         <span>Invoice</span>
                       </button>
                       <button
                         onClick={() => setContactingOrder(order)}
-                        className="min-h-[44px] px-5 py-2.5 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+                        className="min-h-[38px] px-3.5 py-1.5 bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
                       >
-                        <Phone size={15} className="shrink-0" />
+                        <Phone size={13} />
                         <span>Contact Farmer</span>
                       </button>
+                      <button
+                        onClick={() => setActiveChatOrder(order)}
+                        className="min-h-[38px] px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <MessageSquare size={13} />
+                        <span>Live Chat 💬</span>
+                      </button>
+                      {order.deliveryAgent?.phone && (
+                        <a
+                          href={`tel:${order.deliveryAgent.phone}`}
+                          className="min-h-[38px] px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap"
+                        >
+                          <PhoneCall size={13} />
+                          <span>Call Driver ({order.deliveryAgent.name})</span>
+                        </a>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-3 flex-wrap">
+                    {/* Right Primary Actions */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       {/* PAY NOW for farmer-approved orders */}
                       {['accepted', 'approved'].includes(order.status) && (
                         <button
                           onClick={() => setApprovedPayOrder(order)}
-                          className="min-h-[44px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center gap-2 transition-all shadow-md shadow-emerald-600/20 cursor-pointer whitespace-nowrap animate-pulse"
+                          className="min-h-[38px] px-5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap animate-pulse"
                         >
-                          <CreditCard size={16} className="shrink-0" />
+                          <CreditCard size={14} />
                           <span>PAY NOW (₹{order.totalAmount?.toLocaleString('en-IN')})</span>
                         </button>
                       )}
 
-                      {/* Track Order — show after payment or during delivery */}
-                      {['paid', 'processing', 'packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
+                      {/* Live GPS Map Toggle Button */}
+                      {isTracking && (
+                        <button
+                          onClick={() => setInlineMapOrder(isInlineMapOpen ? null : order._id)}
+                          className={`min-h-[38px] px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer whitespace-nowrap ${
+                            isInlineMapOpen 
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                              : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                          }`}
+                        >
+                          <Truck size={14} />
+                          <span>{isInlineMapOpen ? 'Hide Live Map' : 'Track on Map'}</span>
+                        </button>
+                      )}
+
+                      {/* Fullscreen Tracker Modal */}
+                      {isTracking && (
                         <button
                           onClick={() => setTrackingOrder(order)}
-                          className="min-h-[44px] px-5 py-2.5 bg-zinc-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                          className="min-h-[38px] px-3.5 py-1.5 bg-zinc-900 hover:bg-black text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer whitespace-nowrap"
                         >
-                          <Truck size={15} className="shrink-0" />
-                          <span>Track Order</span>
+                          <ExternalLink size={13} />
+                          <span>Full Tracker</span>
                         </button>
                       )}
 
-                      {/* Buy Again */}
-                      <button
-                        onClick={() => handleBuyAgain(order)}
-                        className="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm shadow-orange-600/20 cursor-pointer whitespace-nowrap"
-                      >
-                        <RefreshCw size={15} className="shrink-0" />
-                        <span>Buy Again</span>
-                      </button>
-
-                      {/* Cancel Order */}
-                      {['pending', 'accepted'].includes(order.status) && (
-                        <button
-                          onClick={() => handleCancelOrder(order._id || order.id || order.orderId)}
-                          className="min-h-[44px] px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
-                        >
-                          <X size={15} className="shrink-0" />
-                          <span>Cancel Order</span>
-                        </button>
-                      )}
-
-                      {/* Receive confirmation — only after delivery agent has collected */}
+                      {/* Confirm Receipt */}
                       {['collected', 'shipped', 'delivered'].includes(order.status) && (
                         <button
                           onClick={() => handleMarkAsReceived(order._id || order.id)}
-                          className="min-h-[44px] px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                          className="min-h-[38px] px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer whitespace-nowrap"
                         >
-                          <CheckCircle size={15} className="shrink-0" />
+                          <CheckCircle size={14} />
                           <span>Confirm Crop Delivered</span>
                         </button>
                       )}
@@ -643,23 +707,51 @@ export default function BuyerOrdersPage() {
                             setRatingVal(5);
                             setRatingComment('');
                           }}
-                          className="min-h-[44px] px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+                          className="min-h-[38px] px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer whitespace-nowrap"
                         >
-                          <Star size={14} /> Rate Order
+                          <Star size={13} />
+                          <span>Rate Order</span>
+                        </button>
+                      )}
+
+                      {/* Buy Again */}
+                      <button
+                        onClick={() => handleBuyAgain(order)}
+                        className="min-h-[38px] px-3.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+                      >
+                        <RefreshCw size={13} />
+                        <span>Buy Again</span>
+                      </button>
+
+                      {/* Cancel Order */}
+                      {['pending', 'accepted'].includes(order.status) && (
+                        <button
+                          onClick={() => handleCancelOrder(order._id || order.id || order.orderId)}
+                          className="min-h-[38px] px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          <X size={13} />
+                          <span>Cancel</span>
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* ─── ORDER PROGRESS STEPPER ─── */}
-                  <div className="border-t border-zinc-100 pt-4">
-                    <OrderStepper status={order.status} />
-                  </div>
-
-                  {/* ─── INLINE MAP TRACKER for packed/collected/shipped/delivered orders ─── */}
-                  {['packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
-                    <div className="border-t border-zinc-100 p-5 sm:p-6">
-                      <LiveDeliveryTracker order={order} onClose={() => { }} />
+                  {/* Inline Live Delivery Tracker Map (Full Width when toggled) */}
+                  {isTracking && isInlineMapOpen && (
+                    <div className="border-t border-blue-100 bg-blue-50/20 p-4 sm:p-6 transition-all animate-fade-in">
+                      <div className="flex items-center justify-between pb-3 mb-4 border-b border-blue-100">
+                        <div className="flex items-center gap-2">
+                          <Truck size={16} className="text-blue-600" />
+                          <h4 className="text-xs font-black text-blue-900 uppercase tracking-wider">Live Consignment & GPS Tracker</h4>
+                        </div>
+                        <button
+                          onClick={() => setInlineMapOrder(null)}
+                          className="text-xs font-bold text-zinc-400 hover:text-zinc-700 px-2 py-1 rounded hover:bg-zinc-100 transition-colors"
+                        >
+                          Close Map ×
+                        </button>
+                      </div>
+                      <LiveDeliveryTracker order={order} onClose={() => setInlineMapOrder(null)} />
                     </div>
                   )}
 
@@ -753,8 +845,8 @@ export default function BuyerOrdersPage() {
 
                 {/* Platform Chat */}
                 <button
-                  onClick={() => handleContactFarmer(cache.farmer?._id || cache.farmer)}
-                  className="py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-600/15"
+                  onClick={() => handleContactFarmer(cache.farmer?._id || cache.farmer, contactingOrder)}
+                  className="py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-600/15 cursor-pointer"
                 >
                   <MessageSquare size={16} /> Start Chat on Platform
                 </button>

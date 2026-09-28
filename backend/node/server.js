@@ -66,6 +66,8 @@ connectDB().then(() => {
   warmMarketPriceCache();
 });
 
+import { setNotificationIO } from './services/notificationService.js';
+
 // Setup Socket.io
 // Support multiple allowed client origins via comma-separated CLIENT_URLS or single CLIENT_URL
 const rawClientUrls = process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5175';
@@ -78,6 +80,10 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
+global.io = io;
+setNotificationIO(io);
+
 
 // Socket.io Authentication Middleware
 io.use(async (socket, next) => {
@@ -165,12 +171,19 @@ app.use('/api', marketRoutes);
 io.on('connection', (socket) => {
   console.log(`A user connected: ${socket.id} (${socket.user?.name}, role: ${socket.user?.role})`);
 
+  // Automatically join authenticated user's private notification rooms
+  if (socket.user?._id) {
+    const uid = socket.user._id.toString();
+    socket.join(uid);
+    socket.join(`user:${uid}`);
+  }
+
   socket.on('join_room', async (roomId) => {
     try {
       if (!roomId) return;
 
-      // Guard rooms of the form order:<orderId>
-      const orderMatch = typeof roomId === 'string' && roomId.match(/^order:(.+)$/);
+      // Guard rooms of the form order:<orderId> or order_chat:<orderId>
+      const orderMatch = typeof roomId === 'string' && (roomId.match(/^order:(.+)$/) || roomId.match(/^order_chat:(.+)$/));
       if (orderMatch) {
         const orderId = orderMatch[1];
         const order = await Order.findById(orderId);
@@ -197,6 +210,83 @@ io.on('connection', (socket) => {
   socket.on('leave_room', (roomId) => {
     socket.leave(roomId);
     console.log(`User ${socket.id} left room ${roomId}`);
+  });
+
+  // Real-time Tri-Party Order Chat Handler (Farmer, Buyer, Agent)
+  socket.on('send_order_message', async (data) => {
+    try {
+      const { orderId, text, content } = data || {};
+      const messageText = (text || content || '').trim();
+      if (!orderId || !messageText) return;
+
+      const order = await Order.findById(orderId);
+      if (!order) return;
+
+      if (!isUserAuthorizedForOrder(order, socket.user)) {
+        socket.emit('error', { message: 'Not authorized for this order chat', orderId });
+        return;
+      }
+
+      const Chat = (await import('./models/Chat.js')).default;
+      let chat = order.relatedChat ? await Chat.findById(order.relatedChat) : null;
+      if (!chat) {
+        const participantIds = [order.buyer, order.farmer, order.deliveryAgent].filter(Boolean);
+        chat = await Chat.create({
+          participants: participantIds.length ? participantIds : [socket.user.id],
+          messages: [],
+          isGroup: true,
+        });
+        order.relatedChat = chat._id;
+        await order.save();
+      }
+
+      const newMsg = {
+        sender: socket.user.id,
+        type: 'text',
+        content: messageText,
+        timestamp: new Date(),
+        read: false,
+        readBy: [socket.user.id],
+      };
+      chat.messages.push(newMsg);
+      await chat.save();
+
+      const lastSaved = chat.messages[chat.messages.length - 1];
+
+      const broadcastPayload = {
+        _id: lastSaved._id,
+        orderId,
+        sender: {
+          _id: socket.user.id,
+          id: socket.user.id,
+          name: socket.user.name,
+          role: socket.user.role,
+        },
+        text: messageText,
+        type: 'text',
+        createdAt: lastSaved.timestamp,
+      };
+
+      io.to(`order_chat:${orderId}`).emit('receive_order_message', broadcastPayload);
+      io.to(`order:${orderId}`).emit('receive_order_message', broadcastPayload);
+      io.to(chat._id.toString()).emit('receive_order_message', broadcastPayload);
+
+      // Notify other participants in their private rooms and push updated unread counts
+      const { calcUnreadMessageCount } = await import('./controllers/chatController.js');
+      const otherParticipants = (chat.participants || []).filter(p => p.toString() !== socket.user.id);
+      for (const pId of otherParticipants) {
+        const pidStr = pId.toString();
+        io.to(pidStr).emit('new_order_message', broadcastPayload);
+        io.to(`user:${pidStr}`).emit('new_order_message', broadcastPayload);
+
+        calcUnreadMessageCount(pidStr).then(cnt => {
+          io.to(pidStr).emit('unread_message_count_update', { unreadCount: cnt, count: cnt });
+          io.to(`user:${pidStr}`).emit('unread_message_count_update', { unreadCount: cnt, count: cnt });
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.error('[Socket] Error in send_order_message:', err);
+    }
   });
 
   // Guarded live delivery agent GPS location update

@@ -26,8 +26,18 @@ export default function ListingDetails() {
   const [apiListing, setApiListing] = useState(null);
   const listing = contextListing || apiListing;
 
-  const MIN_BULK_QTY = 50;
+  const MIN_BULK_QTY = listing ? Math.min(50, listing.quantity || 50) : 50;
   const [quantity, setQuantity] = useState(MIN_BULK_QTY);
+
+  useEffect(() => {
+    if (listing) {
+      setQuantity(prev => {
+        if (prev > listing.quantity) return listing.quantity;
+        if (prev < MIN_BULK_QTY) return MIN_BULK_QTY;
+        return prev;
+      });
+    }
+  }, [listing?.quantity, MIN_BULK_QTY]);
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -41,6 +51,13 @@ export default function ListingDetails() {
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Gallery images array
+  const imageGallery = (listing?.images && listing.images.length > 0)
+    ? listing.images.map(img => typeof img === 'object' ? img.url : img)
+    : (listing?.photo ? [listing.photo] : []);
+
+  const currentPhoto = imageGallery[activeImageIndex] || null;
 
   // Live APMC Market Comparison state
   const [apmcPriceData, setApmcPriceData] = useState(null);
@@ -107,12 +124,7 @@ export default function ListingDetails() {
   const price = listing.pricePerUnit ?? listing.price;
   const isVerified = listing.aiVerified || listing.isVerified || listing.verified;
 
-  // Gallery images array
-  const imageGallery = (listing.images && listing.images.length > 0)
-    ? listing.images.map(img => typeof img === 'object' ? img.url : img)
-    : (listing.photo ? [listing.photo] : []);
 
-  const currentPhoto = imageGallery[activeImageIndex] || null;
 
   const locationStr = typeof listing.location === 'object'
     ? `${listing.location?.district || listing.location?.address || ''}, ${listing.location?.state || ''}`.replace(/^,\s*|,\s*$/g, '').trim()

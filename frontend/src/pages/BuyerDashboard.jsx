@@ -16,7 +16,7 @@ import {
   ShoppingBag, Bookmark, Filter, X, ArrowRight, ShoppingCart, Pencil, Save, Check,
   CloudSun, TrendingUp, Bell, MapPin, ShieldCheck, RefreshCw, Star, Layers, Package,
   Phone, Info, CheckCircle2, ChevronRight, SlidersHorizontal, ArrowUpRight,
-  Trash2, Camera, Globe, Settings, CreditCard, Mic, MessageSquare
+  Trash2, Camera, Globe, Settings, CreditCard, Mic, MessageSquare, CheckCheck
 } from 'lucide-react';
 import { locations, cropOptions } from '../data/mockData';
 
@@ -57,7 +57,7 @@ export default function BuyerDashboard() {
     i18n.changeLanguage(newLang);
   };
   const { user, logout, updateProfile } = useAuth();
-  const { listings, toggleSaved, isSaved, savedListings, fetchListings } = useListings();
+  const { listings, loading: listingsLoading, toggleSaved, isSaved, savedListings, fetchListings } = useListings();
   const { cartItemsCount, addToCart } = useCart();
 
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -72,7 +72,7 @@ export default function BuyerDashboard() {
   const [sortBy, setSortBy] = useState('newest');
 
   const handleCardBuyNow = async (item) => {
-    const minQty = item.minQuantity || item.minOrder || 50;
+    const minQty = item.minQuantity || item.minOrder || Math.min(50, item.quantity || 50);
     try {
       await addToCart(item, minQty, { mode: 'set' });
       navigate('/checkout');
@@ -180,8 +180,6 @@ export default function BuyerDashboard() {
   const [buyerOrders, setBuyerOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeBuyerNotificationId, setActiveBuyerNotificationId] = useState(null);
-  const [seenNotificationIds, setSeenNotificationIds] = useState(new Set());
-  const [dismissedNotificationIds, setDismissedNotificationIds] = useState(new Set());
   const [activeChatData, setActiveChatData] = useState(null);
 
   // Profile Edit states
@@ -264,7 +262,11 @@ export default function BuyerDashboard() {
 
         // Fetch notifications
         const notifsRes = await api.get('/notifications').catch(() => ({ data: [] }));
-        setNotifications(notifsRes.data || []);
+        setNotifications((notifsRes.data || []).map(n => ({
+          ...n,
+          read: !!(n.read ?? n.isRead),
+          isRead: !!(n.read ?? n.isRead),
+        })));
 
       } catch (err) {
         console.error('Error loading buyer dashboard data:', err);
@@ -275,6 +277,75 @@ export default function BuyerDashboard() {
 
     loadData();
   }, [user, navigate]);
+
+  // Real-time synchronization of notifications across tabs & popovers
+  useEffect(() => {
+    const handleGlobalAllRead = () => {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+    };
+    const handleGlobalDeleted = (e) => {
+      const id = e.detail?.id;
+      if (id) {
+        setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
+      }
+    };
+    const handleGlobalRead = (e) => {
+      const id = e.detail?.id;
+      if (id) {
+        setNotifications(prev => prev.map(n => ((n._id || n.id) === id ? { ...n, read: true, isRead: true } : n)));
+      }
+    };
+
+    window.addEventListener('kb:notifications_all_read', handleGlobalAllRead);
+    window.addEventListener('kb:notification_deleted', handleGlobalDeleted);
+    window.addEventListener('kb:notification_read', handleGlobalRead);
+
+    return () => {
+      window.removeEventListener('kb:notifications_all_read', handleGlobalAllRead);
+      window.removeEventListener('kb:notification_deleted', handleGlobalDeleted);
+      window.removeEventListener('kb:notification_read', handleGlobalRead);
+    };
+  }, []);
+
+  const handleMarkAllBuyerNotificationsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
+    try {
+      await api.put('/notifications/all/read');
+    } catch (err) {
+      console.warn('Failed to mark all as read:', err);
+    }
+  };
+
+  const handleDeleteBuyerNotification = async (notifId, e) => {
+    if (e) e.stopPropagation();
+    const target = notifications.find(n => (n._id || n.id) === notifId);
+    const wasUnread = target ? !target.read : true;
+
+    setNotifications(prev => prev.filter(n => (n._id || n.id) !== notifId));
+    if (activeBuyerNotificationId === notifId) {
+      setActiveBuyerNotificationId(null);
+    }
+    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
+
+    try {
+      await api.delete(`/notifications/${notifId}`);
+    } catch (err) {
+      console.warn('Failed to delete notification:', err);
+    }
+  };
+
+  const handleBuyerNotificationClick = async (n) => {
+    const notifId = n._id || n.id;
+    setActiveBuyerNotificationId(notifId);
+    if (!n.read) {
+      setNotifications(prev => prev.map(item => ((item._id || item.id) === notifId ? { ...item, read: true, isRead: true } : item)));
+      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
+      try {
+        await api.put(`/notifications/${notifId}/read`);
+      } catch (_) {}
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -668,7 +739,7 @@ export default function BuyerDashboard() {
               </div>
 
               {/* Products Grid */}
-              {loading ? (
+              {(loading || listingsLoading) ? (
                 <LoadingSkeleton count={6} />
               ) : filteredListings.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 px-6 text-center space-y-4 shadow-sm">
@@ -890,21 +961,32 @@ export default function BuyerDashboard() {
           )}
 
           {activeTab === 'notifications' && (() => {
-            const visibleNotifications = notifications.filter(n => !dismissedNotificationIds.has(n._id) && !seenNotificationIds.has(n._id));
-            const activeNotif = notifications.find(n => n._id === activeBuyerNotificationId);
+            const activeNotif = notifications.find(n => (n._id || n.id) === activeBuyerNotificationId);
+            const unreadCount = notifications.filter(n => !n.read).length;
 
             return (
               <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-6">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">Buyer Notifications</h2>
-                    <p className="text-xs text-gray-500 font-medium mt-0.5">Click any alert to inspect message details</p>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">Order updates, delivery tracking & seller messages</p>
                   </div>
-                  {visibleNotifications.length > 0 && (
-                    <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full">
-                      {visibleNotifications.length} New
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllBuyerNotificationsRead}
+                        className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
+                      >
+                        <CheckCheck size={14} />
+                        <span>Mark all read</span>
+                      </button>
+                    )}
+                    {unreadCount > 0 && (
+                      <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full">
+                        {unreadCount} New
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {activeNotif ? (
@@ -945,13 +1027,10 @@ export default function BuyerDashboard() {
                       </button>
 
                       <button
-                        onClick={() => {
-                          setDismissedNotificationIds(prev => new Set(prev).add(activeNotif._id));
-                          setActiveBuyerNotificationId(null);
-                        }}
+                        onClick={() => handleDeleteBuyerNotification(activeNotif._id || activeNotif.id)}
                         className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
                       >
-                        <Trash2 size={15} /> Dismiss & Remove Notification
+                        <Trash2 size={15} /> Delete Notification
                       </button>
 
                       <button
@@ -965,31 +1044,60 @@ export default function BuyerDashboard() {
                 ) : (
                   /* NOTIFICATION LIST FEED */
                   <div className="space-y-3">
-                    {visibleNotifications.map((n) => (
-                      <div
-                        key={n._id}
-                        onClick={() => {
-                          setActiveBuyerNotificationId(n._id);
-                          setSeenNotificationIds(prev => new Set(prev).add(n._id));
-                        }}
-                        className="p-4 rounded-2xl border border-gray-200 bg-white hover:bg-orange-50/50 hover:border-orange-200 text-xs text-gray-700 cursor-pointer transition-all shadow-xs flex items-start justify-between gap-4 group"
-                      >
-                        <div className="space-y-1">
-                          <p className="font-bold text-gray-900 group-hover:text-orange-700 transition-colors">{n.message}</p>
-                          <span className="text-[10px] text-gray-400 block font-medium">
-                            {new Date(n.createdAt).toLocaleDateString('en-IN')}
-                          </span>
+                    {notifications.map((n) => {
+                      const isUnread = !n.read;
+                      const notifId = n._id || n.id;
+                      return (
+                        <div
+                          key={notifId}
+                          onClick={() => handleBuyerNotificationClick(n)}
+                          className={`p-4 rounded-2xl border transition-all shadow-xs flex items-center justify-between gap-4 group cursor-pointer ${
+                            isUnread
+                              ? 'bg-orange-50/70 border-orange-300 font-bold'
+                              : 'bg-white border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-black ${
+                              isUnread ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              🔔
+                            </div>
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <p className={`text-xs truncate ${isUnread ? 'font-black text-gray-900' : 'font-medium text-gray-700'}`}>
+                                {n.title || n.message}
+                              </p>
+                              {n.title && n.message && (
+                                <p className="text-[11px] text-gray-500 font-normal line-clamp-1">
+                                  {n.message}
+                                </p>
+                              )}
+                              <span className="text-[10px] text-gray-400 block font-medium">
+                                {new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isUnread && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                            )}
+                            <button
+                              onClick={(e) => handleDeleteBuyerNotification(notifId, e)}
+                              title="Delete notification"
+                              className="p-1.5 hover:bg-red-100 text-gray-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-xs font-bold text-orange-600 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          View details →
-                        </span>
-                      </div>
-                    ))}
-                    {visibleNotifications.length === 0 && (
+                      );
+                    })}
+                    {notifications.length === 0 && (
                       <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
                         <span className="text-3xl block">🔔</span>
-                        <p className="text-xs text-gray-500 font-bold">No active unread notifications</p>
-                        <p className="text-[11px] text-gray-400">All notifications have been viewed or dismissed.</p>
+                        <p className="text-xs text-gray-500 font-bold">No active notifications</p>
+                        <p className="text-[11px] text-gray-400">You are all caught up on your orders and updates.</p>
                       </div>
                     )}
                   </div>

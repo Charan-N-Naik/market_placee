@@ -22,6 +22,9 @@ const createCustomIcon = (type, label) => {
   } else if (type === 'truck') {
     bgColor = '#2563eb'; // Blue for Moving Delivery Truck
     iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="13" x="1" y="3" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
+  } else if (type === 'truck_delivered') {
+    bgColor = '#059669'; // Emerald for Truck that arrived at Destination
+    iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
   } else {
     bgColor = '#059669'; // Emerald for Destination
     iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`;
@@ -48,6 +51,13 @@ const createCustomIcon = (type, label) => {
         border: 2px solid #2563eb;
         opacity: 0.6;
         animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+      "></div>` : ''}
+      ${type === 'truck_delivered' ? `<div style="
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        border: 2px solid #059669;
+        opacity: 0.8;
       "></div>` : ''}
     </div>
   `;
@@ -114,6 +124,9 @@ export default function LiveDeliveryTracker({ order, onClose }) {
 
   // Animated truck position
   const [currentPos, setCurrentPos] = useState(() => {
+    if (isDelivered) {
+      return dest;
+    }
     if (order?.lastKnownAgentLocation?.lat && order?.lastKnownAgentLocation?.lng) {
       return [order.lastKnownAgentLocation.lat, order.lastKnownAgentLocation.lng];
     }
@@ -122,14 +135,28 @@ export default function LiveDeliveryTracker({ order, onClose }) {
 
   // Anti-Fake GPS Verification Telemetry states
   const [telemetry, setTelemetry] = useState({
-    gpsAuthenticity: 99.8,
-    speed: 48,
+    gpsAuthenticity: isDelivered ? 100 : 99.8,
+    speed: isDelivered ? 0 : 48,
     satellites: 14,
     cellTowerTriangulated: true,
     mockLocationFlagged: false,
     hardwareSignature: 'ECDSA-SHA256-VERIFIED',
-    lastPingSecAgo: 2,
+    lastPingSecAgo: isDelivered ? 0 : 2,
   });
+
+  // When delivered or status updates to delivered, snap truck position to destination
+  useEffect(() => {
+    if (isDelivered) {
+      setCurrentPos(dest);
+      setTelemetry(prev => ({
+        ...prev,
+        speed: 0,
+        lastPingSecAgo: 0,
+        gpsAuthenticity: 100,
+        mockLocationFlagged: false,
+      }));
+    }
+  }, [isDelivered, dest]);
 
   // Socket.IO Room: Join order-scoped room & listen for live agent location
   useEffect(() => {
@@ -158,6 +185,9 @@ export default function LiveDeliveryTracker({ order, onClose }) {
         const newStatus = data.status || data.deliveryRequestStatus;
         if (newStatus) {
           setCurrentStatus(newStatus);
+          if (newStatus === 'delivered' || newStatus === 'received') {
+            setCurrentPos(dest);
+          }
         }
       }
     };
@@ -170,7 +200,7 @@ export default function LiveDeliveryTracker({ order, onClose }) {
       socket.off('orderUpdate', handleOrderUpdate);
       socket.emit('leave_room', roomId);
     };
-  }, [orderId, isDelivered]);
+  }, [orderId, isDelivered, dest]);
 
   // Dynamic truck movement simulation (fallback when status is collected and not yet delivered)
   useEffect(() => {
@@ -192,8 +222,8 @@ export default function LiveDeliveryTracker({ order, onClose }) {
   // Streamlined Delivery Pipeline Stepper Config
   const steps = [
     { id: 'placed', label: 'Order Placed', desc: 'Order received by farmer', done: true },
-    { id: 'collected', label: 'Crops Collected', desc: 'Agent collected crops & in-transit', done: ['collected', 'shipped', 'delivered', 'received'].includes(status) },
-    { id: 'delivered', label: 'Delivered', desc: 'Produce handed over to buyer', done: status === 'delivered' || status === 'received' },
+    { id: 'collected', label: 'Crops Collected', desc: 'Agent collected crops & in-transit', done: ['collected', 'shipped', 'delivered', 'received'].includes(currentStatus) },
+    { id: 'delivered', label: 'Delivered', desc: 'Produce handed over to buyer', done: isDelivered },
   ];
 
   const orderIdShort = order?._id?.slice(-8)?.toUpperCase() || order?.orderId || 'KB-ORDER';
@@ -222,9 +252,19 @@ export default function LiveDeliveryTracker({ order, onClose }) {
 
         <div className="flex items-center gap-4 bg-zinc-800/80 px-4 py-2.5 rounded-xl border border-zinc-700 w-full md:w-auto justify-between md:justify-end">
           <div>
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">ESTIMATED DELIVERY</span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+              {isDelivered ? 'DELIVERY STATUS' : 'ESTIMATED DELIVERY'}
+            </span>
             <p className="text-xs font-black text-emerald-400 flex items-center gap-1.5 mt-0.5">
-              <Clock size={13} /> Today by 4:30 PM (ETA 35 mins)
+              {isDelivered ? (
+                <>
+                  <CheckCircle2 size={13} /> Destination Reached • Delivered ✓
+                </>
+              ) : (
+                <>
+                  <Clock size={13} /> Today by 4:30 PM (ETA 35 mins)
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -236,7 +276,7 @@ export default function LiveDeliveryTracker({ order, onClose }) {
           <PackageCheck size={16} className="text-orange-600" /> Delivery Status Pipeline
         </h4>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
           {steps.map((step, idx) => (
             <div 
               key={step.id} 
@@ -274,13 +314,26 @@ export default function LiveDeliveryTracker({ order, onClose }) {
         <div className="lg:col-span-2 bg-white rounded-[20px] border border-zinc-100 overflow-hidden shadow-[0_1px_8px_rgba(0,0,0,0.03)] flex flex-col h-[400px] relative">
           
           {/* Top Floating Map Overlay Badge */}
-          <div className="absolute top-3 left-3 z-[1000] bg-zinc-900/90 backdrop-blur-md text-white px-3.5 py-2 rounded-xl text-xs font-bold border border-zinc-700/80 shadow-lg flex items-center gap-2">
-            <Navigation size={14} className="text-blue-400 animate-spin" />
-            <span>Transit Corridor: Dharwad Farm $\rightarrow$ Buyer Address</span>
+          <div className={`absolute top-3 left-3 z-[1000] backdrop-blur-md px-3.5 py-2 rounded-xl text-xs font-bold border shadow-lg flex items-center gap-2 ${
+            isDelivered
+              ? 'bg-emerald-950/95 text-emerald-200 border-emerald-500/80 shadow-emerald-900/30'
+              : 'bg-zinc-900/90 text-white border-zinc-700/80'
+          }`}>
+            {isDelivered ? (
+              <>
+                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                <span>Destination Reached: Agent Handed Over Produce to Buyer ✓</span>
+              </>
+            ) : (
+              <>
+                <Navigation size={14} className="text-blue-400 animate-spin shrink-0" />
+                <span>Transit Corridor: {originLoc} → {destLoc}</span>
+              </>
+            )}
           </div>
 
           <MapContainer 
-            center={currentPos} 
+            center={isDelivered ? dest : currentPos} 
             zoom={8} 
             scrollWheelZoom={false} 
             style={{ height: '100%', width: '100%' }}
@@ -303,12 +356,22 @@ export default function LiveDeliveryTracker({ order, onClose }) {
             </Marker>
 
             {/* Live Delivery Vehicle Marker */}
-            <Marker position={currentPos} icon={createCustomIcon('truck')}>
+            <Marker position={isDelivered ? dest : currentPos} icon={createCustomIcon(isDelivered ? 'truck_delivered' : 'truck')}>
               <Popup>
                 <div className="text-xs font-bold">
-                  <p className="font-black text-blue-600">🚚 Express Agri Logistics</p>
-                  <p className="text-zinc-600">Vehicle: KA-19-EA-4821</p>
-                  <p className="text-emerald-600 font-extrabold mt-1">GPS Telemetry Verified ✓</p>
+                  {isDelivered ? (
+                    <>
+                      <p className="font-black text-emerald-600">🏁 Agent Reached Destination</p>
+                      <p className="text-zinc-700">{deliveryAddress}</p>
+                      <p className="text-emerald-600 font-extrabold mt-1">Delivery Completed Successfully ✓</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-black text-blue-600">🚚 Express Agri Logistics</p>
+                      <p className="text-zinc-600">Vehicle: {selectedAgent?.vehicleNumber || 'KA-19-EA-4821'}</p>
+                      <p className="text-emerald-600 font-extrabold mt-1">GPS Telemetry Verified ✓</p>
+                    </>
+                  )}
                 </div>
               </Popup>
             </Marker>
@@ -410,7 +473,7 @@ export default function LiveDeliveryTracker({ order, onClose }) {
             {/* TRANSPORT EXPENDITURE COST BREAKDOWN */}
             <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200 text-xs space-y-1.5">
               <div className="flex justify-between text-stone-600 font-semibold">
-                <span>Origin $\rightarrow$ Destination:</span>
+                <span>Origin → Destination:</span>
                 <span className="font-bold text-stone-900">{originLoc} to {destLoc} ({distanceKm} km)</span>
               </div>
               <div className="flex justify-between text-stone-600 font-semibold">
@@ -434,7 +497,7 @@ export default function LiveDeliveryTracker({ order, onClose }) {
           </div>
 
           {/* POST-DELIVERY DRIVER RATING CARD */}
-          {(status === 'delivered' || status === 'received' || status === 'completed') && (
+          {(isDelivered || currentStatus === 'completed') && (
             <div className="bg-amber-50 rounded-[20px] border border-amber-200 p-5 shadow-sm space-y-3">
               <div className="flex items-center gap-2 text-amber-900 font-black text-xs uppercase tracking-wider">
                 <Star size={16} className="text-amber-500 fill-amber-500" /> Rate Delivery Experience

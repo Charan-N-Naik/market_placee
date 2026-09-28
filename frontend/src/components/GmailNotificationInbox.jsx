@@ -14,25 +14,15 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
   const [activeChatData, setActiveChatData] = useState(null);
   const [starredIds, setStarredIds] = useState(new Set());
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [seenIds, setSeenIds] = useState(() => {
-    try {
-      const s = localStorage.getItem('kb_seen_notifications');
-      return s ? new Set(JSON.parse(s)) : new Set();
-    } catch (_) {
-      return new Set();
-    }
-  });
-  const [dismissedIds, setDismissedIds] = useState(() => {
-    try {
-      const s = localStorage.getItem('kb_dismissed_notifications');
-      return s ? new Set(JSON.parse(s)) : new Set();
-    } catch (_) {
-      return new Set();
-    }
-  });
+  const [deletedIds, setDeletedIds] = useState(new Set());
+  const [localReadIds, setLocalReadIds] = useState(new Set());
 
   // Merge backend notifications & seller orders into a rich Gmail inbox feed
-  const rawFeed = [...notifications];
+  const rawFeed = notifications.map(n => ({
+    ...n,
+    read: !!(n.read ?? n.isRead),
+    isRead: !!(n.read ?? n.isRead),
+  }));
 
   // Also build email notifications for seller orders if not present in notifications
   sellerOrders.forEach((order) => {
@@ -49,6 +39,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
         title: `[NEW ORDER #${String(orderId).slice(-6).toUpperCase()}] ${cropName} Order Request`,
         message: `Buyer ${buyerName} placed an order for ${qty} units of ${cropName}. Total Amount: ₹${order.totalAmount || 0}. Delivery: ${order.deliveryAddress?.city || 'Local'}.`,
         createdAt: order.createdAt || new Date().toISOString(),
+        read: false,
         isRead: false,
         sender: {
           name: buyerName,
@@ -62,6 +53,52 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
 
   // Sort by date newest first
   rawFeed.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  // Helper to determine if an item is read
+  const isItemRead = (item) => {
+    const id = item._id || item.id;
+    return !!(item.read || item.isRead || localReadIds.has(id));
+  };
+
+  // Base active feed excluding deleted items
+  const activeFeed = rawFeed.filter(item => {
+    const itemId = item._id || item.id;
+    const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+    return !deletedIds.has(itemId) && (!orderId || (!deletedIds.has(orderId) && !deletedIds.has(`order_notif_${orderId}`)));
+  });
+
+  // Sync with global custom events (e.g., mark all read from top navbar bell)
+  useState(() => {
+    const handleGlobalAllRead = () => {
+      setLocalReadIds(prev => {
+        const next = new Set(prev);
+        rawFeed.forEach(n => next.add(n._id || n.id));
+        return next;
+      });
+    };
+    const handleGlobalDeleted = (e) => {
+      const delId = e.detail?.id;
+      if (delId) {
+        setDeletedIds(prev => new Set(prev).add(delId));
+      }
+    };
+    const handleGlobalRead = (e) => {
+      const readId = e.detail?.id;
+      if (readId) {
+        setLocalReadIds(prev => new Set(prev).add(readId));
+      }
+    };
+
+    window.addEventListener('kb:notifications_all_read', handleGlobalAllRead);
+    window.addEventListener('kb:notification_deleted', handleGlobalDeleted);
+    window.addEventListener('kb:notification_read', handleGlobalRead);
+
+    return () => {
+      window.removeEventListener('kb:notifications_all_read', handleGlobalAllRead);
+      window.removeEventListener('kb:notification_deleted', handleGlobalDeleted);
+      window.removeEventListener('kb:notification_read', handleGlobalRead);
+    };
+  });
 
   // Toggle star
   const toggleStar = (id, e) => {
@@ -90,32 +127,19 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
     if (e) e.stopPropagation();
     const targetId = item._id || item.id;
     const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
+    const wasUnread = !isItemRead(item);
 
-    setDismissedIds(prev => {
+    setDeletedIds(prev => {
       const next = new Set(prev);
       if (targetId) next.add(targetId);
       if (orderId) {
         next.add(orderId);
         next.add(`order_notif_${orderId}`);
       }
-      try {
-        localStorage.setItem('kb_dismissed_notifications', JSON.stringify(Array.from(next)));
-      } catch (_) {}
       return next;
     });
 
-    setSeenIds(prev => {
-      const next = new Set(prev);
-      if (targetId) next.add(targetId);
-      if (orderId) {
-        next.add(orderId);
-        next.add(`order_notif_${orderId}`);
-      }
-      try {
-        localStorage.setItem('kb_seen_notifications', JSON.stringify(Array.from(next)));
-      } catch (_) {}
-      return next;
-    });
+    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: targetId, wasUnread } }));
 
     if (onDeleteNotification) onDeleteNotification(targetId, orderId);
     if (targetId && !String(targetId).startsWith('order_notif_')) {
@@ -126,28 +150,23 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
     }
   };
 
-  // Base active feed excluding dismissed items
-  const activeFeed = rawFeed.filter(item => {
-    const itemId = item._id || item.id;
-    const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
-
-    const isDismissed = (itemId && dismissedIds.has(itemId)) ||
-                        (orderId && dismissedIds.has(orderId)) ||
-                        (orderId && dismissedIds.has(`order_notif_${orderId}`));
-
-    return !isDismissed;
-  });
+  // Mark all as read handler
+  const handleMarkAllReadClick = async () => {
+    setLocalReadIds(prev => {
+      const next = new Set(prev);
+      rawFeed.forEach(n => next.add(n._id || n.id));
+      return next;
+    });
+    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
+    if (onMarkAsRead) onMarkAsRead();
+    try {
+      await api.put('/notifications/all/read');
+    } catch (_) {}
+  };
 
   // Filter feed based on tab & search
   const filteredFeed = activeFeed.filter(item => {
-    const itemId = item._id || item.id;
-    const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
-
-    const isSeen = (itemId && seenIds.has(itemId)) ||
-                   (orderId && seenIds.has(orderId)) ||
-                   (orderId && seenIds.has(`order_notif_${orderId}`));
-
-    if (selectedTab === 'unread' && (item.isRead || isSeen)) return false;
+    if (selectedTab === 'unread' && isItemRead(item)) return false;
     if (selectedTab === 'starred' && !starredIds.has(item._id)) return false;
     if (selectedTab === 'orders' && item.type !== 'order_placed') return false;
 
@@ -213,14 +232,12 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
           >
             <RotateCw size={16} />
           </button>
-          {onMarkAsRead && (
-            <button
-              onClick={onMarkAsRead}
-              className="text-xs font-bold text-blue-700 hover:text-blue-900 px-3 py-1.5 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-            >
-              Mark all read
-            </button>
-          )}
+          <button
+            onClick={handleMarkAllReadClick}
+            className="text-xs font-bold text-blue-700 hover:text-blue-900 px-3 py-1.5 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+          >
+            Mark all read
+          </button>
         </div>
       </div>
 
@@ -258,7 +275,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                   : 'border-transparent hover:bg-gray-50 text-gray-500'
               }`}
             >
-              <AlertCircle size={15} /> Unread ({activeFeed.filter(i => !i.isRead && !seenIds.has(i._id)).length})
+              <AlertCircle size={15} /> Unread ({activeFeed.filter(i => !isItemRead(i)).length})
             </button>
             <button
               onClick={() => setSelectedTab('starred')}
@@ -292,17 +309,24 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                 // Get order object if available
                 const order = typeof item.relatedOrder === 'object' ? item.relatedOrder : null;
                 const orderStatus = order?.status || 'pending';
+                const isUnreadItem = !isItemRead(item);
 
                 return (
                   <div
                     key={item._id}
                     onClick={() => {
                       setActiveNotificationId(item._id);
-                      setSeenIds(prev => new Set(prev).add(item._id));
-                      if (onMarkAsRead) onMarkAsRead(item._id);
+                      const id = item._id || item.id;
+                      if (isUnreadItem) {
+                        setLocalReadIds(prev => new Set(prev).add(id));
+                        window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id } }));
+                        if (id && !String(id).startsWith('order_notif_')) {
+                          api.put(`/notifications/${id}/read`).catch(() => {});
+                        }
+                      }
                     }}
                     className={`flex items-center gap-3 px-4 py-3 hover:shadow-sm cursor-pointer transition-colors group ${
-                      !item.isRead ? 'bg-white font-bold' : 'bg-[#fcfcfc] text-gray-600 font-normal'
+                      isUnreadItem ? 'bg-white font-bold' : 'bg-[#fcfcfc] text-gray-600 font-normal'
                     } ${isSelected ? 'bg-blue-50/60' : ''}`}
                   >
                     {/* Checkbox & Star */}
@@ -537,19 +561,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                       <button
                         onClick={() => {
                           const targetId = item._id || item.id;
-                          const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
-                          setSeenIds(prev => {
-                            const next = new Set(prev);
-                            if (targetId) next.add(targetId);
-                            if (orderId) {
-                              next.add(orderId);
-                              next.add(`order_notif_${orderId}`);
-                            }
-                            try {
-                              localStorage.setItem('kb_seen_notifications', JSON.stringify(Array.from(next)));
-                            } catch (_) {}
-                            return next;
-                          });
+                          setLocalReadIds(prev => new Set(prev).add(targetId));
                           setActiveNotificationId(null);
                         }}
                         className="ml-auto text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-2 cursor-pointer"

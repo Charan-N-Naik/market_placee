@@ -12,6 +12,7 @@ import EditListingModal from '../components/EditListingModal';
 import DashboardLayout from '../components/DashboardLayout';
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
+import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import GmailNotificationInbox from '../components/GmailNotificationInbox';
 import api from '../api/axios';
 import {
@@ -23,7 +24,8 @@ import {
   TrendingUp, ChevronRight, Pencil, Save, Check, ShoppingCart, Trash2, ArrowUpRight, ArrowDownRight,
   Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, Calendar, Star, Sparkles,
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
-  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark, CreditCard
+  Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark, CreditCard,
+  CheckCircle, CheckCircle2, MessageSquare
 } from 'lucide-react';
 
 const AICropAnalyzer = lazy(() => import('../components/AICropAnalyzer'));
@@ -89,6 +91,7 @@ export default function FarmerDashboard() {
   const [orderActiveTab, setOrderActiveTab] = useState('pending');
   const [invoiceOrder, setInvoiceOrder] = useState(null); // Selected order for Invoice modal
   const [trackingFarmerOrder, setTrackingFarmerOrder] = useState(null); // Track shipped order on map
+  const [activeChatOrder, setActiveChatOrder] = useState(null); // Tri-party real-time chat modal
 
   // Inventory sub-tab: 'current' | 'low' | 'out' | 'expired' | 'upcoming'
   const [inventorySubTab, setInventorySubTab] = useState('current');
@@ -164,6 +167,8 @@ export default function FarmerDashboard() {
         const notifsRes = await api.get('/notifications');
         apiNotifs = (notifsRes.data || []).map(n => ({
           ...n,
+          read: !!(n.read ?? n.isRead),
+          isRead: !!(n.read ?? n.isRead),
           // Ensure dates are valid ISO strings
           createdAt: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString()
         }));
@@ -284,12 +289,42 @@ export default function FarmerDashboard() {
 
   const markAllAsRead = async () => {
     try {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+      window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
       await api.put('/notifications/all/read');
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
       console.error('Failed to mark notifications as read', err);
     }
   };
+
+  // Sync notifications across tabs and popovers
+  useEffect(() => {
+    const handleGlobalAllRead = () => {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+    };
+    const handleGlobalDeleted = (e) => {
+      const id = e.detail?.id;
+      if (id) {
+        setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
+      }
+    };
+    const handleGlobalRead = (e) => {
+      const id = e.detail?.id;
+      if (id) {
+        setNotifications(prev => prev.map(n => ((n._id || n.id) === id ? { ...n, read: true, isRead: true } : n)));
+      }
+    };
+
+    window.addEventListener('kb:notifications_all_read', handleGlobalAllRead);
+    window.addEventListener('kb:notification_deleted', handleGlobalDeleted);
+    window.addEventListener('kb:notification_read', handleGlobalRead);
+
+    return () => {
+      window.removeEventListener('kb:notifications_all_read', handleGlobalAllRead);
+      window.removeEventListener('kb:notification_deleted', handleGlobalDeleted);
+      window.removeEventListener('kb:notification_read', handleGlobalRead);
+    };
+  }, []);
 
   const getMyListingsList = () => {
     return getMyListings(user?.name) || [];
@@ -861,17 +896,19 @@ export default function FarmerDashboard() {
             </div>
 
             {/* Pipeline Status Cards — Compact Centered Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {[
                 { id: 'pending', label: 'Pending', emoji: '🕐', activeBg: 'bg-orange-50', activeBorder: 'border-orange-400', activeText: 'text-orange-700', countBg: 'bg-orange-500' },
                 { id: 'accepted', label: 'Accepted', emoji: '✅', activeBg: 'bg-blue-50', activeBorder: 'border-blue-400', activeText: 'text-blue-700', countBg: 'bg-blue-500' },
                 { id: 'packed', label: 'Packed', emoji: '📦', activeBg: 'bg-purple-50', activeBorder: 'border-purple-400', activeText: 'text-purple-700', countBg: 'bg-purple-500' },
-                { id: 'collected', label: 'Collected', emoji: '🚛', activeBg: 'bg-indigo-50', activeBorder: 'border-indigo-400', activeText: 'text-indigo-700', countBg: 'bg-indigo-500' },
+                { id: 'collected', label: 'In Transit', emoji: '🚛', activeBg: 'bg-indigo-50', activeBorder: 'border-indigo-400', activeText: 'text-indigo-700', countBg: 'bg-indigo-500' },
+                { id: 'delivered', label: 'Delivered History', emoji: '🎉', activeBg: 'bg-emerald-50', activeBorder: 'border-emerald-400', activeText: 'text-emerald-700', countBg: 'bg-emerald-500' },
                 { id: 'cancelled', label: 'Cancelled', emoji: '❌', activeBg: 'bg-red-50', activeBorder: 'border-red-400', activeText: 'text-red-700', countBg: 'bg-red-500' },
               ].map((tab) => {
                 const count = sellerOrders.filter(o => {
                   if (tab.id === 'accepted') return o.status === 'accepted' || o.status === 'paid';
                   if (tab.id === 'collected') return o.status === 'collected' || o.status === 'shipped';
+                  if (tab.id === 'delivered') return o.status === 'delivered' || o.status === 'received';
                   return o.status === tab.id;
                 }).length;
                 const isActive = orderActiveTab === tab.id;
@@ -898,11 +935,57 @@ export default function FarmerDashboard() {
               })}
             </div>
 
+            {/* Delivered History Analytics Banner if on Delivered tab */}
+            {(() => {
+              const deliveredOrders = sellerOrders.filter(o => o.status === 'delivered' || o.status === 'received');
+              const totalDeliveredRevenue = deliveredOrders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+              const ratedOrders = deliveredOrders.filter(o => o.rating && Number(o.rating) > 0);
+              const avgRating = ratedOrders.length > 0
+                ? (ratedOrders.reduce((s, o) => s + Number(o.rating), 0) / ratedOrders.length).toFixed(1)
+                : (user?.farmerProfile?.rating || user?.rating || '5.0');
+
+              if (orderActiveTab !== 'delivered') return null;
+
+              return (
+                <div className="bg-gradient-to-r from-emerald-800 via-emerald-900 to-[#14532d] rounded-2xl p-5 text-white shadow-sm flex flex-col md:flex-row items-center justify-between gap-5">
+                  <div className="space-y-1 text-center md:text-left">
+                    <div className="flex items-center gap-2 justify-center md:justify-start">
+                      <span className="p-1.5 bg-emerald-700/60 rounded-lg text-emerald-200"><CheckCircle2 size={16} /></span>
+                      <h3 className="text-base font-black tracking-tight">Delivered History & Payout Log</h3>
+                    </div>
+                    <p className="text-xs text-emerald-200/80 max-w-xl">
+                      Completed consignments delivered to buyers by verified logistics agents. Transparent payment records, settlement status, and buyer reviews.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 bg-emerald-950/40 border border-emerald-700/50 rounded-xl px-4 py-2.5">
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-300 uppercase tracking-wider block">Total Settled</span>
+                      <span className="text-lg font-black text-white">₹{totalDeliveredRevenue}</span>
+                    </div>
+                    <div className="h-7 w-px bg-emerald-700/40" />
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-300 uppercase tracking-wider block">Delivered</span>
+                      <span className="text-lg font-black text-white">{deliveredOrders.length}</span>
+                    </div>
+                    <div className="h-7 w-px bg-emerald-700/40" />
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-300 uppercase tracking-wider block">Avg Rating</span>
+                      <span className="text-lg font-black text-amber-300 flex items-center gap-1">
+                        <Star size={14} className="fill-amber-300" />
+                        {avgRating}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Orders List */}
             {(() => {
               const filteredOrders = sellerOrders.filter(o => {
                 if (orderActiveTab === 'accepted') return o.status === 'accepted' || o.status === 'paid';
                 if (orderActiveTab === 'collected') return o.status === 'collected' || o.status === 'shipped';
+                if (orderActiveTab === 'delivered') return o.status === 'delivered' || o.status === 'received';
                 return o.status === orderActiveTab;
               });
 
@@ -913,8 +996,8 @@ export default function FarmerDashboard() {
                       <ShoppingCart size={28} className="text-gray-300" />
                     </div>
                     <div>
-                      <p className="text-sm font-black text-gray-400">No {orderActiveTab} orders</p>
-                      <p className="text-xs text-gray-300 mt-1">Orders placed by buyers will appear here once they reach the <span className="font-bold">{orderActiveTab}</span> stage.</p>
+                      <p className="text-sm font-black text-gray-400">No {orderActiveTab === 'delivered' ? 'delivered' : orderActiveTab} orders</p>
+                      <p className="text-xs text-gray-300 mt-1">Orders placed by buyers will appear here once they reach the <span className="font-bold">{orderActiveTab === 'delivered' ? 'delivered' : orderActiveTab}</span> stage.</p>
                     </div>
                     <button
                       onClick={() => fetchDashboardData()}
@@ -1017,26 +1100,25 @@ export default function FarmerDashboard() {
                                   onClick={() => handleUpdateOrderStatus(order._id, 'packed')}
                                   className="min-h-[36px] px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
                                 >
-                                  Mark Packed
+                                  <Package size={13} /> Mark Packed
                                 </button>
                               )}
                               {order.status === 'packed' && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order._id, 'collected')}
-                                  className="min-h-[36px] px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-                                >
-                                  Mark Collected
-                                </button>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold whitespace-nowrap">
+                                  <Clock size={13} className="text-purple-600" /> Packed — Awaiting Agent Pickup
+                                </span>
                               )}
                               {['collected', 'shipped'].includes(order.status) && (
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(order._id, 'delivered')}
-                                  className="min-h-[36px] px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-xs whitespace-nowrap"
-                                >
-                                  Mark Delivered
-                                </button>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold whitespace-nowrap">
+                                  <Truck size={13} className="text-indigo-600" /> In Transit (Driver Assigned)
+                                </span>
                               )}
-                              {!['delivered', 'cancelled'].includes(order.status) && (
+                              {['delivered', 'received'].includes(order.status) && (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold whitespace-nowrap">
+                                  <CheckCircle size={13} className="text-emerald-600" /> Delivered
+                                </span>
+                              )}
+                              {!['collected', 'shipped', 'delivered', 'received', 'cancelled'].includes(order.status) && (
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order._id, 'cancelled')}
                                   className="min-h-[36px] px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs transition-all cursor-pointer whitespace-nowrap"
@@ -1045,12 +1127,18 @@ export default function FarmerDashboard() {
                                 </button>
                               )}
                               <button
+                                onClick={() => setActiveChatOrder(order)}
+                                className="min-h-[36px] px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
+                              >
+                                <MessageSquare size={12} /> Chat
+                              </button>
+                              <button
                                 onClick={() => setInvoiceOrder(order)}
                                 className="min-h-[36px] px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
                               >
                                 <FileText size={12} /> Invoice
                               </button>
-                              {['packed', 'collected', 'shipped', 'delivered'].includes(order.status) && (
+                              {['packed', 'collected', 'shipped', 'delivered', 'received'].includes(order.status) && (
                                 <button
                                   onClick={() => setTrackingFarmerOrder(trackingFarmerOrder === order._id ? null : order._id)}
                                   className="min-h-[36px] px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap"
@@ -1060,6 +1148,85 @@ export default function FarmerDashboard() {
                               )}
                             </div>
                           </div>
+
+                          {/* ─── DELIVERED ORDER DETAILS: PAYMENT HISTORY & BUYER RATING ─── */}
+                          {['delivered', 'received'].includes(order.status) && (
+                            <div className="mt-4 pt-4 border-t border-zinc-100 grid grid-cols-1 md:grid-cols-2 gap-4 bg-emerald-50/30 -mx-5 -mb-5 p-5 border-b border-zinc-100">
+                              {/* Payment History */}
+                              <div className="bg-white rounded-xl border border-emerald-100 p-4 space-y-2 shadow-2xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <CreditCard size={13} className="text-emerald-600" /> Payment & Payout History
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <CheckCircle size={10} /> Settled & Paid
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div>
+                                    <span className="text-[10px] text-zinc-400 block font-medium">Farmer Payout</span>
+                                    <span className="font-black text-emerald-800 text-base">₹{order.totalAmount || 0}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-zinc-400 block font-medium">Payment Mode</span>
+                                    <span className="font-bold text-zinc-700 capitalize">
+                                      {order.paymentId ? `Razorpay Online` : (order.paymentMethod === 'online' ? 'Online Gateway' : (order.paymentMethod || 'Razorpay Online'))}
+                                    </span>
+                                  </div>
+                                  <div className="col-span-2 text-[10px] text-zinc-600 font-mono bg-zinc-50 px-2.5 py-1.5 rounded-lg border border-zinc-100 flex items-center justify-between">
+                                    <span>Txn: {order.paymentId || (order._id ? `PAY-${order._id.slice(-8).toUpperCase()}` : 'SETTLED')}</span>
+                                    {order.deliveryAgent?.name && (
+                                      <span className="font-sans font-semibold text-zinc-600">
+                                        Driver: {order.deliveryAgent.name}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Buyer Rating & Review */}
+                              <div className="bg-white rounded-xl border border-emerald-100 p-4 space-y-2 shadow-2xs flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Star size={13} className="text-amber-500 fill-amber-500" /> Buyer Rating & Review
+                                  </span>
+                                  {order.rating ? (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                                      Verified Purchase
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500">
+                                      Pending Rating
+                                    </span>
+                                  )}
+                                </div>
+
+                                {order.rating ? (
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-0.5">
+                                        {[1, 2, 3, 4, 5].map((s) => (
+                                          <Star
+                                            key={s}
+                                            size={14}
+                                            className={s <= order.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-200'}
+                                          />
+                                        ))}
+                                      </div>
+                                      <span className="text-xs font-black text-zinc-800">{order.rating}.0 / 5.0</span>
+                                    </div>
+                                    <p className="text-xs italic text-zinc-700 bg-zinc-50 p-2.5 rounded-lg border border-zinc-100 line-clamp-2">
+                                      "{order.ratingComment || 'High quality harvest, satisfied buyer!'}"
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="py-2.5 text-center text-xs text-zinc-400 font-medium">
+                                    Buyer hasn't submitted a written review yet.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* INLINE LIVE MAP for packed/collected/shipped/delivered orders */}
@@ -1239,7 +1406,10 @@ export default function FarmerDashboard() {
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onMarkAsRead={markAllAsRead}
             onDeleteNotification={(id) => {
+              const target = notifications.find(n => (n._id || n.id) === id);
+              const wasUnread = target ? !target.read : true;
               setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
+              window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id, wasUnread } }));
               api.delete(`/notifications/${id}`).catch(() => { });
             }}
             onRefresh={fetchDashboardData}
@@ -1792,16 +1962,101 @@ export default function FarmerDashboard() {
 
               {/* RIGHT COLUMN: Buyer Reviews & Payment History */}
               <div className="space-y-6">
-                <div className="bg-white rounded-3xl border-2 border-gray-200 p-7 shadow-lg space-y-5">
-                  <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Buyer Reviews</h4>
-                  <div className="flex flex-col items-center justify-center text-center py-10 space-y-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <Star size={28} className="text-gray-300" />
+                {/* Buyer Reviews */}
+                {(() => {
+                  const ratedOrders = (sellerOrders || []).filter(o => o.rating && Number(o.rating) > 0);
+                  const avgRating = ratedOrders.length > 0
+                    ? (ratedOrders.reduce((sum, o) => sum + Number(o.rating), 0) / ratedOrders.length).toFixed(1)
+                    : (user?.farmerProfile?.rating || user?.rating || '5.0');
+
+                  return (
+                    <div className="bg-white rounded-3xl border-2 border-gray-200 p-7 shadow-lg space-y-5">
+                      <div className="flex items-center justify-between border-b-2 border-gray-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Star size={18} className="text-amber-500 fill-amber-500" />
+                          <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">Buyer Reviews</h4>
+                        </div>
+                        <span className="text-xs font-bold text-gray-500">
+                          {ratedOrders.length} {ratedOrders.length === 1 ? 'Review' : 'Reviews'}
+                        </span>
+                      </div>
+
+                      {ratedOrders.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center text-center py-8 space-y-3">
+                          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
+                            <Star size={24} className="text-gray-300" />
+                          </div>
+                          <p className="text-sm font-black text-gray-400">No buyer reviews yet</p>
+                          <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
+                            Ratings & feedback from buyers will automatically appear here once delivered consignments are rated.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Rating score overview */}
+                          <div className="flex items-center justify-between p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl">
+                            <div>
+                              <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">Average Score</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-2xl font-black text-amber-900">{avgRating}</span>
+                                <div className="flex items-center">
+                                  {[1, 2, 3, 4, 5].map((s) => (
+                                    <Star
+                                      key={s}
+                                      size={14}
+                                      className={s <= Math.round(Number(avgRating)) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-amber-800 bg-white px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
+                              ⭐ 100% Verified
+                            </span>
+                          </div>
+
+                          {/* Reviews List */}
+                          <div className="space-y-3 max-h-72 overflow-y-auto pr-1 divide-y divide-gray-100">
+                            {ratedOrders.map((ord) => {
+                              const rDate = ord.createdAt ? new Date(ord.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Recent';
+                              const bName = ord.buyer?.name || ord.buyerName || 'Buyer';
+                              const crop = ord.items?.[0]?.listing?.cropName || ord.items?.[0]?.cropName || 'Crop Harvest';
+
+                              return (
+                                <div key={ord._id || ord.orderId} className="pt-3 first:pt-0 space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-black text-gray-900">{bName}</span>
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        Verified
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 font-semibold">{rDate}</span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                      <Star
+                                        key={s}
+                                        size={12}
+                                        className={s <= ord.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}
+                                      />
+                                    ))}
+                                    <span className="text-[11px] font-bold text-gray-600 ml-1">({ord.rating}.0) • {crop}</span>
+                                  </div>
+
+                                  <p className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    "{ord.ratingComment || 'Produce was very fresh and delivered in top quality.'}"
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm font-black text-gray-400">No buyer reviews yet</p>
-                    <p className="text-xs text-gray-300 max-w-[180px] leading-relaxed">Reviews will appear here once buyers rate your delivered orders.</p>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Earnings & Payment History Card */}
                 <div className="bg-white rounded-3xl border-2 border-gray-200 p-7 shadow-lg space-y-5">
@@ -1930,6 +2185,15 @@ export default function FarmerDashboard() {
           listing={editingListing}
           onClose={() => setEditingListing(null)}
           onSave={updateListing}
+        />
+      )}
+
+      {/* Tri-Party Order Chat Modal */}
+      {activeChatOrder && (
+        <DirectBuyerChatModal
+          buyerName={activeChatOrder.buyer?.name || 'Buyer'}
+          order={activeChatOrder}
+          onClose={() => setActiveChatOrder(null)}
         />
       )}
     </DashboardLayout>

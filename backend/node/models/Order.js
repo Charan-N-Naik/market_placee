@@ -44,6 +44,7 @@ const orderSchema = new mongoose.Schema(
     deliveryMode: {
       type: String,
       enum: ['buyer_choice', 'auto_assign'],
+      default: 'auto_assign',
       required: true,
     },
     chosenAgentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -76,6 +77,13 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.pre('validate', function(next) {
+  if (!this.deliveryMode) {
+    this.deliveryMode = 'auto_assign';
+  }
+  next();
+});
 
 orderSchema.index({ buyer: 1, createdAt: -1 });
 orderSchema.index({ farmer: 1, createdAt: -1 });
