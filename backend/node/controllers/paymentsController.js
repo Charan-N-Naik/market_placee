@@ -34,7 +34,6 @@ export const getRazorpay = () => {
  * @access  Private (buyer)
  */
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
-  const razorpay = getRazorpay();
   const { amount, currency = 'INR', receipt } = req.body;
   if (!amount) {
     res.status(400);
@@ -49,10 +48,11 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
   
   let order;
   try {
-    if (process.env.RAZORPAY_KEY_ID.includes('dummy')) {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET ||
+        process.env.RAZORPAY_KEY_ID.includes('dummy')) {
       throw new Error('Using dummy credentials');
     }
-    order = await razorpay.orders.create(options);
+    order = await getRazorpay().orders.create(options);
   } catch (err) {
     console.warn('⚠️ Razorpay order creation failed, using simulated/mock order:', err.message);
     order = {

@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Create a Razorpay order (buyer must be authenticated)
 router.post('/create', protect, createRazorpayOrder);
+router.post('/create-order', protect, createRazorpayOrder);
 
 // Webhook endpoint – no auth, verify signature inside controller
 router.post('/webhook/razorpay', express.raw({ type: 'application/json' }), razorpayWebhook);
