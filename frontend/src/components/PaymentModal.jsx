@@ -10,6 +10,11 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSimulated, setIsSimulated] = useState(false);
+
+  const isSimulatedAllowed = Boolean(import.meta.env.DEV || import.meta.env.VITE_ALLOW_SIMULATED_PAYMENTS === 'true');
+  const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
+  const isRealKey = /^rzp_(test|live)_[A-Za-z0-9]{10,}$/.test(rzpKey);
 
   if (!order) return null;
 
@@ -46,20 +51,13 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
         });
         razorpayOrderData = res.data?.order;
       } catch (e) {
-        console.warn('Backend Razorpay order creation endpoint warning, proceeding with checkout fallback:', e);
+        console.warn('Backend Razorpay order creation endpoint warning:', e);
       }
-
-      const rzpOrderId = razorpayOrderData?.id || `order_rzp_${Date.now()}`;
-
-      // Check if a real Razorpay key is configured (format: rzp_test_XXXX or rzp_live_XXXX with alphanumeric ID)
-      const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
-      const isRealKey = /^rzp_(test|live)_[A-Za-z0-9]{10,}$/.test(rzpKey);
 
       // 2. Load Razorpay JS SDK — only if we have a real key
       const sdkLoaded = isRealKey ? await loadRazorpayScript() : false;
 
       if (isRealKey && sdkLoaded && window.Razorpay) {
-        // Only pass order_id if it's a real Razorpay order (not simulated)
         const isRealOrder = razorpayOrderData?.id && !razorpayOrderData.id.startsWith('order_sim_') && !razorpayOrderData.id.startsWith('order_rzp_');
         const options = {
           key: rzpKey,
@@ -92,22 +90,48 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
           });
           rzp.open();
         } catch (rzpErr) {
-          console.warn('Razorpay SDK open() failed, using simulated payment:', rzpErr.message);
-          await finalizePayment(`pay_sim_${Date.now()}`);
+          console.warn('Razorpay SDK open() failed:', rzpErr.message);
+          if (isSimulatedAllowed) {
+            setIsSimulated(true);
+            await finalizePayment(`pay_sim_${Date.now()}`);
+          } else {
+            setPaying(false);
+            setErrorMsg('Online payment is not available right now');
+          }
         }
       } else {
-        // No valid Razorpay key or SDK not available — simulate payment completion
-        console.info('No valid Razorpay key configured, using simulated payment flow.');
-        await finalizePayment(`pay_sim_${Date.now()}`);
+        // No valid Razorpay key or SDK not available
+        if (isSimulatedAllowed) {
+          console.info('Using simulated payment flow (Dev / Test Mode enabled).');
+          setIsSimulated(true);
+          await finalizePayment(`pay_sim_${Date.now()}`);
+        } else {
+          setPaying(false);
+          setErrorMsg('Online payment is not available right now');
+        }
       }
     } catch (err) {
       console.error('Razorpay checkout error:', err);
-      console.warn('Falling back to simulated payment after unexpected error');
-      await finalizePayment(`pay_sim_${Date.now()}`);
+      if (isSimulatedAllowed) {
+        setIsSimulated(true);
+        await finalizePayment(`pay_sim_${Date.now()}`);
+      } else {
+        setPaying(false);
+        setErrorMsg('Online payment is not available right now');
+      }
     }
   };
 
   const finalizePayment = async (paymentId) => {
+    if (paymentId && paymentId.startsWith('pay_sim_')) {
+      if (!isSimulatedAllowed) {
+        setPaying(false);
+        setErrorMsg('Online payment is not available right now');
+        return;
+      }
+      setIsSimulated(true);
+    }
+
     try {
       await api.put(`/orders/${order._id || order.id}/status`, { 
         status: 'paid',
@@ -125,8 +149,12 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
       if (onPaymentSuccess) onPaymentSuccess(order._id || order.id);
     } catch (err) {
       console.warn('Backend status update note, executing local state completion:', err);
-      setPaymentSuccess(true);
-      if (onPaymentSuccess) onPaymentSuccess(order._id || order.id);
+      if (isSimulatedAllowed) {
+        setPaymentSuccess(true);
+        if (onPaymentSuccess) onPaymentSuccess(order._id || order.id);
+      } else {
+        setErrorMsg('Failed to update payment status. Please contact support.');
+      }
     } finally {
       setPaying(false);
     }
@@ -224,6 +252,13 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
               </div>
 
               <div>
+                {isSimulated && (
+                  <div className="mb-2">
+                    <span className="text-[10px] font-black text-amber-900 uppercase tracking-widest bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
+                      TEST MODE - simulated payment
+                    </span>
+                  </div>
+                )}
                 <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
                   Payment Verified ✓
                 </span>
@@ -240,7 +275,9 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Payment Gateway:</span>
-                  <span className="font-bold text-emerald-700">{paymentMethod.toUpperCase()}</span>
+                  <span className="font-bold text-emerald-700">
+                    {isSimulated ? 'SIMULATED (TEST MODE)' : paymentMethod.toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Fulfillment Status:</span>
@@ -267,6 +304,19 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
             </div>
           ) : (
             <>
+              {/* Test Mode Notification */}
+              {isSimulatedAllowed && !isRealKey && (
+                <div className="flex items-center justify-between px-3.5 py-2.5 bg-amber-50 border border-amber-300 rounded-2xl text-amber-900 text-xs font-bold shadow-sm">
+                  <span className="flex items-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>TEST MODE - simulated payment</span>
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider bg-amber-200/80 px-2 py-0.5 rounded-full font-black text-amber-950">
+                    Dev Only
+                  </span>
+                </div>
+              )}
+
               {/* Order Summary Pill */}
               <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex items-center justify-between">
                 <div>
