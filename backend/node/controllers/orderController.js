@@ -37,7 +37,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     // Use quantity field (the actual stock field in the Listing model)
     const availableQty = listing.quantity || 0;
     if (availableQty < item.quantity) {
-      return res.status(400).json({ message: `Insufficient stock for ${listing.cropName}. Available: ${availableQty}` });
+      return res.status(409).json({ message: `Insufficient stock for ${listing.cropName}. Available: ${availableQty}` });
     }
 
     const farmerIdStr = listing.farmer.toString();
@@ -168,6 +168,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     // Rollback reserved stock
     for (const resItem of reservedItems) {
       await Listing.findByIdAndUpdate(resItem.listingId, { $inc: { quantity: resItem.quantity } });
+    }
+    for (const paymentId of payments) {
+      await Payment.findByIdAndDelete(paymentId);
     }
     for (const createdOrder of createdOrders) {
       await Order.findByIdAndDelete(createdOrder._id);
@@ -882,54 +885,43 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
 
   order.deliveryOffers = order.deliveryOffers || [];
 
-  // Check or register offer entry
-  let currentOffer = order.deliveryOffers.find(o => o.agent?.toString() === agentId.toString());
-  if (!currentOffer) {
-    currentOffer = {
-      agent: agentId,
-      offeredAt: new Date(),
-      status: 'offered'
-    };
-    order.deliveryOffers.push(currentOffer);
-  }
+  const currentOffer = order.deliveryOffers.find(o => o.agent?.toString() === agentId.toString());
 
   if (action === 'accept') {
+    if (!currentOffer || !['offered', 'accepted'].includes(currentOffer.status)) {
+      return res.status(403).json({ message: 'No active delivery offer for this agent' });
+    }
+
     // Collect sibling offers that will expire upon this accept
     const siblingOffers = order.deliveryOffers.filter(
       o => o.agent?.toString() !== agentId.toString() && (o.status === 'offered' || o.status === 'accepted')
     );
 
-    const hasOffer = order.deliveryOffers.some(o => o.agent?.toString() === agentId.toString());
-
     const updateDoc = {
       $set: {
         deliveryAgent: agentId,
         deliveryRequestStatus: 'driver_accepted',
-        'deliveryOffers.$[siblingOffers].status': 'expired'
+        'deliveryOffers.$[siblingOffers].status': 'expired',
+        'deliveryOffers.$[acceptedOffer].status': 'accepted'
       }
     };
     const arrayFilters = [
-      { 'siblingOffers.agent': { $ne: agentId }, 'siblingOffers.status': 'offered' }
+      { 'siblingOffers.agent': { $ne: agentId }, 'siblingOffers.status': 'offered' },
+      { 'acceptedOffer.agent': agentId }
     ];
 
-    if (hasOffer) {
-      updateDoc.$set['deliveryOffers.$[acceptedOffer].status'] = 'accepted';
-      arrayFilters.push({ 'acceptedOffer.agent': agentId });
-    } else {
-      updateDoc.$push = {
-        deliveryOffers: {
-          agent: agentId,
-          offeredAt: new Date(),
-          status: 'accepted'
-        }
-      };
-    }
-
-    // Atomic findOneAndUpdate with status guard: deliveryRequestStatus: { $ne: 'driver_accepted' }
-    // Only the first accept wins atomically, preventing double-assignment under concurrency
+    // Atomic findOneAndUpdate with status guard: status: 'packed' and deliveryRequestStatus guard
+    // Enforce offer check atomically with $elemMatch, not just on the stale read
     const updatedOrder = await Order.findOneAndUpdate(
       {
         _id: orderId,
+        status: 'packed',
+        deliveryOffers: {
+          $elemMatch: {
+            agent: agentId,
+            status: { $in: ['offered', 'accepted'] }
+          }
+        },
         $or: [
           { deliveryRequestStatus: { $ne: 'driver_accepted' } },
           { deliveryAgent: agentId } // allow idempotent retry by the same agent
@@ -945,7 +937,7 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
     if (!updatedOrder) {
       const currentOrder = await Order.findById(orderId);
       return res.status(409).json({
-        message: 'This delivery job has already been accepted by another agent.',
+        message: 'This delivery job has already been accepted by another agent or is no longer available.',
         order: currentOrder
       });
     }
@@ -1010,6 +1002,9 @@ export const respondToDeliveryOffer = asyncHandler(async (req, res) => {
   }
 
   // Action is decline / reject
+  if (!currentOffer) {
+    return res.status(403).json({ message: 'No active delivery offer for this agent' });
+  }
   currentOffer.status = 'declined';
   if (order.deliveryAgent?.toString() === agentId.toString()) {
     order.deliveryAgent = undefined;

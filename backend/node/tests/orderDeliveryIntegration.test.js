@@ -14,6 +14,7 @@ import User from '../models/User.js';
 import Listing from '../models/Listing.js';
 import Order from '../models/Order.js';
 import Chat from '../models/Chat.js';
+import Payment from '../models/Payment.js';
 import { createOrder, updateOrderStatus, respondToDeliveryOffer } from '../controllers/orderController.js';
 import { checkExpiredDeliveryDeadlines } from '../services/deliverySchedulerService.js';
 
@@ -51,6 +52,25 @@ async function runIntegrationTests() {
   console.log('  Order & Delivery Flow Integration Test Suite      ');
   console.log('====================================================\n');
 
+  // Safety check: refuse to run unless MONGODB_URI database contains 'test' or NODE_ENV === 'test'
+  const mongoUri = process.env.MONGODB_URI || '';
+  let dbName = '';
+  try {
+    const parsed = new URL(mongoUri.replace(/^mongodb(\+srv)?:\/\//, 'http://'));
+    dbName = (parsed.pathname || '').replace(/^\//, '').split('?')[0];
+  } catch (e) {
+    dbName = '';
+  }
+
+  const isTestDb = dbName.toLowerCase().includes('test');
+  const isTestEnv = process.env.NODE_ENV === 'test';
+
+  if (!isTestDb && !isTestEnv) {
+    console.error('❌ Refusing to run tests: MONGODB_URI database name must contain "test" or NODE_ENV must be "test" to prevent touching real dev data.');
+    console.error(`   Current database: "${dbName}", NODE_ENV: "${process.env.NODE_ENV}"`);
+    process.exit(1);
+  }
+
   await connectDB();
 
   let passed = 0;
@@ -69,6 +89,7 @@ async function runIntegrationTests() {
   const createdUserIds = [];
   const createdListingIds = [];
   const createdOrderIds = [];
+  const createdPaymentIds = [];
 
   const uniqueSuffix = Date.now().toString().slice(-6);
 
@@ -199,7 +220,7 @@ async function runIntegrationTests() {
     assert(updatedL1.quantity === 6, 'Stock Re-validation: Listing 1 stock decremented accurately (10 - 4 = 6)');
     assert(updatedL2.quantity === 2, 'Stock Re-validation: Listing 2 stock decremented accurately (5 - 3 = 2)');
 
-    // Attempt to over-order Listing 2 (attempt 5 when only 2 available)
+    // Attempt to over-order Listing 2 (attempt 5 when only 2 available) -> consistent 409
     const overOrderReq = {
       user: { _id: buyer._id, role: 'buyer' },
       body: {
@@ -209,7 +230,7 @@ async function runIntegrationTests() {
       }
     };
     const overOrderRes = await callController(createOrder, overOrderReq);
-    assert(overOrderRes.statusCode === 409 || overOrderRes.statusCode === 400, 'Stock Floor: Over-order returns 400/409 error');
+    assert(overOrderRes.statusCode === 409, 'Stock Floor: Over-order returns 409 Conflict consistently');
     const l2AfterFailedOrder = await Listing.findById(listing2._id);
     assert(l2AfterFailedOrder.quantity === 2, 'Stock Floor: Stock remained untouched at 2 after failed order');
 
@@ -375,7 +396,7 @@ async function runIntegrationTests() {
     assert(reassignedOrder.deliveryRequestStatus === 'pending_driver_approval', 'Deadline Expiry: deliveryRequestStatus reset to pending_driver_approval');
 
     // ----------------------------------------------------
-    // Scenario 5: Farmer cancellation blocked after 'collected'
+    // Scenario 5: Farmer cancellation guard
     // ----------------------------------------------------
     console.log('\n--- Scenario 5: Farmer Cancellation Guard ---');
     const collectedOrder = await Order.create({
@@ -429,6 +450,92 @@ async function runIntegrationTests() {
     assert(cancelledOrderInDb.deliveryAgent === undefined || cancelledOrderInDb.deliveryAgent === null, 'Cancellation Guard: deliveryAgent cleared on cancellation');
     assert(cancelledOrderInDb.deliveryRequestStatus === 'none', 'Cancellation Guard: deliveryRequestStatus reset to "none"');
 
+    // ----------------------------------------------------
+    // Scenario 6: Unauthorized or Invalid Offer Rejection Guard
+    // ----------------------------------------------------
+    console.log('\n--- Scenario 6: Invalid Offer & Non-Packed State Guards ---');
+
+    // Case 6a: Agent with no active offer on a packed order gets 403
+    const packedNoOfferOrder = await Order.create({
+      buyer: buyer._id,
+      farmer: farmer1._id,
+      items: [{ listing: listing1._id, quantity: 1, priceAtPurchase: 40 }],
+      totalAmount: 40,
+      deliveryMode: 'auto_assign',
+      status: 'packed',
+      packedAt: new Date(),
+      pickupDeadline: new Date(Date.now() + 6 * 3600 * 1000),
+      deliveryRequestStatus: 'pending_driver_approval',
+      deliveryOffers: [
+        { agent: driverA._id, offeredAt: new Date(), status: 'offered' }
+      ]
+    });
+    createdOrderIds.push(packedNoOfferOrder._id);
+
+    const noOfferReq = {
+      user: { _id: driverC._id, role: 'delivery_agent' },
+      params: { orderId: packedNoOfferOrder._id, agentId: driverC._id },
+      body: { action: 'accept' }
+    };
+    const noOfferRes = await callController(respondToDeliveryOffer, noOfferReq);
+    assert(noOfferRes.statusCode === 403, 'Offer Guard: Agent with no offer is rejected with 403 Forbidden');
+    assert(noOfferRes.data?.message === 'No active delivery offer for this agent', 'Offer Guard: Message confirms no active offer for agent');
+
+    const verifiedNoOfferOrder = await Order.findById(packedNoOfferOrder._id);
+    assert(verifiedNoOfferOrder.deliveryAgent == null, 'Offer Guard: order.deliveryAgent stays unset when agent has no offer');
+
+    // Case 6b: Agent attempting to accept on a 'cancelled' order gets 409
+    const cancelledOrderWithOffer = await Order.create({
+      buyer: buyer._id,
+      farmer: farmer1._id,
+      items: [{ listing: listing1._id, quantity: 1, priceAtPurchase: 40 }],
+      totalAmount: 40,
+      deliveryMode: 'auto_assign',
+      status: 'cancelled',
+      deliveryRequestStatus: 'none',
+      deliveryOffers: [
+        { agent: driverA._id, offeredAt: new Date(), status: 'offered' }
+      ]
+    });
+    createdOrderIds.push(cancelledOrderWithOffer._id);
+
+    const cancelAcceptReq = {
+      user: { _id: driverA._id, role: 'delivery_agent' },
+      params: { orderId: cancelledOrderWithOffer._id, agentId: driverA._id },
+      body: { action: 'accept' }
+    };
+    const cancelAcceptRes = await callController(respondToDeliveryOffer, cancelAcceptReq);
+    assert(cancelAcceptRes.statusCode === 409, 'Status Guard: Accept on cancelled order rejected with 409');
+    const verifiedCancelOrder = await Order.findById(cancelledOrderWithOffer._id);
+    assert(verifiedCancelOrder.deliveryAgent == null, 'Status Guard: order.deliveryAgent stays unset on cancelled order');
+    assert(verifiedCancelOrder.status === 'cancelled', 'Status Guard: Order remains cancelled');
+
+    // Case 6c: Agent attempting to accept on a 'pending' order gets 409
+    const pendingOrderWithOffer = await Order.create({
+      buyer: buyer._id,
+      farmer: farmer1._id,
+      items: [{ listing: listing1._id, quantity: 1, priceAtPurchase: 40 }],
+      totalAmount: 40,
+      deliveryMode: 'auto_assign',
+      status: 'pending',
+      deliveryRequestStatus: 'pending_driver_approval',
+      deliveryOffers: [
+        { agent: driverA._id, offeredAt: new Date(), status: 'offered' }
+      ]
+    });
+    createdOrderIds.push(pendingOrderWithOffer._id);
+
+    const pendingAcceptReq = {
+      user: { _id: driverA._id, role: 'delivery_agent' },
+      params: { orderId: pendingOrderWithOffer._id, agentId: driverA._id },
+      body: { action: 'accept' }
+    };
+    const pendingAcceptRes = await callController(respondToDeliveryOffer, pendingAcceptReq);
+    assert(pendingAcceptRes.statusCode === 409, 'Status Guard: Accept on pending order rejected with 409');
+    const verifiedPendingOrder = await Order.findById(pendingOrderWithOffer._id);
+    assert(verifiedPendingOrder.deliveryAgent == null, 'Status Guard: order.deliveryAgent stays unset on pending order');
+    assert(verifiedPendingOrder.status === 'pending', 'Status Guard: Order remains pending');
+
   } catch (err) {
     console.error('Fatal error during integration tests:', err);
     failed++;
@@ -441,6 +548,9 @@ async function runIntegrationTests() {
       if (createdOrderIds.length > 0) {
         await Order.deleteMany({ _id: { $in: createdOrderIds } });
         await Chat.deleteMany({ 'participants': { $in: createdUserIds } });
+      }
+      if (createdPaymentIds.length > 0) {
+        await Payment.deleteMany({ _id: { $in: createdPaymentIds } });
       }
       if (createdListingIds.length > 0) {
         await Listing.deleteMany({ _id: { $in: createdListingIds } });
