@@ -62,6 +62,41 @@ function ThemeWrapper({ children }) {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('App ErrorBoundary caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+          <div className="max-w-md w-full p-8 bg-white border border-gray-100 rounded-3xl shadow-sm space-y-4">
+            <h2 className="text-xl font-bold text-gray-900">Something went wrong. Reload the page.</h2>
+            <p className="text-sm text-gray-500">An unexpected error occurred while rendering this section.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center justify-center px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition shadow-sm"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
     <Router>
@@ -71,9 +106,10 @@ function App() {
               <ThemeWrapper>
                 <main className="flex-1 flex flex-col">
                   <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      {/* Public Routes */}
-                      <Route path="/" element={<LandingPage />} />
+                    <ErrorBoundary>
+                      <Routes>
+                        {/* Public Routes */}
+                        <Route path="/" element={<LandingPage />} />
                       <Route path="/features/:featureId" element={<FeatureDetailPage />} />
                       <Route path="/chat-test" element={<ChatTest />} />
                       <Route path="/login/:role" element={<AuthPage mode="login" />} />
@@ -112,7 +148,8 @@ function App() {
 
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
-                  </Suspense>
+                  </ErrorBoundary>
+                </Suspense>
                 </main>
               </ThemeWrapper>
             </CartProvider>

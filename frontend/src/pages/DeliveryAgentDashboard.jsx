@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
@@ -12,7 +12,7 @@ import api from '../api/axios';
 import { getAgentDeliveryRequests, getAllDeliveryBookings, updateDeliveryBookingStatus } from '../utils/deliveryService';
 import { getSocket } from '../utils/socket';
 
-const OrderTrackingMap = React.lazy(() => import('../components/OrderTrackingMap'));
+const OrderTrackingMap = lazy(() => import('../components/OrderTrackingMap'));
 
 // Format raw DB username into clean display name (e.g. driver1 -> Driver 1)
 function formatDisplayName(rawName) {
@@ -723,12 +723,12 @@ export default function DeliveryAgentDashboard() {
         {selectedTrackingOrder && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
-              <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-sm text-neutral-400">Loading tracking map...</div>}>
+              <Suspense fallback={<div className="h-96 flex items-center justify-center text-sm text-neutral-400">Loading tracking map...</div>}>
                 <OrderTrackingMap
                   order={selectedTrackingOrder}
                   onClose={() => setSelectedTrackingOrder(null)}
                 />
-              </React.Suspense>
+              </Suspense>
             </div>
           </div>
         )}

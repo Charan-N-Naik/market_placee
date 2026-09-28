@@ -12,6 +12,7 @@ const STATIC_FALLBACK_PRICES = [
 ];
 
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const FAILURE_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes cooldown after failure/empty scrape
 
 // In-memory cache
 let cachedMarketPrices = {
@@ -21,10 +22,12 @@ let cachedMarketPrices = {
   lastFetchedAt: 0,
 };
 
+let lastAttemptAt = 0;
 let isRevalidating = false;
 
 // Fetch and scrape external prices
 export const fetchMarketPricesFromSource = async () => {
+  lastAttemptAt = Date.now();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 6000);
 
@@ -77,6 +80,8 @@ export const fetchMarketPricesFromSource = async () => {
         lastFetchedAt: Date.now(),
       };
       console.log(`[MarketPrices] Cache updated successfully with ${marketData.length} live commodities.`);
+    } else {
+      console.warn('[MarketPrices] Scrape returned empty commodity list. Enforcing 5m cooldown.');
     }
   } catch (error) {
     clearTimeout(timeoutId);
@@ -98,9 +103,10 @@ export const warmMarketPriceCache = () => {
 export const getMarketPrices = async (req, res) => {
   const now = Date.now();
   const isFresh = cachedMarketPrices.lastFetchedAt > 0 && (now - cachedMarketPrices.lastFetchedAt < CACHE_TTL_MS);
+  const inFailureCooldown = (now - lastAttemptAt) < FAILURE_COOLDOWN_MS;
 
-  // Background refresh if cache is stale or uninitialized
-  if (!isFresh && !isRevalidating) {
+  // Background refresh if cache is stale and not in 5m failure cooldown
+  if (!isFresh && !isRevalidating && !inFailureCooldown) {
     isRevalidating = true;
     fetchMarketPricesFromSource().finally(() => {
       isRevalidating = false;

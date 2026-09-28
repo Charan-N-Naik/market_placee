@@ -174,7 +174,7 @@ export const getListings = asyncHandler(async (req, res) => {
       .sort({ [sortBy]: order })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select('-verificationReport')
+      .select('-verificationReport.summary -verificationReport.defects -verificationReport.diseaseSigns -verificationReport.analyzedAngles -verificationReport.overallAssessment')
       .lean(),
   ]);
 
@@ -188,7 +188,7 @@ export const getListings = asyncHandler(async (req, res) => {
     farmer: farmerMap.get(l.farmer?.toString()) || null,
   }));
 
-  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
   res.json({ total, page, pages: Math.ceil(total / limit), listings });
 });
 

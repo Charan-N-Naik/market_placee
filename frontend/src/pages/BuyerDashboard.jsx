@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -12,9 +12,6 @@ import AIChatbot from './AIChatbot';
 import DashboardLayout from '../components/DashboardLayout';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import DeliveryLogisticsSection from '../components/DeliveryLogisticsSection';
-
-const AICropAnalyzer = React.lazy(() => import('../components/AICropAnalyzer'));
-const IndiaCropMap = React.lazy(() => import('../components/IndiaCropMap'));
 import {
   Search, Heart, Bot, Eye, User, Sparkles, Truck,
   ShoppingBag, Bookmark, Filter, X, ArrowRight, ShoppingCart, Pencil, Save, Check,
@@ -23,6 +20,9 @@ import {
   Trash2, Camera, Globe, Settings, CreditCard, Mic, MessageSquare
 } from 'lucide-react';
 import { locations, cropOptions } from '../data/mockData';
+
+const AICropAnalyzer = lazy(() => import('../components/AICropAnalyzer'));
+const IndiaCropMap = lazy(() => import('../components/IndiaCropMap'));
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -702,9 +702,9 @@ export default function BuyerDashboard() {
                     <p className="text-[11px] text-gray-400 font-medium">Click any state to explore primary agricultural output</p>
                   </div>
                 </div>
-                <React.Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading map...</div>}>
+                <Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading map...</div>}>
                   <IndiaCropMap onStateClick={(stateName) => navigate(`/state/${encodeURIComponent(stateName)}`)} />
-                </React.Suspense>
+                </Suspense>
               </div>
 
             </div>
@@ -877,9 +877,9 @@ export default function BuyerDashboard() {
           {activeTab === 'delivery' && <DeliveryLogisticsSection user={user} showToast={showToast} />}
           {activeTab === 'assistant' && <AIChatbot />}
           {activeTab === 'analyzer' && (
-            <React.Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading AI Analyzer...</div>}>
+            <Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading AI Analyzer...</div>}>
               <AICropAnalyzer />
-            </React.Suspense>
+            </Suspense>
           )}
 
           {activeTab === 'notifications' && (() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -10,8 +10,6 @@ import AIChatbot from './AIChatbot';
 import AIModelManager from '../components/AIModelManager';
 import EditListingModal from '../components/EditListingModal';
 import DashboardLayout from '../components/DashboardLayout';
-
-const AICropAnalyzer = React.lazy(() => import('../components/AICropAnalyzer'));
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import GmailNotificationInbox from '../components/GmailNotificationInbox';
@@ -27,6 +25,8 @@ import {
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
   Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark, CreditCard
 } from 'lucide-react';
+
+const AICropAnalyzer = lazy(() => import('../components/AICropAnalyzer'));
 
 export default function FarmerDashboard() {
   // Format a raw DB name into a clean, readable display name (e.g. former1 -> Former 1)
@@ -1292,9 +1292,9 @@ export default function FarmerDashboard() {
         {/* CROP HEALTH ANALYZER TAB */}
         {/* ========================================================== */}
         {activeTab === 'analyzer' && (
-          <React.Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading AI Analyzer...</div>}>
+          <Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading AI Analyzer...</div>}>
             <AICropAnalyzer />
-          </React.Suspense>
+          </Suspense>
         )}
 
         {/* ========================================================== */}

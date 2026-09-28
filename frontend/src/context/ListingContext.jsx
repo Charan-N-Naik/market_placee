@@ -11,20 +11,21 @@ export function ListingProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
   const userId = user?._id || user?.id;
   const userRole = user?.role;
-  const isFetchingRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const fetchListings = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
+    const requestId = ++requestIdRef.current;
     try {
       if (userRole === 'farmer') {
         const { data } = await api.get('/listings/my');
+        if (requestId !== requestIdRef.current) return;
         setListings(data);
       } else if (userRole === 'buyer') {
         const [allListingsSettled, savedListingsSettled] = await Promise.allSettled([
           api.get('/listings'),
           api.get('/listings/saved')
         ]);
+        if (requestId !== requestIdRef.current) return;
         if (allListingsSettled.status === 'fulfilled') {
           const allData = allListingsSettled.value.data;
           setListings(allData.listings || allData);
@@ -36,13 +37,17 @@ export function ListingProvider({ children }) {
         }
       } else {
         const { data } = await api.get('/listings');
+        if (requestId !== requestIdRef.current) return;
         setListings(data.listings || data);
       }
     } catch (error) {
-      console.error('Error fetching listings:', error);
+      if (requestId === requestIdRef.current) {
+        console.error('Error fetching listings:', error);
+      }
     } finally {
-      isFetchingRef.current = false;
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [userId, userRole]);
 
