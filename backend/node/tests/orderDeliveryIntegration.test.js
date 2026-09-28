@@ -52,7 +52,13 @@ async function runIntegrationTests() {
   console.log('  Order & Delivery Flow Integration Test Suite      ');
   console.log('====================================================\n');
 
-  // Safety check: refuse to run unless MONGODB_URI database contains 'test' or NODE_ENV === 'test'
+  // Safety guard: Require database name to contain "test" (e.g. kisanbazaar_test).
+  // Prefer MONGODB_URI_TEST if set; otherwise fall back to MONGODB_URI.
+  // NODE_ENV alone does NOT satisfy this guard.
+  if (process.env.MONGODB_URI_TEST) {
+    process.env.MONGODB_URI = process.env.MONGODB_URI_TEST;
+  }
+
   const mongoUri = process.env.MONGODB_URI || '';
   let dbName = '';
   try {
@@ -63,11 +69,12 @@ async function runIntegrationTests() {
   }
 
   const isTestDb = dbName.toLowerCase().includes('test');
-  const isTestEnv = process.env.NODE_ENV === 'test';
 
-  if (!isTestDb && !isTestEnv) {
-    console.error('❌ Refusing to run tests: MONGODB_URI database name must contain "test" or NODE_ENV must be "test" to prevent touching real dev data.');
-    console.error(`   Current database: "${dbName}", NODE_ENV: "${process.env.NODE_ENV}"`);
+  if (!isTestDb) {
+    console.error('❌ Refusing to run tests: Target database name in MONGODB_URI (or MONGODB_URI_TEST) must contain "test" (e.g. kisanbazaar_test).');
+    console.error('   NODE_ENV alone does not satisfy this safety check to protect non-test data.');
+    console.error(`   Current database: "${dbName || '(none)'}"`);
+    console.error('   Please define MONGODB_URI_TEST in .env pointing to your test database.');
     process.exit(1);
   }
 
