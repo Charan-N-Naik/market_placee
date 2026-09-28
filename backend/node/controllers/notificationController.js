@@ -7,11 +7,23 @@ import Notification from '../models/Notification.js';
  * @access  Private
  */
 export const getNotifications = asyncHandler(async (req, res) => {
-  const notifications = await Notification.find({ recipient: req.user._id })
-    .populate('sender', 'name avatar')
-    .populate('relatedOrder')
-    .populate('relatedChat')
-    .sort({ createdAt: -1 });
+  const notifications = await Notification.find({
+    recipient: req.user._id,
+    type: { $ne: 'message' },
+  })
+    .populate('sender', 'name avatar email phone')
+    .populate({
+      path: 'relatedOrder',
+      select: 'orderNumber status totalAmount items createdAt',
+      populate: {
+        path: 'items.listing',
+        select: 'cropName images pricePerUnit'
+      }
+    })
+    .populate('relatedChat', 'lastMessage')
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean();
 
   res.json(notifications);
 });
@@ -25,9 +37,10 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
   const count = await Notification.countDocuments({
     recipient: req.user._id,
     read: false,
+    type: { $ne: 'message' },
   });
 
-  res.json({ unreadCount: count });
+  res.json({ unreadCount: count, count });
 });
 
 /**
@@ -51,7 +64,19 @@ export const markAsRead = asyncHandler(async (req, res) => {
   notification.readAt = new Date();
   await notification.save();
 
-  res.json(notification);
+  const count = await Notification.countDocuments({
+    recipient: req.user._id,
+    read: false,
+    type: { $ne: 'message' },
+  });
+
+  if (req.io) {
+    const uid = req.user._id.toString();
+    req.io.to(uid).emit('unread_count_update', { unreadCount: count, count });
+    req.io.to(`user:${uid}`).emit('unread_count_update', { unreadCount: count, count });
+  }
+
+  res.json({ notification, unreadCount: count, count });
 });
 
 /**
@@ -61,11 +86,17 @@ export const markAsRead = asyncHandler(async (req, res) => {
  */
 export const markAllAsRead = asyncHandler(async (req, res) => {
   await Notification.updateMany(
-    { recipient: req.user._id, read: false },
+    { recipient: req.user._id, read: false, type: { $ne: 'message' } },
     { $set: { read: true, readAt: new Date() } }
   );
 
-  res.json({ message: 'All notifications marked as read' });
+  if (req.io) {
+    const uid = req.user._id.toString();
+    req.io.to(uid).emit('unread_count_update', { unreadCount: 0, count: 0 });
+    req.io.to(`user:${uid}`).emit('unread_count_update', { unreadCount: 0, count: 0 });
+  }
+
+  res.json({ message: 'All notifications marked as read', unreadCount: 0, count: 0 });
 });
 
 /**
@@ -77,7 +108,12 @@ export const deleteNotification = asyncHandler(async (req, res) => {
   const notification = await Notification.findById(req.params.notificationId);
 
   if (!notification) {
-    return res.status(404).json({ message: 'Notification not found' });
+    const count = await Notification.countDocuments({
+      recipient: req.user._id,
+      read: false,
+      type: { $ne: 'message' },
+    });
+    return res.json({ message: 'Notification already deleted or not found', unreadCount: count, count });
   }
 
   // Verify the user owns this notification
@@ -87,5 +123,40 @@ export const deleteNotification = asyncHandler(async (req, res) => {
 
   await Notification.findByIdAndDelete(req.params.notificationId);
 
-  res.json({ message: 'Notification deleted' });
+  const count = await Notification.countDocuments({
+    recipient: req.user._id,
+    read: false,
+    type: { $ne: 'message' },
+  });
+
+  if (req.io) {
+    const uid = req.user._id.toString();
+    req.io.to(uid).emit('unread_count_update', { unreadCount: count, count });
+    req.io.to(`user:${uid}`).emit('unread_count_update', { unreadCount: count, count });
+    req.io.to(uid).emit('notification_deleted', { notificationId: req.params.notificationId });
+    req.io.to(`user:${uid}`).emit('notification_deleted', { notificationId: req.params.notificationId });
+  }
+
+  res.json({ message: 'Notification deleted', unreadCount: count, count });
 });
+
+/**
+ * @desc    Clear all notifications for the user
+ * @route   DELETE /api/notifications/all/clear
+ * @access  Private
+ */
+export const clearAllNotifications = asyncHandler(async (req, res) => {
+  await Notification.deleteMany({
+    recipient: req.user._id,
+    type: { $ne: 'message' },
+  });
+
+  if (req.io) {
+    const uid = req.user._id.toString();
+    req.io.to(uid).emit('unread_count_update', { unreadCount: 0, count: 0 });
+    req.io.to(`user:${uid}`).emit('unread_count_update', { unreadCount: 0, count: 0 });
+  }
+
+  res.json({ message: 'All notifications cleared', unreadCount: 0, count: 0 });
+});
+

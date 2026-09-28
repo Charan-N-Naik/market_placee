@@ -11,7 +11,24 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI;
+    let mongoUri = process.env.MONGODB_URI;
+
+    if (process.env.USE_TEST_DB === 'true') {
+      mongoUri = process.env.MONGODB_URI_TEST || process.env.MONGODB_URI;
+      let dbName = '';
+      try {
+        const parsed = new URL((mongoUri || '').replace(/^mongodb(\+srv)?:\/\//, 'http://'));
+        dbName = (parsed.pathname || '').replace(/^\//, '').split('?')[0];
+      } catch (e) {
+        dbName = '';
+      }
+
+      if (!dbName.toLowerCase().includes('test')) {
+        console.error(`❌ Refusing to connect in test mode: database name "${dbName || '(none)'}" does not contain "test".`);
+        process.exit(1);
+      }
+      console.log(`[Test Mode] Target test database: "${dbName}"`);
+    }
     
     if (!mongoUri || mongoUri.includes('<username>')) {
       console.warn('⚠️  MongoDB URI not configured properly in .env');
@@ -20,10 +37,10 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds instead of 30 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    console.log(`MongoDB Connected: ${conn.connection.host} (DB: ${conn.connection.name})`);
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
     process.exit(1);

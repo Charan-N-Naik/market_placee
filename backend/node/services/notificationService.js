@@ -1,5 +1,15 @@
 import Notification from '../models/Notification.js';
 
+let _io = null;
+
+export const setNotificationIO = (ioInstance) => {
+  _io = ioInstance;
+};
+
+export const getNotificationIO = () => {
+  return _io || global.io;
+};
+
 /**
  * Create and send a notification to a recipient
  */
@@ -11,7 +21,10 @@ export const sendNotification = async ({
   message,
   relatedOrder,
   relatedChat,
-}) => {
+  buyerName,
+  cropName,
+  orderNumber,
+}, customIo = null) => {
   try {
     const notification = await Notification.create({
       recipient: recipientId,
@@ -21,12 +34,41 @@ export const sendNotification = async ({
       message,
       relatedOrder,
       relatedChat,
+      buyerName,
+      cropName,
+      orderNumber,
     });
 
-    // TODO: Integrate with Socket.io for real-time notifications if available
-    // io.to(recipientId).emit('notification', notification);
+    // Populate references so the real-time event has complete details
+    const populated = await Notification.findById(notification._id)
+      .populate('sender', 'name avatar email phone')
+      .populate({
+        path: 'relatedOrder',
+        select: 'orderNumber status totalAmount items createdAt',
+        populate: {
+          path: 'items.listing',
+          select: 'cropName images pricePerUnit'
+        }
+      })
+      .lean();
 
-    return notification;
+    const activeIo = customIo || _io || global.io;
+    if (activeIo && recipientId) {
+      const recipientStr = recipientId.toString();
+      // Emit to recipient's personal socket rooms
+      activeIo.to(recipientStr).emit('new_notification', populated);
+      activeIo.to(`user:${recipientStr}`).emit('new_notification', populated);
+
+      const unreadCount = await Notification.countDocuments({
+        recipient: recipientId,
+        read: false,
+      });
+
+      activeIo.to(recipientStr).emit('unread_count_update', { unreadCount, count: unreadCount });
+      activeIo.to(`user:${recipientStr}`).emit('unread_count_update', { unreadCount, count: unreadCount });
+    }
+
+    return populated || notification;
   } catch (error) {
     console.error('Error sending notification:', error);
     throw error;

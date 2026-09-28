@@ -40,14 +40,67 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch unread notification count for farmers
+  // Fetch unread notification count for all users (Farmer, Buyer, Delivery Agent)
   useEffect(() => {
-    if (isFarmer) {
+    const fetchCount = () => {
       api.get('/notifications/unread/count')
-        .then(res => setUnreadCount(res.data?.count || res.data || 0))
+        .then(res => {
+          const raw = res.data?.unreadCount ?? res.data?.count ?? (typeof res.data === 'number' ? res.data : 0);
+          setUnreadCount(Number(raw) || 0);
+        })
         .catch(() => setUnreadCount(0));
-    }
-  }, [isFarmer, activeTab]);
+    };
+    fetchCount();
+
+    // Listen for custom events
+    const handleGlobalAllRead = () => setUnreadCount(0);
+    const handleGlobalDeleted = (e) => {
+      if (e.detail?.wasUnread !== false) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    };
+    const handleGlobalRead = () => {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    };
+
+    window.addEventListener('kb:notifications_all_read', handleGlobalAllRead);
+    window.addEventListener('kb:notification_deleted', handleGlobalDeleted);
+    window.addEventListener('kb:notification_read', handleGlobalRead);
+
+    // Listen for real-time count updates
+    let socketInstance = null;
+    let cleanupSocket = () => {};
+    try {
+      import('../../utils/socket.js').then(({ getSocket }) => {
+        socketInstance = getSocket();
+        if (socketInstance) {
+          const handleCount = (data) => {
+            const raw = data?.unreadCount ?? data?.count ?? 0;
+            setUnreadCount(Number(raw) || 0);
+          };
+          const handleNew = (notif) => {
+            if (notif?.type !== 'message') {
+              setUnreadCount(prev => prev + 1);
+            }
+          };
+          socketInstance.on('unread_count_update', handleCount);
+          socketInstance.on('new_notification', handleNew);
+
+          cleanupSocket = () => {
+            socketInstance.off('unread_count_update', handleCount);
+            socketInstance.off('new_notification', handleNew);
+          };
+        }
+      }).catch(() => {});
+    } catch (_) {}
+
+    return () => {
+      window.removeEventListener('kb:notifications_all_read', handleGlobalAllRead);
+      window.removeEventListener('kb:notification_deleted', handleGlobalDeleted);
+      window.removeEventListener('kb:notification_read', handleGlobalRead);
+      cleanupSocket();
+    };
+  }, [activeTab]);
 
   // Farmer-specific menu with sections
   const farmerSections = [
@@ -206,6 +259,16 @@ export default function Sidebar({
                   <span style={{ flex: 1 }}>{item.label}</span>
                   {item.badge && (
                     <span style={{ fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', background: isActive ? 'var(--color-primary, #1F7A4D)' : 'var(--color-primary-light, #E8F7EE)', color: isActive ? 'white' : 'var(--color-primary, #1F7A4D)' }}>{item.badge}</span>
+                  )}
+                  {((item.count > 0) || (item.id === 'notifications' && unreadCount > 0)) && (
+                    <span style={{
+                      fontSize: '0.6rem', minWidth: 20, height: 20,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 99, fontWeight: 800, background: '#ef4444', color: '#fff',
+                      padding: '0 4px'
+                    }}>
+                      {item.count > 0 ? (item.count > 99 ? '99+' : item.count) : (unreadCount > 99 ? '99+' : unreadCount)}
+                    </span>
                   )}
                   {isActive && <ChevronRight size={14} style={{ color: 'var(--color-primary, #1F7A4D)', flexShrink: 0 }} />}
                 </button>

@@ -141,6 +141,70 @@ npm run dev
 ```
 Open your browser and navigate to `http://localhost:5173`.
 
+#### 5. Local Testing & Multi-Account Setup
+
+To run a safe local test environment isolated from production data:
+
+```bash
+cd backend/node
+npm install
+
+# 1. Seed the test database (kisanbazaar_test) with test users and crops
+npm run seed:test
+
+# 2. Run the backend in test database mode
+npm run dev:test
+
+# 3. Run the automated integration test suite
+npm test
+```
+
+##### 🔑 Seeded Test Accounts (Password: `Test@1234`)
+
+| Role | Name | Email | Phone | Location | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Buyer** | Test Buyer | `buyer@kisan.test` | `9000000001` | Bengaluru | Primary wholesale buyer |
+| **Farmer** | Farmer A | `farmer.a@kisan.test` | `9000000002` | Kolar | Seeds 10 kg Tomato listing |
+| **Farmer** | Farmer B | `farmer.b@kisan.test` | `9000000003` | Tumakuru | Seeds 1 kg Onion listing |
+| **Delivery** | Agent One | `agent1@kisan.test` | `9000000011` | Kolar | Mini-van, available |
+| **Delivery** | Agent Two | `agent2@kisan.test` | `9000000012` | Hoskote | Bike, available |
+| **Delivery** | Agent Three | `agent3@kisan.test` | `9000000013` | Mysuru | Truck, available |
+| **Buyer** | Outsider | `outsider@kisan.test` | `9000000099` | Bengaluru | Unauthorized 3rd-party buyer |
+
+> ⚠️ **Important Multi-Account Testing Rule**:
+> When testing multi-role workflows (Farmer, Buyer, and Delivery Agent) concurrently in the browser, **use a separate Chrome profile per account** (or separate dedicated browsers). Multiple incognito windows share the same browser process session and `localStorage`, which can cause user credentials and session tokens to overwrite each other.
+
+---
+
+## 💳 Payments Configuration & Testing
+
+KisanBazaar supports both real payment processing via **Razorpay** and an automated **Simulated Mode** for local development and CI testing without needing live credentials.
+
+### 1. Simulated Mode (Default / No Keys Required)
+- If `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are not set or contain dummy keys, the backend automatically generates a simulated order (`order_sim_...`).
+- In the frontend, simulated payments (`pay_sim_...`) are permitted **only in development mode** (`import.meta.env.DEV`) or when `VITE_ALLOW_SIMULATED_PAYMENTS=true`.
+- When simulated mode is active, the UI displays a visible **"TEST MODE - simulated payment"** banner.
+- In production builds without valid keys, simulated payments are rejected and display *"Online payment is not available right now"*.
+
+### 2. Getting Free Razorpay Test Mode Keys
+1. Create a free account at [dashboard.razorpay.com](https://dashboard.razorpay.com/).
+2. Switch to **Test Mode** from the top navbar.
+3. Navigate to **Settings → API Keys** and click **Generate Key**.
+4. Copy the `Key Id` (starts with `rzp_test_`) and `Key Secret`.
+5. Under **Settings → Webhooks**, add your webhook URL (e.g. `https://your-domain.com/api/payments/webhook/razorpay`) and define a secret for `RAZORPAY_WEBHOOK_SECRET`.
+
+### 3. Environment Variable Placement
+| File | Variable | Description |
+| :--- | :--- | :--- |
+| `backend/node/.env` | `RAZORPAY_KEY_ID` | Your Razorpay Key ID (`rzp_test_...`) |
+| `backend/node/.env` | `RAZORPAY_KEY_SECRET` | Your Razorpay Key Secret |
+| `backend/node/.env` | `RAZORPAY_WEBHOOK_SECRET` | Secret used to verify webhook signatures |
+| `backend/node/.env` | `ALLOW_SIMULATED_PAYMENTS` | Set `false` in production (defaults to `false`) |
+| `frontend/.env` | `VITE_RAZORPAY_KEY_ID` | Public Key ID (`rzp_test_...`) loaded by Razorpay SDK |
+| `frontend/.env` | `VITE_ALLOW_SIMULATED_PAYMENTS` | Set `false` in production to enforce real gateway |
+
+> 🔒 **Security Notice**: **Never commit real API keys or secrets to Git**. The `.env` files are ignored in `.gitignore`. Use `.env.example` templates for onboarding.
+
 ---
 
 ## 🛠️ Technology Stack

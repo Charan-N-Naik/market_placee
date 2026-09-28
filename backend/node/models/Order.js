@@ -23,6 +23,7 @@ const orderSchema = new mongoose.Schema(
       default: 'pending_farmer_approval',
     },
     paymentId: { type: String },
+    razorpayOrderId: { type: String },
     invoiceUrl: { type: String },
     deliveryAddress: {
       addressLine1: { type: String },
@@ -40,6 +41,31 @@ const orderSchema = new mongoose.Schema(
     receivedDate: { type: Date },
     
     // Delivery Agent Ecosystem integration
+    deliveryMode: {
+      type: String,
+      enum: ['buyer_choice', 'auto_assign'],
+      default: 'auto_assign',
+      required: true,
+    },
+    chosenAgentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    packedAt: { type: Date },
+    pickupDeadline: { type: Date },
+    deliveryOffers: [
+      {
+        agent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        offeredAt: { type: Date, default: Date.now },
+        status: {
+          type: String,
+          enum: ['offered', 'accepted', 'declined', 'expired'],
+          default: 'offered',
+        },
+      },
+    ],
+    lastKnownAgentLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      updatedAt: { type: Date },
+    },
     deliveryAgent: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     deliveryDistance: { type: Number }, // in km
     deliveryFare: { type: Number }, // total cost for delivery
@@ -51,6 +77,19 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.pre('validate', function(next) {
+  if (!this.deliveryMode) {
+    this.deliveryMode = 'auto_assign';
+  }
+  next();
+});
+
+orderSchema.index({ buyer: 1, createdAt: -1 });
+orderSchema.index({ farmer: 1, createdAt: -1 });
+orderSchema.index({ deliveryAgent: 1 });
+orderSchema.index({ status: 1, pickupDeadline: 1 });
+orderSchema.index({ 'deliveryOffers.agent': 1 });
 
 const Order = mongoose.model('Order', orderSchema);
 export default Order;

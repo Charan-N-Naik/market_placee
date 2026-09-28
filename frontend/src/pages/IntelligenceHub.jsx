@@ -16,6 +16,7 @@ const IntelligenceHub = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [marketData, setMarketData] = useState([]);
+  const [priceMeta, setPriceMeta] = useState({ stale: false, source: 'live', updatedAt: null });
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [displayLocation, setDisplayLocation] = useState('Bengaluru, Karnataka');
@@ -59,7 +60,13 @@ const IntelligenceHub = () => {
 
         // Fetch Real APMC prices
         const priceRes = await api.get('/market-prices');
-        const pData = priceRes.data || [];
+        const resData = priceRes.data;
+        const pData = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+        setPriceMeta({
+          stale: resData?.stale ?? false,
+          source: resData?.source ?? 'live',
+          updatedAt: resData?.updatedAt || null
+        });
         setMarketData(pData.map((item, idx) => ({
           ...item,
           mandi: item.mandi || APMC_MANDIS[idx % APMC_MANDIS.length].name,
@@ -180,6 +187,13 @@ const IntelligenceHub = () => {
                       </p>
                     </div>
                   </div>
+                  {priceMeta.stale && (
+                    <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                      {priceMeta.source === 'sample'
+                        ? 'Sample data - live prices unavailable'
+                        : `Last updated ${priceMeta.updatedAt ? new Date(priceMeta.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'recently'}`}
+                    </span>
+                  )}
                 </div>
 
                 {marketData.length > 0 ? (

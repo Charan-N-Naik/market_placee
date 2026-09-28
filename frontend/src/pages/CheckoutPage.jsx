@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
@@ -8,8 +8,9 @@ import {
   ArrowLeft, MapPin, CheckCircle2, CreditCard, ShieldCheck, Truck, Package,
   ChevronRight, Plus, Edit2, Trash2, Check, AlertCircle, RefreshCw, PhoneCall,
   ShoppingBag, ArrowRight, X, Home, Wallet, Smartphone, Building2,
-  Receipt, Download, Eye, Clock, Sparkles, Lock, IndianRupee, User, Phone
+  Receipt, Download, Eye, Clock, Sparkles, Lock, IndianRupee, User, Phone, Star
 } from 'lucide-react';
+import { fetchRealDeliveryAgents } from '../utils/deliveryService';
 
 /* ─── Razorpay loader ─── */
 function loadRazorpayScript() {
@@ -108,7 +109,7 @@ export default function CheckoutPage() {
     try {
       const s = localStorage.getItem('kb_addresses');
       if (s) return JSON.parse(s);
-    } catch (_) {}
+    } catch (_) { }
     return [{
       id: 'addr_default',
       name: user?.name || 'Primary Address',
@@ -133,10 +134,35 @@ export default function CheckoutPage() {
   /* ── Order state ── */
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null); // { status: 'success'|'failed', data, error }
+  const [deliveryMode, setDeliveryMode] = useState('auto_assign'); // 'auto_assign' | 'buyer_choice'
+  const [availableAgents, setAvailableAgents] = useState([]);
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+  const [loadingAgents, setLoadingAgents] = useState(false);
+
+  /* ── Fetch Real Delivery Agents from MongoDB ── */
+  useEffect(() => {
+    let mounted = true;
+    const loadAgents = async () => {
+      setLoadingAgents(true);
+      try {
+        const agents = await fetchRealDeliveryAgents();
+        if (mounted && agents && agents.length > 0) {
+          setAvailableAgents(agents);
+          setSelectedAgentId(prev => prev || agents[0]?.id || agents[0]?._id || '');
+        }
+      } catch (err) {
+        console.error('Failed loading delivery agents:', err);
+      } finally {
+        if (mounted) setLoadingAgents(false);
+      }
+    };
+    loadAgents();
+    return () => { mounted = false; };
+  }, []);
 
   /* ── Persist addresses ── */
   useEffect(() => {
-    try { localStorage.setItem('kb_addresses', JSON.stringify(addresses)); } catch (_) {}
+    try { localStorage.setItem('kb_addresses', JSON.stringify(addresses)); } catch (_) { }
   }, [addresses]);
 
   /* ── Scroll to top on step change ── */
@@ -152,6 +178,7 @@ export default function CheckoutPage() {
   const delivery = 0;
   const total = subtotal + delivery;
   const activeAddr = addresses.find(a => a.id === selectedAddr) || addresses[0];
+  const selectedAgent = availableAgents.find(a => (a.id === selectedAgentId || a._id === selectedAgentId)) || availableAgents[0];
 
   /* ── Step navigation ── */
   const goTo = (s) => {
@@ -210,58 +237,25 @@ export default function CheckoutPage() {
       })),
       deliveryAddress,
       paymentMethod: 'pending_farmer_approval',
+      deliveryMode,
+      chosenAgentId: deliveryMode === 'buyer_choice' ? selectedAgentId : undefined,
+      selectedAgentId: deliveryMode === 'buyer_choice' ? selectedAgentId : undefined,
       totalAmount: total,
     };
 
     try {
-      let orderData = null;
-      try {
-        const res = await api.post('/orders', payload);
-        orderData = res.data;
-      } catch (apiErr) {
-        console.warn('Backend order API call failed, generating robust local order:', apiErr);
-        orderData = {
-          _id: 'ORD-' + Date.now(),
-          orderId: 'KB' + Date.now().toString().slice(-6),
-          items: cartItems.map(i => ({
-            listing: i.listing,
-            quantity: i.quantity,
-            priceAtPurchase: i.listing?.pricePerUnit || i.priceAtAdd || 35
-          })),
-          totalAmount: total,
-          status: 'pending',
-          paymentMethod: 'pending_farmer_approval',
-          deliveryAddress,
-          createdAt: new Date().toISOString()
-        };
-      }
-
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const existingOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      localStorage.setItem(ordersKey, JSON.stringify([orderData, ...existingOrders]));
-
-      // Create Farmer Notification so farmer sees order alert in Gmail inbox
-      const cropNamesStr = cartItems.map(i => i.listing?.cropName || 'Crop').join(', ');
-      const farmerNotif = {
-        id: 'notif-' + Date.now(),
-        title: '🌾 New Direct Crop Order Request Received!',
-        message: `A buyer submitted a Buy Request for ${cropNamesStr} (Total: ₹${total.toLocaleString('en-IN')}). Order ID: #${orderData.orderId || orderData._id?.slice?.(-6)}`,
-        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-        type: 'order',
-        read: false
-      };
-      const existingNotifs = JSON.parse(localStorage.getItem('farmer_notifications') || '[]');
-      localStorage.setItem('farmer_notifications', JSON.stringify([farmerNotif, ...existingNotifs]));
-
-      // Dispatch event to notify application components
-      window.dispatchEvent(new CustomEvent('new_order_placed', { detail: { order: orderData, notification: farmerNotif } }));
+      const res = await api.post('/orders', payload);
+      const orderData = res.data;
 
       setOrderResult({ status: 'success', data: orderData });
       fetchCart();
       setStep(4);
     } catch (err) {
-      setOrderResult({ status: 'failed', error: err.response?.data?.message || 'Failed to submit buy request.' });
+      console.error('Order creation failed:', err);
+      setOrderResult({
+        status: 'failed',
+        error: err.response?.data?.message || 'Failed to submit buy request. Please try again.'
+      });
     } finally {
       setPlacing(false);
     }
@@ -269,7 +263,8 @@ export default function CheckoutPage() {
 
   /* ── Invoice download ── */
   const downloadInvoice = () => {
-    const html = generateInvoiceHTML(orderResult?.data, cartItems, activeAddr, payMethod, total);
+    const primaryOrder = orderResult?.data?.orders?.[0] || orderResult?.data;
+    const html = generateInvoiceHTML(primaryOrder, cartItems, activeAddr, payMethod, total);
     const w = window.open('', '_blank');
     if (w) {
       w.document.write(html);
@@ -282,7 +277,10 @@ export default function CheckoutPage() {
      RENDER: SUCCESS
   ═══════════════════════════════════════════════════ */
   if (orderResult?.status === 'success') {
-    const oid = orderResult.data?.orderId?.slice?.(-8)?.toUpperCase?.() || ('KB' + Date.now().toString().slice(-6));
+    const ordersList = orderResult.data?.orders?.length
+      ? orderResult.data.orders
+      : [orderResult.data];
+
     return (
       <div style={S.page}>
         <div style={S.statusWrap}>
@@ -296,16 +294,42 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <h1 style={S.successTitle}>Buy Request Sent! 🌾</h1>
+            <h1 style={S.successTitle}>
+              {ordersList.length > 1
+                ? `Buy Requests Sent to ${ordersList.length} Farmers! 🌾`
+                : 'Buy Request Sent! 🌾'}
+            </h1>
             <p style={S.successSub}>
-              Your buy request has been sent to the farmer's inbox. Once the farmer accepts your request, you can complete payment from your Approved Requests section.
+              {ordersList.length > 1
+                ? `Your cart contained crops from ${ordersList.length} different farmers. A separate direct buy request has been created and dispatched to each farmer's inbox:`
+                : "Your buy request has been sent to the farmer's inbox. Once the farmer accepts your request, you can complete payment from your Approved Requests section."}
             </p>
 
-            <div style={S.metaCard}>
-              <MetaRow label="Request ID" value={`#${oid}`} highlight />
-              <MetaRow label="Status" value="Pending Farmer Approval" />
-              <MetaRow label="Estimated Amount" value={`₹${total.toLocaleString('en-IN')}`} highlight />
-              <MetaRow label="Deliver To" value={`${activeAddr?.city}, ${activeAddr?.state}`} />
+            {/* Loop through each farmer order */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', margin: '18px 0' }}>
+              {ordersList.map((ord, idx) => {
+                const oid = ord.orderId?.slice?.(-8)?.toUpperCase?.() || ord._id?.slice?.(-8)?.toUpperCase?.() || ('KB' + (idx + 1));
+                const ordTotal = ord.totalAmount ?? total;
+                const cropNames = ord.items?.map(i => i.listing?.cropName || i.cropName || 'Crop').filter(Boolean).join(', ') || 'Fresh Crops';
+
+                return (
+                  <div key={ord._id || idx} style={S.metaCard}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f4f4f5', paddingBottom: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#18181b' }}>
+                        {ordersList.length > 1 ? `Farmer Order #${idx + 1}` : 'Order Summary'}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '2px 8px', borderRadius: 9999, background: '#fef3c7', color: '#b45309' }}>
+                        {ord.status === 'pending' ? 'Pending Approval' : ord.status}
+                      </span>
+                    </div>
+                    <MetaRow label="Request ID" value={`#${oid}`} highlight />
+                    <MetaRow label="Crops" value={cropNames} />
+                    <MetaRow label="Delivery Mode" value={ord.deliveryMode === 'buyer_choice' ? 'Buyer Choice Agent' : 'Auto-Assign Agent'} />
+                    <MetaRow label="Estimated Amount" value={`₹${ordTotal.toLocaleString('en-IN')}`} highlight />
+                    <MetaRow label="Deliver To" value={`${activeAddr?.city}, ${activeAddr?.state}`} />
+                  </div>
+                );
+              })}
             </div>
 
             <div style={S.successActions}>
@@ -429,6 +453,42 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* ── Multi-item Cart Notice ── */}
+      {cartItems.length > 1 && (
+        <div style={{ maxWidth: 1200, margin: '1.25rem auto 0', padding: '0 1.5rem' }}>
+          <div style={{
+            background: '#fff7ed',
+            border: '1.5px solid #fed7aa',
+            borderRadius: 14,
+            padding: '0.85rem 1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            boxShadow: '0 1px 4px rgba(234, 88, 12, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Package size={18} color="#ea580c" />
+              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#9a3412' }}>
+                This order includes {cartItems.length} items from your cart
+              </span>
+            </div>
+            <Link
+              to="/cart"
+              style={{
+                color: '#ea580c',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                textDecoration: 'underline',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Edit in Cart
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* ── Content grid ── */}
       <div style={S.grid} className="checkout-grid">
         <div style={S.mainCol}>
@@ -540,10 +600,151 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* ═══ STEP 3: PAYMENT ═══ */}
+          {/* ═══ STEP 3: PAYMENT & DELIVERY ═══ */}
           {step === 3 && (
             <div style={S.card}>
-              <SectionHead icon={CreditCard} title="Payment Method" />
+              <SectionHead icon={CreditCard} title="Delivery & Payment Workflow" />
+
+              {/* Delivery Mode Selection */}
+              <div className="mb-6">
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-3">
+                  Delivery Agent Allocation Mode *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setDeliveryMode('auto_assign')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${
+                      deliveryMode === 'auto_assign'
+                        ? 'border-emerald-600 bg-emerald-50/70 shadow-sm'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <Truck size={17} className={deliveryMode === 'auto_assign' ? 'text-emerald-700' : 'text-stone-500'} />
+                        <span className="text-sm font-black text-stone-900">Auto-Assign Agent</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Fastest
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 font-medium leading-relaxed">
+                      Auto-broadcasts offer to the nearest verified delivery agents once the farmer packs the order (6h pickup window).
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setDeliveryMode('buyer_choice')}
+                    className={`cursor-pointer p-4 rounded-2xl border-2 transition-all ${
+                      deliveryMode === 'buyer_choice'
+                        ? 'border-emerald-600 bg-emerald-50/70 shadow-sm'
+                        : 'border-stone-200 bg-white hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <User size={17} className={deliveryMode === 'buyer_choice' ? 'text-emerald-700' : 'text-stone-500'} />
+                        <span className="text-sm font-black text-stone-900">Buyer's Choice</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Choose Partner
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-600 font-medium leading-relaxed">
+                      Select your preferred verified delivery partner. A targeted offer is sent directly to them.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Delivery Agent Picker for Buyer's Choice */}
+                {deliveryMode === 'buyer_choice' && (
+                  <div className="mt-4 p-4 bg-stone-50/90 border border-stone-200 rounded-2xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
+                          <Truck size={14} className="text-emerald-600" /> Select Delivery Partner
+                        </h4>
+                        <p className="text-[11px] text-stone-500">Pick the driver to handle your farm-to-door transit</p>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                        {availableAgents.length} Available
+                      </span>
+                    </div>
+
+                    {loadingAgents ? (
+                      <div className="p-6 text-center text-xs text-stone-500">
+                        <RefreshCw size={16} className="animate-spin inline-block mr-2" />
+                        Loading verified delivery partners from directory...
+                      </div>
+                    ) : availableAgents.length === 0 ? (
+                      <div className="p-4 bg-amber-50 rounded-xl text-amber-800 text-xs">
+                        No delivery partners found nearby. Auto-assign will be used upon checkout.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {availableAgents.map((agent) => {
+                          const agId = agent.id || agent._id;
+                          const isSelected = (selectedAgentId === agId) || (!selectedAgentId && agent === availableAgents[0]);
+                          return (
+                            <div
+                              key={agId}
+                              onClick={() => setSelectedAgentId(agId)}
+                              className={`cursor-pointer p-3 rounded-xl border-2 transition-all flex flex-col justify-between ${
+                                isSelected
+                                  ? 'border-emerald-600 bg-white shadow-sm ring-1 ring-emerald-500/20'
+                                  : 'border-stone-200/80 bg-white/70 hover:border-stone-300'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <img
+                                  src={agent.profilePhoto || agent.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120'}
+                                  alt={agent.name}
+                                  className="w-10 h-10 rounded-full object-cover border border-stone-200 shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <h5 className="text-xs font-black text-stone-900 truncate flex items-center gap-1">
+                                      {agent.name}
+                                      <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                                    </h5>
+                                    {isSelected ? (
+                                      <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] shrink-0">
+                                        ✓
+                                      </span>
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full border border-stone-300 shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-stone-600 font-medium truncate mt-0.5">
+                                    {agent.vehicleType || 'Commercial Vehicle'}
+                                  </p>
+                                  <p className="text-[10px] text-stone-400">
+                                    📍 {agent.district || agent.location || 'Karnataka'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center justify-between text-[11px]">
+                                <span className="flex items-center gap-1 font-bold text-amber-600">
+                                  <Star size={12} className="fill-amber-400 text-amber-500" />
+                                  {agent.rating || 4.8}
+                                  <span className="text-[10px] text-stone-400 font-normal">
+                                    ({agent.totalReviews || agent.reviews?.length || 12})
+                                  </span>
+                                </span>
+                                <span className="font-black text-stone-900">
+                                  ₹{agent.ratePerKm || 18} <span className="text-[10px] font-normal text-stone-500">/ km</span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* 2-Stage Farmer Approval Banner */}
               <div className="p-5 bg-amber-50/80 border border-amber-200/80 rounded-2xl mb-6 space-y-2 text-amber-900">
                 <div className="flex items-center gap-2 font-black text-sm text-amber-800">
@@ -590,6 +791,23 @@ export default function CheckoutPage() {
                   </div>
                   <p style={S.reviewBold}>Request-then-Pay Flow</p>
                   <p style={S.reviewText}>No payment required right now. Payment triggers after farmer approves.</p>
+                </div>
+
+                {/* Delivery Mode summary */}
+                <div style={S.reviewBox}>
+                  <div style={S.reviewBoxHead}>
+                    <Truck size={15} color="#ea580c" />
+                    <span>Delivery Mode</span>
+                    <button onClick={() => goTo(3)} style={S.changeLink}>Change</button>
+                  </div>
+                  <p style={S.reviewBold}>
+                    {deliveryMode === 'buyer_choice' ? "Buyer's Choice Partner" : "Auto-Assign Partner"}
+                  </p>
+                  <p style={S.reviewText}>
+                    {deliveryMode === 'buyer_choice'
+                      ? (selectedAgent ? `🚚 ${selectedAgent.name} • ${selectedAgent.vehicleType || 'Commercial Vehicle'} (₹${selectedAgent.ratePerKm || 18}/km)` : 'Targeted offer to preferred driver')
+                      : 'Auto-broadcasted to top 3 nearest verified agents'}
+                  </p>
                 </div>
               </div>
 

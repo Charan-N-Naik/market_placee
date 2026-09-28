@@ -38,21 +38,35 @@ const MarketPricePage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMandi, setSelectedMandi] = useState('All Mandis');
   const [lastUpdated, setLastUpdated] = useState('');
+  const [priceMeta, setPriceMeta] = useState({ stale: false, source: 'live', updatedAt: null });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/market-prices');
-      const enriched = data.map((item, idx) => ({
+      const res = await api.get('/market-prices');
+      const resData = res.data;
+      const list = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+      const meta = {
+        stale: resData?.stale ?? false,
+        source: resData?.source ?? 'live',
+        updatedAt: resData?.updatedAt || null
+      };
+      setPriceMeta(meta);
+
+      const enriched = list.map((item, idx) => ({
         ...item,
         mandi: item.mandi || APMC_MANDIS[idx % APMC_MANDIS.length].name,
       }));
       setMarketData(enriched);
+
+      const timeStr = meta.updatedAt
+        ? new Date(meta.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        : null;
+      setLastUpdated(timeStr);
     } catch (error) {
       console.error('Failed to fetch APMC data:', error);
       setMarketData([]);
     } finally {
-      setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
       setLoading(false);
     }
   };
@@ -63,8 +77,10 @@ const MarketPricePage = () => {
     ? marketData
     : marketData.filter(d => d.mandi?.includes(selectedMandi.split(' ')[0]));
 
-  const gainers = marketData.filter(d => d.up).length;
-  const losers = marketData.filter(d => !d.up).length;
+  const rowsWithChange = marketData.filter(d => d.change !== undefined && d.change !== null && d.change !== '');
+  const hasTrends = rowsWithChange.length > 0;
+  const gainers = rowsWithChange.filter(d => d.up === true || (typeof d.change === 'string' && d.change.startsWith('+'))).length;
+  const losers = rowsWithChange.filter(d => d.up === false || (typeof d.change === 'string' && d.change.startsWith('-'))).length;
 
   return (
     <div className="max-w-[1200px] mx-auto px-[5%] pb-32 bg-[#fafaf9] min-h-screen font-sans">
@@ -111,8 +127,20 @@ const MarketPricePage = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: t('marketPrice.commodities'), value: marketData.length, color: 'text-stone-900', border: 'border-t-stone-700', sub: t('marketPrice.commoditiesSub') },
-            { label: t('marketPrice.gainersToday'), value: gainers, color: 'text-green-600', border: 'border-t-green-500', sub: t('marketPrice.gainersSub') },
-            { label: t('marketPrice.losersToday'), value: losers, color: 'text-red-600', border: 'border-t-red-500', sub: t('marketPrice.losersSub') },
+            { 
+              label: t('marketPrice.gainersToday'), 
+              value: hasTrends ? gainers : '—', 
+              color: hasTrends ? 'text-green-600' : 'text-stone-400', 
+              border: 'border-t-green-500', 
+              sub: hasTrends ? t('marketPrice.gainersSub') : 'Trend data unavailable' 
+            },
+            { 
+              label: t('marketPrice.losersToday'), 
+              value: hasTrends ? losers : '—', 
+              color: hasTrends ? 'text-red-600' : 'text-stone-400', 
+              border: 'border-t-red-500', 
+              sub: hasTrends ? t('marketPrice.losersSub') : 'Trend data unavailable' 
+            },
             { label: t('marketPrice.activeMandis'), value: APMC_MANDIS.length, color: 'text-blue-600', border: 'border-t-blue-500', sub: t('marketPrice.activeMandisSub') },
           ].map(({ label, value, color, border, sub }) => (
             <div key={label} className={`bg-white rounded-2xl border-x border-b border-stone-100 border-t-4 ${border} p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow`}>
@@ -161,8 +189,18 @@ const MarketPricePage = () => {
                 </p>
               </div>
             </div>
-            <div className="inline-flex items-center self-start sm:self-auto gap-1.5 text-[10px] font-black text-green-700 bg-green-100 border border-green-200 px-3 py-1.5 rounded-full uppercase tracking-widest">
-              <TrendingUp size={14} /> {t('marketPrice.live')}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {priceMeta.stale ? (
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-full">
+                  {priceMeta.source === 'sample'
+                    ? 'Sample data - live prices unavailable'
+                    : `Last updated ${lastUpdated}`}
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 text-[10px] font-black text-green-700 bg-green-100 border border-green-200 px-3 py-1.5 rounded-full uppercase tracking-widest">
+                  <TrendingUp size={14} /> {t('marketPrice.live')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -195,9 +233,9 @@ const MarketPricePage = () => {
                     {[
                       t('marketPrice.thCommodity'),
                       t('marketPrice.thAvgRate'),
-                      t('marketPrice.thChange'),
-                      t('marketPrice.thLowHigh'),
-                      t('marketPrice.thVolume'),
+                      `${t('marketPrice.thChange')} (est.)`,
+                      `${t('marketPrice.thLowHigh')} (est.)`,
+                      `${t('marketPrice.thVolume')} (est.)`,
                       t('marketPrice.thMSP'),
                       t('marketPrice.thMandi')
                     ].map((h, i) => (
@@ -231,24 +269,34 @@ const MarketPricePage = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap font-black text-stone-900 text-lg text-right">{item.price}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`inline-flex items-center gap-1.5 font-black text-xs px-2.5 py-1.5 rounded-lg ${item.up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {item.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                            {item.change}
-                          </div>
+                          {item.change ? (
+                            <div className={`inline-flex items-center gap-1.5 font-black text-xs px-2.5 py-1.5 rounded-lg ${item.up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {item.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                              {item.change} <span className="text-[9px] opacity-70 font-normal">(est.)</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-stone-400">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-stone-400 w-10 text-right">{item.low}</span>
-                            <div className="flex-1 h-2 bg-stone-100 rounded-full relative overflow-hidden">
-                              <div 
-                                className={`absolute top-0 bottom-0 left-0 rounded-full ${item.up ? 'bg-gradient-to-r from-[#86efac] to-[#16a34a]' : 'bg-gradient-to-r from-[#fca5a5] to-[#f43f5e]'}`} 
-                                style={{ width: `${rangePercent}%` }}
-                              />
+                          {item.low && item.high ? (
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-bold text-stone-400 w-10 text-right">{item.low}</span>
+                              <div className="flex-1 h-2 bg-stone-100 rounded-full relative overflow-hidden">
+                                <div 
+                                  className={`absolute top-0 bottom-0 left-0 rounded-full ${item.up ? 'bg-gradient-to-r from-[#86efac] to-[#16a34a]' : 'bg-gradient-to-r from-[#fca5a5] to-[#f43f5e]'}`} 
+                                  style={{ width: `${rangePercent}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-bold text-stone-600 w-10">{item.high}</span>
                             </div>
-                            <span className="text-xs font-bold text-stone-600 w-10">{item.high}</span>
-                          </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-stone-400">—</span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-stone-500">{item.volume}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-stone-500">
+                          {item.volume ? `${item.volume} (est.)` : (item.retail ? `Retail: ${item.retail}` : '—')}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-xs font-black px-2.5 py-1 rounded-md ${item.msp && item.msp !== '—' && item.msp !== '-' ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-400'}`}>
                             {item.msp || '—'}

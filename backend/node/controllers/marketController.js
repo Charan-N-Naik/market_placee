@@ -1,18 +1,48 @@
 import * as cheerio from 'cheerio';
 
-// @desc    Get APMC Market Prices
-// @route   GET /api/market-prices
-// @access  Public
-export const getMarketPrices = async (req, res, next) => {
+const STATIC_FALLBACK_PRICES = [
+  { name: 'Tomato', commodity: 'Tomato', price: '₹25/kg', retail: '₹32/kg', msp: '—' },
+  { name: 'Onion', commodity: 'Onion', price: '₹32/kg', retail: '₹40/kg', msp: '—' },
+  { name: 'Potato', commodity: 'Potato', price: '₹18/kg', retail: '₹24/kg', msp: '—' },
+  { name: 'Green Chilli', commodity: 'Green Chilli', price: '₹45/kg', retail: '₹55/kg', msp: '—' },
+  { name: 'Carrot', commodity: 'Carrot', price: '₹38/kg', retail: '₹48/kg', msp: '—' },
+  { name: 'Cabbage', commodity: 'Cabbage', price: '₹16/kg', retail: '₹22/kg', msp: '—' },
+  { name: 'Ginger', commodity: 'Ginger', price: '₹85/kg', retail: '₹110/kg', msp: '—' },
+  { name: 'Garlic', commodity: 'Garlic', price: '₹120/kg', retail: '₹150/kg', msp: '—' }
+];
+
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const FAILURE_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes cooldown after failure/empty scrape
+
+// In-memory cache
+let cachedMarketPrices = {
+  data: STATIC_FALLBACK_PRICES,
+  updatedAt: null,
+  source: 'sample',
+  lastFetchedAt: 0,
+};
+
+let lastAttemptAt = 0;
+let isRevalidating = false;
+
+// Fetch and scrape external prices
+export const fetchMarketPricesFromSource = async () => {
+  lastAttemptAt = Date.now();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
   try {
     const response = await fetch('https://vegetablemarketprice.com/market/karnataka/today', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-      }
+      },
+      signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch market data: ${response.statusText}`);
+      throw new Error(`External source returned ${response.status}: ${response.statusText}`);
     }
 
     const html = await response.text();
@@ -29,43 +59,72 @@ export const getMarketPrices = async (req, res, next) => {
         const retail = $(cols[3]).text().trim();
         
         if (priceText.includes('₹')) {
-          const numPriceStr = priceText.replace(/\D/g, '');
-          const numPrice = numPriceStr ? parseInt(numPriceStr, 10) : 20;
-          
-          // Adding deterministic yet varied fluctuations for UI realism, 
-          // seeded by the length of the name so it remains stable for a day
-          const changeVal = ((name.length * 3.14) % 25) - 10;
-          const roundedChange = changeVal.toFixed(1);
-          const change = changeVal > 0 ? `+${roundedChange}%` : `${roundedChange}%`;
-          const up = changeVal > 0;
-          
-          const high = `₹${Math.round(numPrice * 1.15)}`;
-          const low = `₹${Math.round(numPrice * 0.85)}`;
-          
-          const volume = `${(name.length * 153) % 4000 + 100} Tons`;
-          
           marketData.push({
             name,
+            commodity: name,
             price: `${priceText}/kg`,
-            change,
-            up,
-            high,
-            low,
-            volume,
-            msp: '-',
+            retail: retail ? `${retail}/kg` : undefined,
+            msp: '—',
           });
         }
       }
-      if (marketData.length >= 15) return false; // Break loop after 15
+      if (marketData.length >= 15) return false;
     });
 
-    if (marketData.length === 0) {
-      return res.status(500).json({ message: "No data could be parsed from the market source." });
+    if (marketData.length > 0) {
+      const now = new Date().toISOString();
+      cachedMarketPrices = {
+        data: marketData,
+        updatedAt: now,
+        source: 'live',
+        lastFetchedAt: Date.now(),
+      };
+      console.log(`[MarketPrices] Cache updated successfully with ${marketData.length} live commodities.`);
+    } else {
+      console.warn('[MarketPrices] Scrape returned empty commodity list. Enforcing 5m cooldown.');
     }
-
-    res.json(marketData);
   } catch (error) {
-    console.error('Market Controller Error:', error);
-    res.status(500).json({ message: 'Failed to fetch real-time market data. Please try again later.' });
+    clearTimeout(timeoutId);
+    console.warn('[MarketPrices] Background refresh note:', error.message);
   }
+};
+
+// Warm the cache on server startup
+export const warmMarketPriceCache = () => {
+  console.log('[MarketPrices] Warming market prices cache in background...');
+  fetchMarketPricesFromSource().catch(err => {
+    console.warn('[MarketPrices] Initial cache warm warning:', err.message);
+  });
+};
+
+// @desc    Get APMC Market Prices (Served from cache with 30m TTL & SWR)
+// @route   GET /api/market-prices
+// @access  Public
+export const getMarketPrices = async (req, res) => {
+  const now = Date.now();
+  const isFresh = cachedMarketPrices.lastFetchedAt > 0 && (now - cachedMarketPrices.lastFetchedAt < CACHE_TTL_MS);
+  const inFailureCooldown = (now - lastAttemptAt) < FAILURE_COOLDOWN_MS;
+
+  // Background refresh if cache is stale and not in 5m failure cooldown
+  if (!isFresh && !isRevalidating && !inFailureCooldown) {
+    isRevalidating = true;
+    fetchMarketPricesFromSource().finally(() => {
+      isRevalidating = false;
+    });
+  }
+
+  // Response source: if live & fresh -> 'live', if live but stale -> 'cache', if sample -> 'sample'
+  const isStale = !isFresh || cachedMarketPrices.source === 'sample';
+  const effectiveSource = cachedMarketPrices.source === 'live' 
+    ? (isFresh ? 'live' : 'cache') 
+    : 'sample';
+
+  res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=1800');
+
+  return res.status(200).json({
+    stale: isStale,
+    source: effectiveSource,
+    updatedAt: cachedMarketPrices.updatedAt,
+    data: cachedMarketPrices.data
+  });
 };
