@@ -128,7 +128,7 @@ export default function BuyerDashboard() {
   const startVoiceSearch = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice search is not supported in this browser.");
+      setConfirmModal({ isOpen: true, isAlert: true, variant: 'info', title: 'Not Supported', message: 'Voice search is not supported in this browser.', confirmText: 'OK', onConfirm: null });
       return;
     }
     if (isListening) return; // prevent double-start
@@ -521,14 +521,14 @@ export default function BuyerDashboard() {
               <div className="space-y-6">
                 <div className="flex justify-between items-end">
                   <div>
-                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Recommended Crop Harvests</h3>
-                    <p className="text-xs text-gray-500 font-semibold mt-0.5">Fresh produce sourced directly from verified local farms</p>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight">{t('buyerDashboard.recommendedCropHarvests')}</h3>
+                    <p className="text-xs text-gray-500 font-semibold mt-0.5">{t('buyerDashboard.freshProduceDesc')}</p>
                   </div>
                   <button
                     onClick={() => setActiveTab('browse')}
                     className="text-xs font-black text-[#1F7A4D] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    View All Crops <ArrowRight size={14} />
+                    {t('buyerDashboard.viewAllCrops')} <ArrowRight size={14} />
                   </button>
                 </div>
 
@@ -537,13 +537,13 @@ export default function BuyerDashboard() {
                 ) : filteredListings.length === 0 ? (
                   <div className="bg-white rounded-3xl border border-dashed border-gray-200 p-10 text-center space-y-3 shadow-sm">
                     <div className="text-5xl">🌾</div>
-                    <h4 className="text-base font-black text-gray-900">No crop produce found</h4>
-                    <p className="text-xs text-gray-500 max-w-sm mx-auto">Try clearing search filters or selecting another category.</p>
+                    <h4 className="text-base font-black text-gray-900">{t('buyerDashboard.noCropFound')}</h4>
+                    <p className="text-xs text-gray-500 max-w-sm mx-auto">{t('buyerDashboard.clearSearchFilter')}</p>
                     <button
                       onClick={() => { setSearchQuery(''); setFilterCategory('all'); fetchListings(); }}
                       className="px-5 py-2.5 bg-[#1F7A4D] text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5 shadow-md"
                     >
-                      <RefreshCw size={14} /> Reset Filters
+                      <RefreshCw size={14} /> {t('buyerDashboard.resetFilters')}
                     </button>
                   </div>
                 ) : (
@@ -573,8 +573,8 @@ export default function BuyerDashboard() {
               <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">Crop Marketplace</h2>
-                    <p className="text-xs text-gray-500 font-medium">Direct farm sourcing catalogue</p>
+                    <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">{t('buyerDashboard.cropMarketplace')}</h2>
+                    <p className="text-xs text-gray-500 font-medium">{t('buyerDashboard.directFarmSourcing')}</p>
                   </div>
                   {(searchQuery || filterCategory !== 'all' || filterLocation || filterOrganic || filterVerified) && (
                     <button
@@ -587,7 +587,7 @@ export default function BuyerDashboard() {
                       }}
                       className="text-xs font-bold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer"
                     >
-                      <X size={14} /> Clear All Filters
+                      <X size={14} /> {t('buyerDashboard.clearAllFilters')}
                     </button>
                   )}
                 </div>
@@ -597,7 +597,7 @@ export default function BuyerDashboard() {
                     <Search size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search crop, variety, or farmer..."
+                      placeholder={t('buyerDashboard.searchCropVariety')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 hover:bg-white focus:bg-white text-xs font-semibold rounded-xl border border-gray-200 outline-none transition-all"
@@ -609,7 +609,7 @@ export default function BuyerDashboard() {
                     onChange={(e) => setFilterCategory(e.target.value)}
                     className="px-3 py-2.5 bg-gray-50 hover:bg-white text-xs font-semibold rounded-xl border border-gray-200 outline-none cursor-pointer"
                   >
-                    <option value="all">All Commodities</option>
+                    <option value="all">{t('buyerDashboard.allCommodities')}</option>
                     {cropOptions.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
 
@@ -618,7 +618,7 @@ export default function BuyerDashboard() {
                     onChange={(e) => setFilterLocation(e.target.value)}
                     className="px-3 py-2.5 bg-gray-50 hover:bg-white text-xs font-semibold rounded-xl border border-gray-200 outline-none cursor-pointer"
                   >
-                    <option value="">All Locations</option>
+                    <option value="">{t('buyerDashboard.allLocations')}</option>
                     {locations.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
 
@@ -627,10 +627,10 @@ export default function BuyerDashboard() {
                     onChange={(e) => setSortBy(e.target.value)}
                     className="px-3 py-2.5 bg-gray-50 hover:bg-white text-xs font-semibold rounded-xl border border-gray-200 outline-none cursor-pointer"
                   >
-                    <option value="newest">Sort: Newest First</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="quantity">Largest Quantity</option>
+                    <option value="newest">{t('buyerDashboard.sortNewest')}</option>
+                    <option value="price_asc">{t('buyerDashboard.sortPriceLow')}</option>
+                    <option value="price_desc">{t('buyerDashboard.sortPriceHigh')}</option>
+                    <option value="quantity">{t('buyerDashboard.sortQuantity')}</option>
                   </select>
                 </div>
 
@@ -642,7 +642,7 @@ export default function BuyerDashboard() {
                       onChange={(e) => setFilterOrganic(e.target.checked)}
                       className="accent-orange-600 rounded"
                     />
-                    <span>Organic Crops Only 🌿</span>
+                    <span>{t('buyerDashboard.organicOnly')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -651,7 +651,7 @@ export default function BuyerDashboard() {
                       onChange={(e) => setFilterVerified(e.target.checked)}
                       className="accent-[#166534] rounded"
                     />
-                    <span>AI Verified Only 🛡️</span>
+                    <span>{t('buyerDashboard.aiVerifiedOnly')}</span>
                   </label>
                 </div>
               </div>
@@ -662,13 +662,13 @@ export default function BuyerDashboard() {
               ) : filteredListings.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-dashed border-gray-200 py-16 px-6 text-center space-y-4 shadow-sm">
                   <div className="text-5xl">🌾</div>
-                  <h3 className="text-lg font-bold text-gray-900">No crops available yet</h3>
-                  <p className="text-xs text-gray-500 font-medium max-w-sm mx-auto">Farmers have not published any crops matching your criteria.</p>
+                  <h3 className="text-lg font-bold text-gray-900">{t('buyerDashboard.noAvailableCrops')}</h3>
+                  <p className="text-xs text-gray-500 font-medium max-w-sm mx-auto">{t('buyerDashboard.farmersNotPublished')}</p>
                   <button
                     onClick={() => fetchListings()}
                     className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
                   >
-                    <RefreshCw size={14} /> Refresh Feed
+                    <RefreshCw size={14} /> {t('buyerDashboard.refreshFeed')}
                   </button>
                 </div>
               ) : (
@@ -694,8 +694,8 @@ export default function BuyerDashboard() {
                 <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
                   <span className="text-xl">🗺️</span>
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">India Crop Intelligence Map</h3>
-                    <p className="text-[11px] text-gray-400 font-medium">Click any state to explore primary agricultural output</p>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">{t('buyerDashboard.indiaCropMapTitle')}</h3>
+                    <p className="text-[11px] text-gray-400 font-medium">{t('buyerDashboard.indiaCropMapDesc')}</p>
                   </div>
                 </div>
                 <IndiaCropMap onStateClick={(stateName) => navigate(`/state/${encodeURIComponent(stateName)}`)} />
@@ -712,20 +712,20 @@ export default function BuyerDashboard() {
           {activeTab === 'saved' && (
             <div className="space-y-6">
               <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
-                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Saved Listings</h2>
-                <p className="text-xs text-gray-500 font-medium mt-1">Crops you bookmarked for direct procurement</p>
+                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">{t('buyerDashboard.savedListingsTitle')}</h2>
+                <p className="text-xs text-gray-500 font-medium mt-1">{t('buyerDashboard.savedListingsDesc')}</p>
               </div>
 
               {savedItems.length === 0 ? (
                 <div className="bg-white rounded-3xl border border-dashed border-gray-200 py-16 px-6 text-center space-y-4 shadow-sm">
                   <div className="text-5xl">🔖</div>
-                  <h3 className="text-lg font-bold text-gray-900">No Saved Items</h3>
-                  <p className="text-xs text-gray-500 max-w-sm mx-auto">You haven't saved any crop listings yet.</p>
+                  <h3 className="text-lg font-bold text-gray-900">{t('buyerDashboard.noSavedItems')}</h3>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">{t('buyerDashboard.noSavedDesc')}</p>
                   <button
                     onClick={() => setActiveTab('browse')}
                     className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-sm"
                   >
-                    Browse Marketplace
+                    {t('buyerDashboard.browseMarketplace')}
                   </button>
                 </div>
               ) : (
@@ -758,12 +758,12 @@ export default function BuyerDashboard() {
                     <Heart className="text-rose-500 fill-rose-500" size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-stone-900 tracking-tight">My Wishlist</h2>
-                    <p className="text-xs text-stone-500 font-semibold mt-0.5">High-quality farm crops saved for direct deal negotiation</p>
+                    <h2 className="text-xl font-black text-stone-900 tracking-tight">{t('buyerDashboard.myWishlist')}</h2>
+                    <p className="text-xs text-stone-500 font-semibold mt-0.5">{t('buyerDashboard.wishlistHighQuality')}</p>
                   </div>
                 </div>
                 <span className="bg-stone-100 text-stone-700 px-3 py-1 rounded-full text-xs font-black">
-                  {savedItems.length} {savedItems.length === 1 ? 'Crop' : 'Crops'}
+                  {savedItems.length} {savedItems.length === 1 ? t('buyerDashboard.crop') : t('buyerDashboard.crops')}
                 </span>
               </div>
 
@@ -772,13 +772,13 @@ export default function BuyerDashboard() {
                   <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4 border border-rose-100 animate-pulse">
                     <Heart size={24} className="text-rose-400 fill-rose-400" />
                   </div>
-                  <h3 className="text-stone-850 font-black text-lg">Wishlist is Empty</h3>
-                  <p className="text-stone-400 text-xs font-semibold max-w-xs mx-auto mt-1">Bookmark fresh crop harvests directly from local farmers to view them here.</p>
+                  <h3 className="text-stone-850 font-black text-lg">{t('buyerDashboard.wishlistEmpty')}</h3>
+                  <p className="text-stone-400 text-xs font-semibold max-w-xs mx-auto mt-1">{t('buyerDashboard.wishlistEmptyDesc')}</p>
                   <button
                     onClick={() => setActiveTab('browse')}
                     className="mt-6 px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-xs font-black tracking-wide cursor-pointer transition-all shadow-md shadow-orange-600/15"
                   >
-                    Explore Farm Listings
+                    {t('buyerDashboard.exploreFarmListings')}
                   </button>
                 </div>
               ) : (
@@ -798,7 +798,7 @@ export default function BuyerDashboard() {
                           {listing.aiVerified && (
                             <div className="absolute top-3 left-3 bg-emerald-950/90 text-emerald-400 backdrop-blur-sm border border-emerald-800/80 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
                               <ShieldCheck size={11} className="text-emerald-400" />
-                              AI Verified
+                              {t('buyerDashboard.aiVerified')}
                             </div>
                           )}
 
@@ -838,7 +838,7 @@ export default function BuyerDashboard() {
                               onClick={() => navigate(`/listing/${listingId}`)}
                               className="py-2.5 border border-stone-200 hover:border-stone-450 text-stone-600 hover:text-stone-900 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-sm"
                             >
-                              <Eye size={13} /> View Product
+                              <Eye size={13} /> {t('buyerDashboard.viewProduct')}
                             </button>
                             <button
                               onClick={async () => {
@@ -852,7 +852,7 @@ export default function BuyerDashboard() {
                               }}
                               className="py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md shadow-orange-600/15"
                             >
-                              <ShoppingCart size={13} /> Move to Cart
+                              <ShoppingCart size={13} /> {t('buyerDashboard.moveToCart')}
                             </button>
                           </div>
                         </div>

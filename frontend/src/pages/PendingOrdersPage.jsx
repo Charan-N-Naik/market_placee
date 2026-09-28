@@ -6,6 +6,7 @@ import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import api from '../api/axios';
+import ConfirmModal from '../components/common/ConfirmModal';
 import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
   CheckCircle, Truck, Package, Clock, ShieldCheck, Download, AlertTriangle,
@@ -182,6 +183,8 @@ export default function BuyerOrdersPage() {
 
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  // ConfirmModal state
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', variant: 'default', isAlert: false, onConfirm: null });
 
   useEffect(() => {
     fetchOrders();
@@ -347,26 +350,35 @@ export default function BuyerOrdersPage() {
   };
 
   const handleCancelOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to cancel this order?')) return;
-    try {
-      try {
-        await api.put(`/orders/${orderId}/status`, { status: 'cancelled' });
-      } catch (e) {
-        console.warn('API cancel failed, updating local state:', e);
-      }
-      setOrders(prev =>
-        prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o)
-      );
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o);
-      localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
-
-      showToast('Order cancelled successfully.');
-    } catch (err) {
-      console.error('Error cancelling order:', err);
-      showToast(err.response?.data?.message || 'Failed to cancel order', 'error');
-    }
+    setConfirmModal({
+      isOpen: true,
+      variant: 'danger',
+      title: 'Cancel Order',
+      message: 'Are you sure you want to cancel this order? This action cannot be undone.',
+      confirmText: 'Yes, Cancel Order',
+      cancelText: 'Keep Order',
+      isAlert: false,
+      onConfirm: async () => {
+        try {
+          try {
+            await api.put(`/orders/${orderId}/status`, { status: 'cancelled' });
+          } catch (e) {
+            console.warn('API cancel failed, updating local state:', e);
+          }
+          setOrders(prev =>
+            prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o)
+          );
+          const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
+          const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
+          const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o);
+          localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
+          showToast('Order cancelled successfully.');
+        } catch (err) {
+          console.error('Error cancelling order:', err);
+          showToast(err.response?.data?.message || 'Failed to cancel order', 'error');
+        }
+      },
+    });
   };
 
   /* ─── Status Filter Mapping ─── */
