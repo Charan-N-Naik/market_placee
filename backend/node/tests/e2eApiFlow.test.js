@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import dns from 'dns';
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { io as ClientIO } from 'socket.io-client';
 import Listing from '../models/Listing.js';
@@ -29,12 +30,12 @@ function assert(condition, testName, details = '') {
   }
 }
 
-async function api(method, endpoint, body = null, token = null) {
-  const headers = { 'Content-Type': 'application/json' };
+async function api(method, endpoint, body = null, token = null, extraHeaders = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const options = { method, headers };
-  if (body) options.body = JSON.stringify(body);
+  if (body) options.body = typeof body === 'string' ? body : JSON.stringify(body);
 
   const res = await fetch(`${API_URL}${endpoint}`, options);
   let data = null;
@@ -426,6 +427,95 @@ async function runE2ETests() {
   const agent3Notifs = await api('GET', '/notifications', null, agent3Token);
   const cancelNotif = (agent3Notifs.data || []).find((n) => n.title?.includes('Cancelled') || n.message?.includes('cancelled'));
   assert(Boolean(cancelNotif), 'Step e: Assigned delivery agent notified of order cancellation');
+
+  // ──────────────────────────────────────────────────
+  // Step f: Payment Verification & Webhook Idempotency
+  // ──────────────────────────────────────────────────
+  console.log('\n--- Step f: Payment Verification & Webhook Idempotency ---');
+
+  // Create an order for buyer to test payment verification flow
+  const paymentTestOrder = await Order.create({
+    buyer: buyerUser._id,
+    farmer: listingTomato.farmer._id || listingTomato.farmer,
+    items: [{ listing: listingTomato._id, quantity: 1, priceAtPurchase: 30 }],
+    totalAmount: 30,
+    status: 'pending',
+    deliveryMode: 'auto_assign',
+    paymentMethod: 'online',
+  });
+
+  // 1. A buyer calling PUT /orders/:id/status with 'paid' gets 403
+  const directPaidAttempt = await api('PUT', `/orders/${paymentTestOrder._id}/status`, { status: 'paid' }, buyerToken);
+  assert(directPaidAttempt.status === 403, 'Step f: Buyer calling PUT /orders/:id/status with "paid" gets 403 Forbidden');
+
+  // 2. /payments/verify with a bad signature gets 400
+  const badSignatureAttempt = await api('POST', '/payments/verify', {
+    orderId: paymentTestOrder._id,
+    razorpay_order_id: 'order_test_bad_123',
+    razorpay_payment_id: 'pay_test_bad_123',
+    razorpay_signature: 'invalid_signature_hex_xyz_1234567890abcdef',
+  }, buyerToken);
+  assert(badSignatureAttempt.status === 400, 'Step f: /payments/verify with bad signature gets 400 Bad Request');
+
+  // 3. A valid signature (computed in the test with a test secret) marks the order paid
+  const testOrderId = `order_test_${Date.now()}`;
+  const testPaymentId = `pay_test_${Date.now()}`;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET || 'dummy_key_secret_abcde';
+  const validSignature = crypto
+    .createHmac('sha256', keySecret)
+    .update(`${testOrderId}|${testPaymentId}`)
+    .digest('hex');
+
+  const validVerifyRes = await api('POST', '/payments/verify', {
+    orderId: paymentTestOrder._id,
+    razorpay_order_id: testOrderId,
+    razorpay_payment_id: testPaymentId,
+    razorpay_signature: validSignature,
+  }, buyerToken);
+  assert(validVerifyRes.status === 200, 'Step f: /payments/verify with valid signature returns 200 OK');
+
+  const orderAfterValidPayment = await Order.findById(paymentTestOrder._id);
+  assert(orderAfterValidPayment.status === 'paid', 'Step f: Order status marked as paid in database');
+  assert(orderAfterValidPayment.paymentId === testPaymentId, 'Step f: Payment ID stored on order');
+
+  // 4. A duplicate webhook doesn't change anything
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'dummy_webhook_secret_xyz';
+  const webhookPayload = {
+    event: 'payment.captured',
+    payload: {
+      payment: {
+        entity: {
+          id: testPaymentId,
+          order_id: testOrderId,
+          status: 'captured',
+          amount: 3000,
+          currency: 'INR',
+        }
+      }
+    }
+  };
+  const payloadString = JSON.stringify(webhookPayload);
+  const webhookSignature = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(payloadString)
+    .digest('hex');
+
+  // First webhook call
+  const webhookRes1 = await api('POST', '/payments/webhook', payloadString, null, { 'x-razorpay-signature': webhookSignature });
+  assert(webhookRes1.status === 200, 'Step f: Webhook payment.captured returns 200 OK');
+
+  // Second (duplicate) webhook call
+  const orderBeforeDuplicateWebhook = await Order.findById(paymentTestOrder._id);
+  const webhookRes2 = await api('POST', '/payments/webhook', payloadString, null, { 'x-razorpay-signature': webhookSignature });
+  assert(webhookRes2.status === 200, 'Step f: Duplicate webhook call returns 200 OK');
+
+  const orderAfterDuplicateWebhook = await Order.findById(paymentTestOrder._id);
+  assert(orderAfterDuplicateWebhook.status === 'paid', 'Step f: Order remains in paid status after duplicate webhook');
+  assert(orderAfterDuplicateWebhook.paymentId === orderBeforeDuplicateWebhook.paymentId, 'Step f: Duplicate webhook did not alter payment ID');
+  assert(
+    new Date(orderAfterDuplicateWebhook.updatedAt).getTime() === new Date(orderBeforeDuplicateWebhook.updatedAt).getTime(),
+    'Step f: Duplicate webhook is idempotent and did not alter order document'
+  );
 
   // Close sockets & mongoose connection
   socketWinner.disconnect();
