@@ -187,7 +187,7 @@ export default function ListingDetails() {
     try {
       setAddingToCart(true);
       setCartError('');
-      await addToCart(listing, quantity);
+      await addToCart(listing, quantity, { mode: 'set' });
       navigate('/checkout');
     } catch (error) {
       console.error('Buy Now failed:', error);

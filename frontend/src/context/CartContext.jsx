@@ -31,13 +31,18 @@ export function CartProvider({ children }) {
     fetchCart();
   }, [fetchCart]);
 
-  const addToCart = async (rawListing, quantity = 50, optionalObj = null) => {
+  const addToCart = async (rawListing, quantity = 50, options = {}) => {
     const listingId = (typeof rawListing === 'object' && rawListing !== null) 
       ? (rawListing._id || rawListing.id) 
       : rawListing;
 
-    console.log('Adding to cart:', { listingId, quantity });
-    const { data } = await api.post('/cart/add', { listingId, quantity });
+    const payload = { listingId, quantity };
+    if (options?.mode) {
+      payload.mode = options.mode;
+    }
+
+    console.log('Adding to cart:', payload);
+    const { data } = await api.post('/cart/add', payload);
     console.log('Cart updated via API:', data);
     setCart(data);
     return data;

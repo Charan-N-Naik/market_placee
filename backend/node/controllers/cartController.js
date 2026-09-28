@@ -21,7 +21,7 @@ export const getCart = asyncHandler(async (req, res) => {
 // @route   POST /api/cart/add
 // @access  Private
 export const addToCart = asyncHandler(async (req, res) => {
-  const { listingId, quantity } = req.body;
+  const { listingId, quantity, mode } = req.body;
   const listing = await Listing.findById(listingId);
   if (!listing) {
     return res.status(404).json({ message: 'Listing not found' });
@@ -32,7 +32,11 @@ export const addToCart = asyncHandler(async (req, res) => {
   }
   const existingItem = cart.items.find(item => item.listing.toString() === listingId);
   if (existingItem) {
-    existingItem.quantity += quantity;
+    if (mode === 'set') {
+      existingItem.quantity = quantity;
+    } else {
+      existingItem.quantity += quantity;
+    }
   } else {
     cart.items.push({ listing: listingId, quantity, priceAtAdd: listing.pricePerUnit || listing.price || 0 });
   }

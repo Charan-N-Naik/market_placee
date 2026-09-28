@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
@@ -452,6 +452,42 @@ export default function CheckoutPage() {
           })}
         </div>
       </div>
+
+      {/* ── Multi-item Cart Notice ── */}
+      {cartItems.length > 1 && (
+        <div style={{ maxWidth: 1200, margin: '1.25rem auto 0', padding: '0 1.5rem' }}>
+          <div style={{
+            background: '#fff7ed',
+            border: '1.5px solid #fed7aa',
+            borderRadius: 14,
+            padding: '0.85rem 1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            boxShadow: '0 1px 4px rgba(234, 88, 12, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Package size={18} color="#ea580c" />
+              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#9a3412' }}>
+                This order includes {cartItems.length} items from your cart
+              </span>
+            </div>
+            <Link
+              to="/cart"
+              style={{
+                color: '#ea580c',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                textDecoration: 'underline',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Edit in Cart
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ── Content grid ── */}
       <div style={S.grid} className="checkout-grid">

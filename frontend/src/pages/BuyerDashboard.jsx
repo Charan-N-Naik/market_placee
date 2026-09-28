@@ -74,10 +74,11 @@ export default function BuyerDashboard() {
   const handleCardBuyNow = async (item) => {
     const minQty = item.minQuantity || item.minOrder || 50;
     try {
-      await addToCart(item, minQty);
+      await addToCart(item, minQty, { mode: 'set' });
       navigate('/checkout');
     } catch (err) {
       console.error('Failed to buy now from card:', err);
+      showToast(err.response?.data?.message || 'Could not start checkout', 'error');
     }
   };
 
@@ -1792,9 +1793,14 @@ export default function BuyerDashboard() {
 
               <div className="pt-2 flex gap-2">
                 <button
-                  onClick={() => {
-                    addToCart(quickViewListing);
-                    setQuickViewListing(null);
+                  onClick={async () => {
+                    try {
+                      await addToCart(quickViewListing, quickViewListing.minQuantity || quickViewListing.minOrder || 50);
+                      showToast(`Added ${quickViewListing.cropName || 'crop'} to cart!`);
+                      setQuickViewListing(null);
+                    } catch (err) {
+                      showToast(err.response?.data?.message || 'Failed to add crop to cart', 'error');
+                    }
                   }}
                   className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
                 >
