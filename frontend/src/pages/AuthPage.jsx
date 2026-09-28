@@ -192,7 +192,12 @@ export default function AuthPage({ mode = 'login' }) {
         }
       }
     } catch (error) {
-      setApiError(error.message || 'Authentication failed. Please try again.');
+      if (error.isNetworkError || (!error.response && (error.message?.includes('Network Error') || error.code === 'ERR_NETWORK'))) {
+        setApiError('Cannot reach the server');
+      } else {
+        const msg = error.response?.data?.message || error.message || 'Authentication failed. Please try again.';
+        setApiError(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }

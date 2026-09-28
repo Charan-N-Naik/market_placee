@@ -22,24 +22,37 @@ export const getCart = asyncHandler(async (req, res) => {
 // @access  Private
 export const addToCart = asyncHandler(async (req, res) => {
   const { listingId, quantity, mode } = req.body;
+
+  const numQuantity = Number(quantity);
+  if (!Number.isFinite(numQuantity) || numQuantity <= 0) {
+    return res.status(400).json({ message: 'Quantity must be a valid positive number' });
+  }
+
   const listing = await Listing.findById(listingId);
   if (!listing) {
     return res.status(404).json({ message: 'Listing not found' });
   }
+
   let cart = await Cart.findOne({ buyer: req.user.id });
   if (!cart) {
     cart = new Cart({ buyer: req.user.id, items: [] });
   }
+
   const existingItem = cart.items.find(item => item.listing.toString() === listingId);
-  if (existingItem) {
-    if (mode === 'set') {
-      existingItem.quantity = quantity;
-    } else {
-      existingItem.quantity += quantity;
-    }
-  } else {
-    cart.items.push({ listing: listingId, quantity, priceAtAdd: listing.pricePerUnit || listing.price || 0 });
+  const targetQuantity = existingItem
+    ? (mode === 'set' ? numQuantity : existingItem.quantity + numQuantity)
+    : numQuantity;
+
+  if (targetQuantity > listing.quantity) {
+    return res.status(409).json({ message: 'Insufficient stock' });
   }
+
+  if (existingItem) {
+    existingItem.quantity = targetQuantity;
+  } else {
+    cart.items.push({ listing: listingId, quantity: targetQuantity, priceAtAdd: listing.pricePerUnit || listing.price || 0 });
+  }
+
   await cart.save();
   await cart.populate('items.listing');
   res.status(200).json(cart);
@@ -50,11 +63,27 @@ export const addToCart = asyncHandler(async (req, res) => {
 // @access  Private
 export const updateCartItem = asyncHandler(async (req, res) => {
   const { listingId, quantity } = req.body;
+
+  const numQuantity = Number(quantity);
+  if (!Number.isFinite(numQuantity) || numQuantity <= 0) {
+    return res.status(400).json({ message: 'Quantity must be a valid positive number' });
+  }
+
+  const listing = await Listing.findById(listingId);
+  if (!listing) {
+    return res.status(404).json({ message: 'Listing not found' });
+  }
+
+  if (numQuantity > listing.quantity) {
+    return res.status(409).json({ message: 'Insufficient stock' });
+  }
+
   const cart = await Cart.findOne({ buyer: req.user.id });
   if (!cart) return res.status(404).json({ message: 'Cart not found' });
   const item = cart.items.find(i => i.listing.toString() === listingId);
   if (!item) return res.status(404).json({ message: 'Item not in cart' });
-  item.quantity = quantity;
+
+  item.quantity = numQuantity;
   await cart.save();
   await cart.populate('items.listing');
   res.json(cart);

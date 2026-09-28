@@ -109,6 +109,11 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('kisan_orders');
       return userData;
     } catch (err) {
+      if (!err.response && (err.message?.includes('Network Error') || err.code === 'ERR_NETWORK')) {
+        const netErr = new Error('Cannot reach the server');
+        netErr.isNetworkError = true;
+        throw netErr;
+      }
       throw new Error(err.response?.data?.message || 'Login failed');
     }
   }, []);

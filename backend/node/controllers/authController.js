@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import Review from '../models/Review.js';
 import generateToken from '../utils/generateToken.js';
@@ -194,7 +195,15 @@ export const registerUser = async (req, res, next) => {
 // @access  Public
 export const loginUser = async (req, res, next) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: 'Database service unavailable. Please try again later.' });
+    }
+
     const { loginId, password, role, rememberMe } = req.body;
+    if (!loginId || !password) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
     const cleanLoginId = loginId?.trim() || '';
     const user = await User.findOne({
       $or: [
@@ -205,43 +214,47 @@ export const loginUser = async (req, res, next) => {
       ]
     });
 
-    if (user && (await user.matchPassword(password))) {
-      if (role && user.role !== role) {
-        res.status(403);
-        throw new Error(`Unauthorized: You are registered as a ${user.role}, please login through the correct portal.`);
-      }
-      const accessToken = generateToken(user._id);
-      const refreshToken = generateRefreshToken(user._id);
-      user.refreshToken.push(refreshToken);
-      await user.save();
-
-      // Set refresh token cookie; longer expiration if rememberMe
-      const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // 30 days vs 7 days
-      };
-      res.cookie('refreshToken', refreshToken, cookieOptions);
-
-      res.json({
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          isVerified: user.isVerified,
-          avatar: user.avatar,
-          location: user.location,
-          deliveryAgentProfile: user.deliveryAgentProfile,
-        },
-        token: accessToken,
-      });
-    } else {
-      res.status(401);
-      throw new Error('Invalid credentials');
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ message: `Unauthorized: You are registered as a ${user.role}, please login through the correct portal.` });
+    }
+
+    const accessToken = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+    user.refreshToken.push(refreshToken);
+    await user.save();
+
+    // Set refresh token cookie; longer expiration if rememberMe
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000, // 30 days vs 7 days
+    };
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    return res.json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified,
+        avatar: user.avatar,
+        location: user.location,
+        deliveryAgentProfile: user.deliveryAgentProfile,
+      },
+      token: accessToken,
+    });
   } catch (error) {
     next(error);
   }

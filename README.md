@@ -141,18 +141,38 @@ npm run dev
 ```
 Open your browser and navigate to `http://localhost:5173`.
 
-#### 5. Running Tests & Multi-Account Testing
+#### 5. Local Testing & Multi-Account Setup
+
+To run a safe local test environment isolated from production data:
+
 ```bash
-# Seed test database (kisanbazaar_test) with test users and listings
 cd backend/node
+npm install
+
+# 1. Seed the test database (kisanbazaar_test) with test users and crops
 npm run seed:test
 
-# Run order & delivery flow integration test suite
+# 2. Run the backend in test database mode
+npm run dev:test
+
+# 3. Run the automated integration test suite
 npm test
 ```
 
-> ⚠️ **Multi-Account Testing Note**:
-> When testing multi-role workflows (Farmer, Buyer, and Delivery Agent) concurrently, **test each account in a separate Chrome profile or a different browser**; multiple incognito windows share one session and `localStorage`, which can cause user state and token collisions.
+##### 🔑 Seeded Test Accounts (Password: `Test@1234`)
+
+| Role | Name | Email | Phone | Location | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Buyer** | Test Buyer | `buyer@kisan.test` | `9000000001` | Bengaluru | Primary wholesale buyer |
+| **Farmer** | Farmer A | `farmer.a@kisan.test` | `9000000002` | Kolar | Seeds 10 kg Tomato listing |
+| **Farmer** | Farmer B | `farmer.b@kisan.test` | `9000000003` | Tumakuru | Seeds 1 kg Onion listing |
+| **Delivery** | Agent One | `agent1@kisan.test` | `9000000011` | Kolar | Mini-van, available |
+| **Delivery** | Agent Two | `agent2@kisan.test` | `9000000012` | Hoskote | Bike, available |
+| **Delivery** | Agent Three | `agent3@kisan.test` | `9000000013` | Mysuru | Truck, available |
+| **Buyer** | Outsider | `outsider@kisan.test` | `9000000099` | Bengaluru | Unauthorized 3rd-party buyer |
+
+> ⚠️ **Important Multi-Account Testing Rule**:
+> When testing multi-role workflows (Farmer, Buyer, and Delivery Agent) concurrently in the browser, **use a separate Chrome profile per account** (or separate dedicated browsers). Multiple incognito windows share the same browser process session and `localStorage`, which can cause user credentials and session tokens to overwrite each other.
 
 ---
 

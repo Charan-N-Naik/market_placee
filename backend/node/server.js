@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cookieParser from 'cookie-parser';
 import dns from 'dns';
+import mongoose from 'mongoose';
 
 // Prefer IPv4 for DNS resolution to avoid MongoDB connection timeouts on IPv6
 if (dns.setDefaultResultOrder) {
@@ -14,6 +15,14 @@ if (dns.setDefaultResultOrder) {
 
 // Load environment variables FIRST
 dotenv.config();
+
+// Fail-fast environment variable validation
+const requiredEnvVars = ['JWT_SECRET', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(key => !process.env[key]);
+if (missingEnvVars.length > 0) {
+  console.error(`❌ Fatal Startup Error: Missing required environment variable(s): ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
 
 import connectDB from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -250,6 +259,14 @@ io.on('connection', (socket) => {
 });
 
 // Health check
+app.get('/api/health', (req, res) => {
+  const isConnected = mongoose.connection.readyState === 1;
+  res.status(200).json({
+    ok: true,
+    db: isConnected ? 'connected' : 'disconnected',
+  });
+});
+
 app.get('/', (req, res) => {
   res.send('KisanBazaar API is running...');
 });

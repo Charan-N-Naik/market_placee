@@ -94,17 +94,6 @@ export default function FarmerDashboard() {
   const [inventorySubTab, setInventorySubTab] = useState('current');
 
   useEffect(() => {
-    // Clean up existing ghost orders from localStorage
-    try {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('kisan_orders_') || key === 'farmer_notifications') {
-          localStorage.removeItem(key);
-        }
-      });
-    } catch (e) {
-      console.warn('Could not clean localStorage ghost orders:', e);
-    }
-
     if (!user || user.role !== 'farmer') {
       navigate('/login/farmer');
       return;

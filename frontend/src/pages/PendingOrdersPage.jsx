@@ -181,16 +181,6 @@ export default function BuyerOrdersPage() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
-    // Clean up existing ghost orders from localStorage
-    try {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('kisan_orders_') || key === 'farmer_notifications') {
-          localStorage.removeItem(key);
-        }
-      });
-    } catch (e) {
-      console.warn('Could not clean localStorage ghost orders:', e);
-    }
     fetchOrders();
   }, []);
 

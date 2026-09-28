@@ -12,6 +12,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, req, _res) => {
+            console.error(`[Proxy Error] target: http://localhost:5000 | path: ${req.url} | code: ${err.code || err.message}`);
+          });
+        },
       },
     },
   },
