@@ -10,6 +10,7 @@
     "test": "node tests/orderDeliveryIntegration.test.js",
     "seed:test": "node scripts/seedTestUsers.js",
     "dev:test": "cross-env USE_TEST_DB=true nodemon server.js",
+    "pretest:e2e": "node scripts/seedTestUsers.js",
     "test:e2e": "node tests/e2eApiFlow.test.js"
   },
   "dependencies": {

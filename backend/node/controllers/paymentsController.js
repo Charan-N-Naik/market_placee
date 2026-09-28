@@ -2,11 +2,31 @@ import Razorpay from 'razorpay';
 import asyncHandler from 'express-async-handler';
 import Order from '../models/Order.js';
 
-// Initialize Razorpay client using env variables
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpayClient = null;
+
+/**
+ * Lazily initialize and return the Razorpay client.
+ * Throws a clear error if Razorpay API keys are not configured.
+ */
+export const getRazorpay = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    const error = new Error('Razorpay configuration error: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are required');
+    error.statusCode = 500;
+    throw error;
+  }
+
+  if (!razorpayClient) {
+    razorpayClient = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+  }
+
+  return razorpayClient;
+};
 
 /**
  * @desc    Create Razorpay order for a payment
@@ -14,6 +34,7 @@ const razorpay = new Razorpay({
  * @access  Private (buyer)
  */
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
+  const razorpay = getRazorpay();
   const { amount, currency = 'INR', receipt } = req.body;
   if (!amount) {
     res.status(400);
@@ -28,7 +49,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
   
   let order;
   try {
-    if (!process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID.includes('dummy')) {
+    if (process.env.RAZORPAY_KEY_ID.includes('dummy')) {
       throw new Error('Using dummy credentials');
     }
     order = await razorpay.orders.create(options);

@@ -17,11 +17,14 @@ if (dns.setDefaultResultOrder) {
 dotenv.config();
 
 // Fail-fast environment variable validation
-const requiredEnvVars = ['JWT_SECRET', 'RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'];
-const missingEnvVars = requiredEnvVars.filter(key => !process.env[key]);
-if (missingEnvVars.length > 0) {
-  console.error(`❌ Fatal Startup Error: Missing required environment variable(s): ${missingEnvVars.join(', ')}`);
+if (!process.env.JWT_SECRET) {
+  console.error('❌ Fatal Startup Error: Missing required environment variable: JWT_SECRET');
   process.exit(1);
+}
+
+const missingRazorpayKeys = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'].filter(key => !process.env[key]);
+if (missingRazorpayKeys.length > 0) {
+  console.warn(`⚠️ Warning: Missing Razorpay environment variable(s): ${missingRazorpayKeys.join(', ')}. Online payments will be unavailable until keys are provided.`);
 }
 
 import connectDB from './config/db.js';
@@ -264,6 +267,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     ok: true,
     db: isConnected ? 'connected' : 'disconnected',
+    dbName: mongoose.connection.name,
   });
 });
 

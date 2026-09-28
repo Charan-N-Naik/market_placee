@@ -51,6 +51,30 @@ function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function waitForSocketEvent(socket, eventName, timeoutMs = 5000, predicate = null) {
+  return new Promise((resolve, reject) => {
+    let timer = null;
+    const handler = (data) => {
+      if (!predicate || predicate(data)) {
+        cleanup();
+        resolve(data);
+      }
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      socket.off(eventName, handler);
+    };
+
+    timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out after ${timeoutMs}ms waiting for socket event "${eventName}"`));
+    }, timeoutMs);
+
+    socket.on(eventName, handler);
+  });
+}
+
 async function runE2ETests() {
   console.log('====================================================');
   console.log('  KisanBazaar API End-to-End Test Suite (Flow a–e)  ');
@@ -80,14 +104,24 @@ async function runE2ETests() {
   console.log(`Connected to test database: ${mongoose.connection.name}\n`);
 
   // Check server health
+  let health;
   try {
-    const health = await api('GET', '/health');
+    health = await api('GET', '/health');
     assert(health.status === 200 && health.data?.ok === true, 'Server Health Check: dev:test is running on port 5000');
   } catch (err) {
     console.error('❌ Could not connect to dev:test server at http://localhost:5000.');
     console.error('   Please make sure the server is running with: npm run dev:test');
     process.exit(1);
   }
+
+  // Refuse to run unless server's dbName contains "test"
+  const serverDbName = health.data?.dbName || '';
+  if (!serverDbName.toLowerCase().includes('test')) {
+    console.error(`❌ Refusing to run tests: Server database "${serverDbName || '(unknown)'}" does not contain "test".`);
+    console.error('   The server must be running with USE_TEST_DB=true (dev:test mode).');
+    process.exit(1);
+  }
+  assert(true, `Server Health Check: dev:test confirmed connected to test database "${serverDbName}"`);
 
   // ──────────────────────────────────────────────────
   // Step a: Buyer logs in, adds crops, places auto_assign order -> 2 orders, stock decreases
@@ -222,43 +256,68 @@ async function runE2ETests() {
   const socketLoser = ClientIO(BASE_URL, { auth: { token: loserToken }, reconnection: false, timeout: 5000 });
 
   await Promise.all([
-    new Promise((r) => socketWinner.on('connect', r)),
-    new Promise((r) => socketBuyer.on('connect', r)),
-    new Promise((r) => socketFarmer.on('connect', r)),
-    new Promise((r) => socketOutsider.on('connect', r)),
-    new Promise((r) => socketLoser.on('connect', r)),
+    waitForSocketEvent(socketWinner, 'connect', 5000),
+    waitForSocketEvent(socketBuyer, 'connect', 5000),
+    waitForSocketEvent(socketFarmer, 'connect', 5000),
+    waitForSocketEvent(socketOutsider, 'connect', 5000),
+    waitForSocketEvent(socketLoser, 'connect', 5000),
   ]);
   assert(true, 'Step c: Sockets connected with authentication');
 
-  // Outsider join rejection check
-  let outsiderRejected = false;
-  socketOutsider.on('error', (err) => {
-    if (err?.message?.includes('Not authorized')) {
-      outsiderRejected = true;
-    }
-  });
+  // Outsider join rejection check: listen for error before emitting join
+  const outsiderRejectedPromise = waitForSocketEvent(
+    socketOutsider,
+    'error',
+    5000,
+    (err) => err?.message?.includes('Not authorized')
+  );
 
   socketWinner.emit('join_room', roomName);
   socketBuyer.emit('join_room', roomName);
   socketFarmer.emit('join_room', roomName);
   socketOutsider.emit('join_room', roomName);
 
-  await wait(500);
+  let outsiderRejected = false;
+  try {
+    const errorData = await outsiderRejectedPromise;
+    outsiderRejected = Boolean(errorData?.message?.includes('Not authorized'));
+  } catch (err) {
+    console.error('Outsider join wait error:', err.message);
+  }
   assert(outsiderRejected, 'Step c: Outsider join on order room is rejected with authorization error');
 
-  // Location relay check
-  let buyerReceivedLocation = null;
-  let farmerReceivedLocation = null;
-  let outsiderReceivedLocation = false;
+  // Location relay check: start polling for agent_location events
+  const testCoords = { orderId: orderTomato._id, lat: 13.1358, lng: 78.1294 };
 
-  socketBuyer.on('agent_location', (loc) => { buyerReceivedLocation = loc; });
-  socketFarmer.on('agent_location', (loc) => { farmerReceivedLocation = loc; });
+  const buyerLocationPromise = waitForSocketEvent(
+    socketBuyer,
+    'agent_location',
+    5000,
+    (loc) => loc?.lat === testCoords.lat && loc?.lng === testCoords.lng
+  );
+  const farmerLocationPromise = waitForSocketEvent(
+    socketFarmer,
+    'agent_location',
+    5000,
+    (loc) => loc?.lat === testCoords.lat && loc?.lng === testCoords.lng
+  );
+
+  let outsiderReceivedLocation = false;
   socketOutsider.on('agent_location', () => { outsiderReceivedLocation = true; });
 
-  const testCoords = { orderId: orderTomato._id, lat: 13.1358, lng: 78.1294 };
   socketWinner.emit('agent_location_update', testCoords);
 
-  await wait(600);
+  let buyerReceivedLocation = null;
+  let farmerReceivedLocation = null;
+  try {
+    [buyerReceivedLocation, farmerReceivedLocation] = await Promise.all([
+      buyerLocationPromise,
+      farmerLocationPromise,
+    ]);
+  } catch (err) {
+    console.error('Location relay wait error:', err.message);
+  }
+
   assert(
     buyerReceivedLocation?.lat === testCoords.lat && buyerReceivedLocation?.lng === testCoords.lng,
     'Step c: Buyer received agent_location update'
@@ -274,9 +333,27 @@ async function runE2ETests() {
   socketBuyer.on('agent_location', (loc) => {
     if (loc?.lat === 99.9999) nonAssignedRelayed = true;
   });
-  socketLoser.emit('agent_location_update', { orderId: orderTomato._id, lat: 99.9999, lng: 99.9999 });
 
-  await wait(600);
+  const sentinelCoords = { orderId: orderTomato._id, lat: 13.2222, lng: 78.3333 };
+  const sentinelPromise = waitForSocketEvent(
+    socketBuyer,
+    'agent_location',
+    5000,
+    (loc) => loc?.lat === sentinelCoords.lat && loc?.lng === sentinelCoords.lng
+  );
+
+  // Unauthorized loser emits update
+  socketLoser.emit('agent_location_update', { orderId: orderTomato._id, lat: 99.9999, lng: 99.9999 });
+  // Authorized winner emits sentinel immediately afterwards
+  socketWinner.emit('agent_location_update', sentinelCoords);
+
+  // Poll for sentinel to ensure all previous queue updates were processed
+  try {
+    await sentinelPromise;
+  } catch (err) {
+    console.error('Sentinel location wait error:', err.message);
+  }
+
   assert(!nonAssignedRelayed, 'Step c: Location update from non-assigned account is ignored');
 
   // ──────────────────────────────────────────────────
