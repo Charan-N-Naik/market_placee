@@ -65,57 +65,21 @@ export default function CheckoutModal({ listing: rawListing, crop, onClose, onSu
         state: customerDetails.state,
         postalCode: customerDetails.pin,
       },
+      deliveryMode: 'auto_assign',
       paymentMethod: 'pending_farmer_approval',
       totalAmount: finalTotal
     };
 
     try {
-      let res;
-      try {
-        res = await api.post('/orders', orderPayload);
-      } catch (firstErr) {
-        if (firstErr.response?.status === 401 || firstErr.response?.data?.message?.includes('token')) {
-          throw firstErr; // Pass 401 to local fallback handler below
-        }
-        // Fallback for backend enum compatibility
-        console.warn('First order attempt failed, retrying with compatible fallback enum:', firstErr);
-        res = await api.post('/orders', { ...orderPayload, paymentMethod: 'cod' });
-      }
-
+      const res = await api.post('/orders', orderPayload);
       setCreatedOrder(res.data);
       if (fetchCart) fetchCart();
       setStep(4); // Move to Step 4: Request Sent Confirmation
       if (onSuccess) onSuccess(res.data);
     } catch (err) {
-      console.warn('Backend order request failed, creating local fallback request:', err);
-
-      // Handle 401 or network errors gracefully with local storage request
-      const fallbackOrder = {
-        _id: 'REQ-' + Date.now().toString().slice(-6),
-        orderId: 'REQ-' + Date.now().toString().slice(-6),
-        items: [{ listing: listingId, quantity, priceAtPurchase: unitPrice }],
-        deliveryAddress: {
-          name: customerDetails.name,
-          phone: customerDetails.phone,
-          addressLine1: customerDetails.line1,
-          city: customerDetails.city,
-          state: customerDetails.state,
-          postalCode: customerDetails.pin,
-        },
-        paymentMethod: 'pending_farmer_approval',
-        totalAmount: finalTotal,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      };
-
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const existing = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      localStorage.setItem(ordersKey, JSON.stringify([fallbackOrder, ...existing]));
-
-      setCreatedOrder(fallbackOrder);
-      if (fetchCart) fetchCart();
-      setStep(4);
-      if (onSuccess) onSuccess(fallbackOrder);
+      console.error('Order creation failed:', err);
+      const msg = err.response?.data?.message || 'Could not place order. Please try again.';
+      setOrderError(msg);
     } finally {
       setPlacingOrder(false);
     }

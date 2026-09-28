@@ -244,78 +244,18 @@ export default function CheckoutPage() {
     };
 
     try {
-      let orderData = null;
-      try {
-        const res = await api.post('/orders', payload);
-        orderData = res.data;
-      } catch (apiErr) {
-        console.warn('Backend order API call failed, generating robust local order:', apiErr);
-        // Fallback: group cart items by farmer
-        const farmerMap = {};
-        for (const item of cartItems) {
-          const fid = item.listing?.farmer?._id || item.listing?.farmer || 'farmer_default';
-          if (!farmerMap[fid]) farmerMap[fid] = [];
-          farmerMap[fid].push(item);
-        }
-        const fallbackOrders = Object.entries(farmerMap).map(([fid, fitems], idx) => {
-          const subTotal = fitems.reduce((s, i) => s + (i.listing?.pricePerUnit || i.priceAtAdd || 35) * i.quantity, 0);
-          return {
-            _id: 'ORD-' + Math.random().toString(36).slice(2, 9),
-            orderId: 'KB' + (Date.now() + idx).toString().slice(-6),
-            farmer: fid,
-            items: fitems.map(i => ({
-              listing: i.listing,
-              quantity: i.quantity,
-              priceAtPurchase: i.listing?.pricePerUnit || i.priceAtAdd || 35
-            })),
-            totalAmount: subTotal,
-            status: 'pending',
-            paymentMethod: 'pending_farmer_approval',
-            deliveryAddress,
-            deliveryMode,
-            createdAt: new Date().toISOString()
-          };
-        });
-        orderData = {
-          orderIds: fallbackOrders.map(o => o._id),
-          orderId: fallbackOrders[0]?._id,
-          orders: fallbackOrders
-        };
-      }
-
-      const ordersList = orderData.orders?.length ? orderData.orders : [orderData];
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const existingOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      localStorage.setItem(ordersKey, JSON.stringify([...ordersList, ...existingOrders]));
-
-      // Create Farmer Notification(s) for each created farmer order
-      const createdFarmerNotifs = [];
-      ordersList.forEach((ord, idx) => {
-        const cropNamesStr = (ord.items || cartItems).map(i => i.listing?.cropName || i.cropName || 'Crop').join(', ');
-        const farmerNotif = {
-          id: 'notif-' + Date.now() + '-' + idx,
-          title: '🌾 New Direct Crop Order Request Received!',
-          message: `A buyer submitted a Buy Request for ${cropNamesStr} (Total: ₹${(ord.totalAmount || total).toLocaleString('en-IN')}). Order ID: #${ord.orderId || ord._id?.slice?.(-6)}`,
-          time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-          date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-          type: 'order',
-          read: false
-        };
-        createdFarmerNotifs.push(farmerNotif);
-      });
-      const existingNotifs = JSON.parse(localStorage.getItem('farmer_notifications') || '[]');
-      localStorage.setItem('farmer_notifications', JSON.stringify([...createdFarmerNotifs, ...existingNotifs]));
-
-      // Dispatch event to notify application components
-      ordersList.forEach((ord, idx) => {
-        window.dispatchEvent(new CustomEvent('new_order_placed', { detail: { order: ord, notification: createdFarmerNotifs[idx] } }));
-      });
+      const res = await api.post('/orders', payload);
+      const orderData = res.data;
 
       setOrderResult({ status: 'success', data: orderData });
       fetchCart();
       setStep(4);
     } catch (err) {
-      setOrderResult({ status: 'failed', error: err.response?.data?.message || 'Failed to submit buy request.' });
+      console.error('Order creation failed:', err);
+      setOrderResult({
+        status: 'failed',
+        error: err.response?.data?.message || 'Failed to submit buy request. Please try again.'
+      });
     } finally {
       setPlacing(false);
     }

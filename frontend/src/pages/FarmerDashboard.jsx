@@ -93,6 +93,17 @@ export default function FarmerDashboard() {
   const [inventorySubTab, setInventorySubTab] = useState('current');
 
   useEffect(() => {
+    // Clean up existing ghost orders from localStorage
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('kisan_orders_') || key === 'farmer_notifications') {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.warn('Could not clean localStorage ghost orders:', e);
+    }
+
     if (!user || user.role !== 'farmer') {
       navigate('/login/farmer');
       return;
@@ -156,22 +167,7 @@ export default function FarmerDashboard() {
         console.warn('API seller orders fetch failed:', e.message);
       }
 
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      const combined = [...apiOrders, ...localOrders];
-
-      // De-duplicate by _id
-      const uniqueOrders = [];
-      const seen = new Set();
-      combined.forEach(o => {
-        const key = o._id || o.orderId || o.id;
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueOrders.push(o);
-        }
-      });
-
-      setSellerOrders(uniqueOrders);
+      setSellerOrders(apiOrders);
 
       let apiNotifs = [];
       try {
@@ -201,7 +197,7 @@ export default function FarmerDashboard() {
       let pending = 0;
       let completed = 0;
 
-      (uniqueOrders || []).forEach(order => {
+      (apiOrders || []).forEach(order => {
         if (!order) return;
         const dateVal = order.createdAt || order.date;
         const orderDate = dateVal ? new Date(dateVal) : new Date();
@@ -285,22 +281,14 @@ export default function FarmerDashboard() {
 
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
-      try {
-        await api.put(`/orders/${orderId}/status`, { status: newStatus });
-      } catch (e) {
-        console.warn('API update order status failed, syncing locally:', e);
-      }
+      await api.put(`/orders/${orderId}/status`, { status: newStatus });
       setSellerOrders(prev =>
         prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: newStatus } : o)
       );
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: newStatus } : o);
-      localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
-
       alert(`Order status updated to ${newStatus}`);
     } catch (err) {
-      alert('Failed to update order status');
+      console.error('Failed to update order status:', err);
+      alert(err.response?.data?.message || 'Failed to update order status');
     }
   };
 
@@ -579,7 +567,7 @@ export default function FarmerDashboard() {
                       {sellerOrders.slice(0, 5).map((order) => (
                         <tr key={order._id} className="hover:bg-gray-50/50">
                           <td className="py-3 font-mono font-bold text-gray-400">#{order._id?.slice(-6)}</td>
-                          <td className="py-3 font-bold text-gray-900">{order.items?.[0]?.listing?.cropName || 'Farm Stock'}</td>
+                          <td className="py-3 font-bold text-gray-900">{order.items?.[0]?.listing?.cropName || 'Crop'}</td>
                           <td className="py-3 font-bold">₹{order.totalAmount}</td>
                           <td className="py-3">
                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border
@@ -957,7 +945,7 @@ export default function FarmerDashboard() {
                       ? parsedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                       : 'Date not recorded';
 
-                    const cropName = order.items?.[0]?.listing?.cropName || order.items?.[0]?.cropName || 'Crop Item';
+                    const cropName = order.items?.[0]?.listing?.cropName || order.items?.[0]?.cropName || 'Crop';
                     const qty = order.items?.[0]?.quantity || order.items?.reduce((s, i) => s + (i.quantity || 0), 0) || 1;
                     const buyerName = order.buyer?.name || order.buyerName || 'Buyer';
                     const buyerPhone = order.buyer?.phone || order.buyerPhone || '';
@@ -1916,7 +1904,7 @@ export default function FarmerDashboard() {
                 <span>Subtotal</span>
               </div>
               <div className="flex justify-between">
-                <span>🌾 {invoiceOrder.items?.[0]?.listing?.cropName || 'Farm Crop'} x {invoiceOrder.items?.[0]?.quantity || 1} units</span>
+                <span>🌾 {invoiceOrder.items?.[0]?.listing?.cropName || 'Crop'} x {invoiceOrder.items?.[0]?.quantity || 1} units</span>
                 <span className="font-bold text-gray-900">₹{invoiceOrder.totalAmount}</span>
               </div>
 

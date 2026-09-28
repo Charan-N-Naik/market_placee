@@ -63,8 +63,12 @@ export default function ListingDetails() {
       // Fetch matching APMC market price from real backend endpoint
       api.get('/market-prices')
         .then(res => {
-          const prices = res.data || [];
-          const matched = prices.find(p => p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()));
+          const raw = res.data;
+          const prices = Array.isArray(raw) ? raw : (raw?.data || []);
+          const matched = prices.find(p => 
+            p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
+            p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
+          );
           if (matched) {
             setApmcPriceData(matched);
           }

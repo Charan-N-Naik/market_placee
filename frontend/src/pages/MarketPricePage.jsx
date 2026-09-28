@@ -43,7 +43,8 @@ const MarketPricePage = () => {
     setLoading(true);
     try {
       const { data } = await api.get('/market-prices');
-      const enriched = data.map((item, idx) => ({
+      const list = Array.isArray(data) ? data : (data?.data || []);
+      const enriched = list.map((item, idx) => ({
         ...item,
         mandi: item.mandi || APMC_MANDIS[idx % APMC_MANDIS.length].name,
       }));

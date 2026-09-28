@@ -10,37 +10,34 @@ import {
 import LanguageToggle from '../components/LanguageToggle';
 import api from '../api/axios';
 
-const FALLBACK_MARKET_DATA = [
-  { commodity: 'Tomato (Hybrid)', mandi: 'Bengaluru (APMC)', modal_price: 2450, trend: '+4.2%', isUp: true },
-  { commodity: 'Onion (Red)', mandi: 'Tumkur Mandi', modal_price: 3180, trend: '+2.8%', isUp: true },
-  { commodity: 'Ragi (Finger Millet)', mandi: 'Ramanagara APMC', modal_price: 3600, trend: '-1.1%', isUp: false },
-  { commodity: 'Potato (Jyoti)', mandi: 'Hassan Mandi', modal_price: 1850, trend: '+3.5%', isUp: true }
-];
-
 export default function LandingPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   const [livePrices, setLivePrices] = useState([]);
   const [pricesLoading, setPricesLoading] = useState(true);
+  const [priceError, setPriceError] = useState(false);
 
   useEffect(() => {
     const fetchPrices = async () => {
+      setPricesLoading(true);
+      setPriceError(false);
       try {
         const { data } = await api.get('/market-prices');
-        if (data && data.length > 0) {
-          const enriched = data.slice(0, 4).map((item, idx) => ({
+        const list = Array.isArray(data) ? data : (data?.data || []);
+        if (list && list.length > 0) {
+          const enriched = list.slice(0, 4).map((item, idx) => ({
             ...item,
-            trend: idx % 2 === 0 ? '+3.4%' : '+1.8%',
-            isUp: true
+            trend: item.change || (idx % 2 === 0 ? '+3.4%' : '+1.8%'),
+            isUp: item.up !== undefined ? item.up : true
           }));
           setLivePrices(enriched);
         } else {
-          setLivePrices(FALLBACK_MARKET_DATA);
+          setPriceError(true);
         }
       } catch (err) {
         console.error('Failed to fetch market prices', err);
-        setLivePrices(FALLBACK_MARKET_DATA);
+        setPriceError(true);
       } finally {
         setPricesLoading(false);
       }
@@ -60,8 +57,6 @@ export default function LandingPage() {
       transition: { staggerChildren: 0.2 }
     }
   };
-
-  const displayPrices = livePrices.length > 0 ? livePrices : FALLBACK_MARKET_DATA;
 
   return (
     <div className="min-h-screen bg-green-50/30 text-slate-800 font-sans overflow-x-hidden selection:bg-green-200">
@@ -184,6 +179,57 @@ export default function LandingPage() {
                 />
               </div>
             </motion.div>
+          </div>
+        </section>
+
+        {/* 2. LIVE APMC MANDI PRICES */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 mb-16 relative z-20">
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-green-100 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                  Live APMC Mandi Prices
+                </span>
+              </div>
+              <button 
+                onClick={() => navigate('/market-prices')}
+                className="text-xs font-semibold text-green-700 hover:text-green-800 flex items-center gap-1 cursor-pointer"
+              >
+                View all mandis <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {pricesLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="animate-pulse bg-slate-100 rounded-xl p-3 h-20"></div>
+                ))}
+              </div>
+            ) : priceError || livePrices.length === 0 ? (
+              <div className="py-6 text-center text-slate-500 text-sm font-medium bg-slate-50/80 rounded-xl border border-dashed border-slate-200">
+                Prices unavailable right now
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {livePrices.map((item, idx) => (
+                  <div key={idx} className="bg-slate-50/80 hover:bg-white border border-slate-100 hover:border-green-200 rounded-xl p-3 flex flex-col justify-between transition-colors shadow-sm">
+                    <div className="text-xs text-slate-500 font-medium truncate">{item.name || item.commodity}</div>
+                    <div className="flex items-baseline justify-between mt-1.5">
+                      <span className="text-base font-extrabold text-slate-800">{item.price || `₹${item.modal_price}/q`}</span>
+                      <span className={`text-xs font-bold flex items-center ${item.up !== false && item.isUp !== false ? 'text-green-600' : 'text-rose-600'}`}>
+                        {item.up !== false && item.isUp !== false ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
+                        {item.change || item.trend || '+2.5%'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 

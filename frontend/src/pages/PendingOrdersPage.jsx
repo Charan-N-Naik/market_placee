@@ -181,49 +181,24 @@ export default function BuyerOrdersPage() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   useEffect(() => {
+    // Clean up existing ghost orders from localStorage
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('kisan_orders_') || key === 'farmer_notifications') {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      console.warn('Could not clean localStorage ghost orders:', e);
+    }
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      let apiOrders = [];
-      try {
-        const response = await api.get('/orders/my');
-        apiOrders = response.data || [];
-      } catch (e) {
-        console.warn('API get orders failed, falling back to local storage orders:', e);
-      }
-
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-
-      // Combine API & Local orders, removing duplicates by ID
-      // API orders take priority (they have the latest DB status from farmer actions)
-      const combined = [...apiOrders, ...localOrders];
-      const uniqueOrders = [];
-      const seenIds = new Set();
-
-      combined.forEach(o => {
-        const idKey = o._id || o.orderId || o.id;
-        if (idKey && !seenIds.has(idKey)) {
-          seenIds.add(idKey);
-          uniqueOrders.push(o);
-        }
-      });
-
-      // Sync localStorage with latest API statuses so stale data doesn't persist
-      if (apiOrders.length > 0) {
-        const apiMap = new Map(apiOrders.map(o => [o._id || o.orderId || o.id, o]));
-        const updatedLocal = localOrders.map(lo => {
-          const key = lo._id || lo.orderId || lo.id;
-          const apiVersion = apiMap.get(key);
-          return apiVersion ? { ...lo, status: apiVersion.status } : lo;
-        });
-        localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
-      }
-
-      setOrders(uniqueOrders);
+      const response = await api.get('/orders/my');
+      setOrders(response.data || []);
       setError('');
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -346,19 +321,10 @@ export default function BuyerOrdersPage() {
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm('Are you sure you want to cancel this order?')) return;
     try {
-      try {
-        await api.put(`/orders/${orderId}/status`, { status: 'cancelled' });
-      } catch (e) {
-        console.warn('API cancel failed, updating local state:', e);
-      }
+      await api.put(`/orders/${orderId}/status`, { status: 'cancelled' });
       setOrders(prev =>
         prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o)
       );
-      const ordersKey = `kisan_orders_${user?._id || user?.id || 'guest'}`;
-      const localOrders = JSON.parse(localStorage.getItem(ordersKey) || '[]');
-      const updatedLocal = localOrders.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: 'cancelled' } : o);
-      localStorage.setItem(ordersKey, JSON.stringify(updatedLocal));
-
       showToast('Order cancelled successfully.');
     } catch (err) {
       console.error('Error cancelling order:', err);
@@ -555,8 +521,7 @@ export default function BuyerOrdersPage() {
                         const cropName = cache.cropName || item.listing?.cropName || 'Crop';
                         const variety = cache.variety || item.listing?.variety || '';
                         const unit = cache.unit || item.listing?.unit || 'kg';
-                        const price = item.priceAtPurchase || cache.pricePerUnit || item.listing?.pricePerUnit || 0;
-                        const farmerName = cache.farmer?.name || item.listing?.farmer?.name || 'Local Farmer';
+                        const farmerName = cache.farmer?.name || item.listing?.farmer?.name || (typeof order.farmer === 'object' ? order.farmer?.name : null) || 'Farmer';
                         const cropPhoto = cache.images?.[0]?.url || cache.photo || item.listing?.photo || null;
 
                         return (

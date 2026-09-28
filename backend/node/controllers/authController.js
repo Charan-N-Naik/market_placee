@@ -255,19 +255,26 @@ export const refreshToken = async (req, res, next) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
-      // Return clean 401 JSON — do NOT throw so the global error handler doesn't log a stack trace
       return res.status(401).json({ message: 'No refresh token' });
     }
 
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-
-    if (!user || !user.refreshToken.includes(refreshToken)) {
-      res.status(401);
-      throw new Error('Not authorized, invalid refresh token');
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+    } catch (jwtErr) {
+      if (jwtErr.name === 'JsonWebTokenError' || jwtErr.name === 'TokenExpiredError') {
+        res.clearCookie('refreshToken');
+        return res.status(401).json({ message: 'Invalid or expired refresh token' });
+      }
+      throw jwtErr;
     }
 
-    // Optional: Refresh token rotation can be implemented here
+    const user = await User.findById(decoded.id);
+
+    if (!user || !user.refreshToken?.includes(refreshToken)) {
+      res.clearCookie('refreshToken');
+      return res.status(401).json({ message: 'Not authorized, invalid refresh token' });
+    }
 
     const accessToken = generateToken(user._id);
     res.json({ token: accessToken });

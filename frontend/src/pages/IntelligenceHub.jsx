@@ -59,7 +59,8 @@ const IntelligenceHub = () => {
 
         // Fetch Real APMC prices
         const priceRes = await api.get('/market-prices');
-        const pData = priceRes.data || [];
+        const rawData = priceRes.data;
+        const pData = Array.isArray(rawData) ? rawData : (rawData?.data || []);
         setMarketData(pData.map((item, idx) => ({
           ...item,
           mandi: item.mandi || APMC_MANDIS[idx % APMC_MANDIS.length].name,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Loader, MapPin, Truck, CreditCard } from 'lucide-react';
-import axios from 'axios';
+import api from '../api/axios';
 
 export default function BuyModal({ listing, onClose, onSuccess }) {
   const [quantity, setQuantity] = useState(1);
@@ -51,7 +51,7 @@ export default function BuyModal({ listing, onClose, onSuccess }) {
         deliveryMode: 'auto_assign',
       };
 
-      const response = await axios.post('/api/orders', orderData);
+      const response = await api.post('/orders', orderData);
       
       if (onSuccess) {
         onSuccess(response.data);

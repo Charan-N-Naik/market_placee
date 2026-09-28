@@ -31,7 +31,9 @@ export function AuthProvider({ children }) {
         setUser(userData);
         localStorage.setItem('kisanbazaar_user', JSON.stringify(userData));
       } catch (error) {
-        // 401 here means no valid session — this is normal for logged-out users. Suppress noise.
+        // Treat 401 or 500 from GET /auth/refresh as "not logged in":
+        // clear local user state, do not retry in a loop, and do not show an error to the user.
+        delete api.defaults.headers.common['Authorization'];
         setUser(null);
         localStorage.removeItem('kisanbazaar_user');
       } finally {
