@@ -14,6 +14,15 @@ import {
   Check, PhoneCall, CreditCard, CheckCircle2
 } from 'lucide-react';
 
+function getPaymentLabel(order) {
+  if (!order) return 'Payment Pending';
+  if (order.paymentId?.startsWith('pay_sim_')) return 'Paid (Simulated)';
+  if (order.paymentId) return `Paid · ${order.paymentId.slice(-6)}`;
+  if (order.paymentMethod === 'cod') return 'Cash on Delivery';
+  if (order.status === 'paid') return 'Paid';
+  return 'Payment Pending';
+}
+
 /* ─── Order Progress Stepper ─── */
 function OrderStepper({ status }) {
   const steps = [
@@ -585,7 +594,7 @@ export default function BuyerOrdersPage() {
                         </span>
                         <div className="bg-white rounded-lg p-2.5 border border-zinc-100 text-xs flex items-center justify-between">
                           <span className="font-medium text-stone-600">
-                            {order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-6)})` : (order.status === 'paid' ? 'Paid via Razorpay' : 'Pending Payment')}
+                            {getPaymentLabel(order)}
                           </span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${['paid', 'collected', 'shipped', 'delivered', 'received'].includes(order.status) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                             {['paid', 'collected', 'shipped', 'delivered', 'received'].includes(order.status) ? 'Confirmed' : 'Awaiting'}

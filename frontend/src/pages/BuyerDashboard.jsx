@@ -49,6 +49,15 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+function getPaymentLabel(order) {
+  if (!order) return 'Payment Pending';
+  if (order.paymentId?.startsWith('pay_sim_')) return 'Paid (Simulated)';
+  if (order.paymentId) return `Paid · ${order.paymentId.slice(-6)}`;
+  if (order.paymentMethod === 'cod') return 'Cash on Delivery';
+  if (order.status === 'paid') return 'Paid';
+  return 'Payment Pending';
+}
+
 export default function BuyerDashboard() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
@@ -1679,9 +1688,9 @@ export default function BuyerDashboard() {
                               </div>
                               <div className="text-right shrink-0">
                                 <span className="block text-xs font-black text-emerald-700">₹{amt}</span>
-                                <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${payStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                <span className={`inline-block text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${['paid', 'accepted', 'shipped', 'delivered', 'received'].includes(ord.status) || ord.paymentId ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
                                   }`}>
-                                  {payStatus}
+                                  {getPaymentLabel(ord)}
                                 </span>
                               </div>
                             </div>
