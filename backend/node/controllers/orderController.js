@@ -284,8 +284,14 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized to update this order' });
   }
 
-  if (isBuyer && !ownsListing) {
-    if (status === 'cancelled' && !['pending', 'accepted'].includes(order.status)) {
+  if (isBuyer) {
+    if (status === 'paid') {
+      const allowSimulated = process.env.NODE_ENV !== 'production' && process.env.ALLOW_SIMULATED_PAYMENTS === 'true';
+      if (!allowSimulated) {
+        return res.status(403).json({ message: 'Direct payment status updates are forbidden for buyers. Please use the payment verification endpoint.' });
+      }
+    }
+    if (!ownsListing && status === 'cancelled' && !['pending', 'accepted'].includes(order.status)) {
       return res.status(400).json({ message: 'Cannot cancel order after it has been shipped or completed' });
     }
   }

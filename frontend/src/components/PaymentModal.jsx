@@ -68,7 +68,26 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
           image: 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png',
           ...(isRealOrder ? { order_id: razorpayOrderData.id } : {}),
           handler: async function (response) {
-            await finalizePayment(response.razorpay_payment_id || `pay_rzp_${Date.now()}`);
+            try {
+              const verifyRes = await api.post('/payments/verify', {
+                orderId: order._id || order.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              if (verifyRes.data?.success || verifyRes.status === 200) {
+                setPaymentSuccess(true);
+                if (onPaymentSuccess) onPaymentSuccess(order._id || order.id);
+              } else {
+                setErrorMsg('Payment verification failed. Please contact support.');
+              }
+            } catch (verifyErr) {
+              console.error('Payment verification failed:', verifyErr);
+              setErrorMsg(verifyErr.response?.data?.message || 'Payment verification failed. Please contact support.');
+            } finally {
+              setPaying(false);
+            }
           },
           prefill: {
             name: order.deliveryAddress?.name || 'Buyer',

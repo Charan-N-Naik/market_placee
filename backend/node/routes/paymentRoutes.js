@@ -1,6 +1,6 @@
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { createRazorpayOrder, razorpayWebhook } from '../controllers/paymentsController.js';
+import { createRazorpayOrder, verifyPayment, razorpayWebhook } from '../controllers/paymentsController.js';
 
 const router = express.Router();
 
@@ -8,7 +8,11 @@ const router = express.Router();
 router.post('/create', protect, createRazorpayOrder);
 router.post('/create-order', protect, createRazorpayOrder);
 
-// Webhook endpoint – no auth, verify signature inside controller
-router.post('/webhook/razorpay', express.raw({ type: 'application/json' }), razorpayWebhook);
+// Verify Razorpay payment signature (buyer only)
+router.post('/verify', protect, verifyPayment);
+
+// Webhook endpoints – no auth, verify signature inside controller
+router.post('/webhook', razorpayWebhook);
+router.post('/webhook/razorpay', razorpayWebhook);
 
 export default router;

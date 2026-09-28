@@ -23,6 +23,7 @@ const orderSchema = new mongoose.Schema(
       default: 'pending_farmer_approval',
     },
     paymentId: { type: String },
+    razorpayOrderId: { type: String },
     invoiceUrl: { type: String },
     deliveryAddress: {
       addressLine1: { type: String },
