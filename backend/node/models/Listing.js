@@ -106,7 +106,7 @@ const listingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'sold', 'expired'],
+      enum: ['active', 'available', 'sold', 'expired'],
       default: 'active',
     },
     views: {

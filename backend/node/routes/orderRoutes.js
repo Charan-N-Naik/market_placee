@@ -21,9 +21,6 @@ import {
 
 const router = express.Router();
 
-// Get single order by ID
-router.get('/:orderId', protect, getOrderById);
-
 // Create a new order (buyer must be authenticated)
 router.post('/', protect, createOrder);
 
@@ -41,6 +38,9 @@ router.get('/seller', protect, requireRole('farmer'), getSellerOrders);
 router.get('/driver/jobs', protect, getDriverJobs);
 router.get('/driver/requests', protect, getDriverRequests);
 router.get('/driver/stats', protect, getDriverStats);
+
+// Get single order by ID
+router.get('/:orderId', protect, getOrderById);
 router.post('/:orderId/delivery/request', protect, requestDeliveryForOrder);
 router.put('/:orderId/delivery/offers/:agentId/respond', protect, respondToDeliveryOffer);
 router.put('/:orderId/driver/respond', protect, acceptRejectDriverJob);
