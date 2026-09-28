@@ -583,10 +583,44 @@ git push origin feature/your-name-feature-description
 ### 📞 Need Help?
 
 - Open a **GitHub Issue** in the repo describing your problem.
-- Contact the admin: **Charan N Naik** (`Charan-N-Naik` on GitHub).
+---
+
+## 📱 Mobile App Architecture & Integration (React Native)
+
+KisanBazaar includes ready-to-use architecture modules for the React Native mobile application:
+
+### 1. 🔐 Secure Token Management (`react-native-keychain`)
+Mobile apps should avoid storing JWT tokens in plaintext `localStorage` or `AsyncStorage`.
+- **Implementation**: Located at `mobile/src/utils/authStorage.js`.
+- **Mechanism**: Stores auth tokens in hardware-backed secure storage (iOS Keychain / Android Keystore) via `react-native-keychain` with graceful metadata storage in `AsyncStorage`.
+
+### 2. 🛒 Offline Cart Persistence (`@react-native-async-storage/async-storage`)
+Enables buyers and farmers to preserve their shopping cart during spotty rural connectivity.
+- **Implementation**: Located at `mobile/src/utils/cartStorage.js`.
+- **Mechanism**: Saves active cart snapshots to `@kisanbazaar_offline_cart` key and automatically synchronizes when network connectivity is restored.
+
+### 3. 🔗 Deep Linking & FCM Push Routing
+Allows automated push notifications to open directly into live delivery tracking maps.
+- **URI Scheme**: `kisanbazaar://order/:orderId`
+- **Universal Links**: `https://kisanbazaar.com/orders/:orderId`
+- **Implementation**: Located at `mobile/src/utils/deepLinking.js`.
+- **Behavior**: When tapped from a push notification, the app parses `:orderId` and transitions directly to `OrderTrackingMap`.
+
+### 4. ⚡ Battery-Optimized Socket.IO Lifecycle Reconnection
+Maintains real-time location and chat updates without draining battery or cellular data when the app is in the background.
+- **Implementation**: Located at `mobile/src/utils/socketManager.js`.
+- **Lifecycle Hook**: Utilizes React Native `AppState`:
+  - `active`: Reconnects socket with fresh auth token.
+  - `background` / `inactive`: Cleanly disconnects socket to preserve battery and server socket pools.
+
+### 5. 📸 Cloud-Based Image Uploads
+Base64 image blobs are banned from JSON payloads to keep mobile network requests lightweight and fast.
+- Images are submitted via `POST /api/upload` as `multipart/form-data`.
+- The returned CDN URL is stored directly on the document.
 
 ---
 
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
