@@ -19,6 +19,7 @@ export const ordersLimiter = rateLimit({
   keyGenerator: (req) => {
     return req.user?._id?.toString() || req.user?.id || req.ip;
   },
+  validate: { keyGeneratorIpFallback: false },
   message: {
     success: false,
     message: 'Too many order requests. Rate limit is 30 requests per minute.',
@@ -34,6 +35,7 @@ export const uploadLimiter = rateLimit({
   keyGenerator: (req) => {
     return req.user?._id?.toString() || req.user?.id || req.ip;
   },
+  validate: { keyGeneratorIpFallback: false },
   message: {
     success: false,
     message: 'Upload rate limit exceeded (10 uploads per minute). Please wait a moment.',
