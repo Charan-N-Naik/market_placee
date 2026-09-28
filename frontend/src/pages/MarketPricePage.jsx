@@ -38,22 +38,35 @@ const MarketPricePage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedMandi, setSelectedMandi] = useState('All Mandis');
   const [lastUpdated, setLastUpdated] = useState('');
+  const [priceMeta, setPriceMeta] = useState({ stale: false, source: 'live', updatedAt: null });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/market-prices');
-      const list = Array.isArray(data) ? data : (data?.data || []);
+      const res = await api.get('/market-prices');
+      const resData = res.data;
+      const list = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+      const meta = {
+        stale: resData?.stale ?? false,
+        source: resData?.source ?? 'live',
+        updatedAt: resData?.updatedAt || null
+      };
+      setPriceMeta(meta);
+
       const enriched = list.map((item, idx) => ({
         ...item,
         mandi: item.mandi || APMC_MANDIS[idx % APMC_MANDIS.length].name,
       }));
       setMarketData(enriched);
+
+      const timeStr = meta.updatedAt
+        ? new Date(meta.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      setLastUpdated(timeStr);
     } catch (error) {
       console.error('Failed to fetch APMC data:', error);
       setMarketData([]);
     } finally {
-      setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
       setLoading(false);
     }
   };
@@ -162,8 +175,18 @@ const MarketPricePage = () => {
                 </p>
               </div>
             </div>
-            <div className="inline-flex items-center self-start sm:self-auto gap-1.5 text-[10px] font-black text-green-700 bg-green-100 border border-green-200 px-3 py-1.5 rounded-full uppercase tracking-widest">
-              <TrendingUp size={14} /> {t('marketPrice.live')}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {priceMeta.stale ? (
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-full">
+                  {priceMeta.source === 'sample'
+                    ? 'Sample data - live prices unavailable'
+                    : `Last updated ${lastUpdated}`}
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 text-[10px] font-black text-green-700 bg-green-100 border border-green-200 px-3 py-1.5 rounded-full uppercase tracking-widest">
+                  <TrendingUp size={14} /> {t('marketPrice.live')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -196,9 +219,9 @@ const MarketPricePage = () => {
                     {[
                       t('marketPrice.thCommodity'),
                       t('marketPrice.thAvgRate'),
-                      t('marketPrice.thChange'),
-                      t('marketPrice.thLowHigh'),
-                      t('marketPrice.thVolume'),
+                      `${t('marketPrice.thChange')} (est.)`,
+                      `${t('marketPrice.thLowHigh')} (est.)`,
+                      `${t('marketPrice.thVolume')} (est.)`,
                       t('marketPrice.thMSP'),
                       t('marketPrice.thMandi')
                     ].map((h, i) => (
@@ -232,24 +255,34 @@ const MarketPricePage = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap font-black text-stone-900 text-lg text-right">{item.price}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`inline-flex items-center gap-1.5 font-black text-xs px-2.5 py-1.5 rounded-lg ${item.up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {item.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                            {item.change}
-                          </div>
+                          {item.change ? (
+                            <div className={`inline-flex items-center gap-1.5 font-black text-xs px-2.5 py-1.5 rounded-lg ${item.up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {item.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                              {item.change} <span className="text-[9px] opacity-70 font-normal">(est.)</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-stone-400">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-stone-400 w-10 text-right">{item.low}</span>
-                            <div className="flex-1 h-2 bg-stone-100 rounded-full relative overflow-hidden">
-                              <div 
-                                className={`absolute top-0 bottom-0 left-0 rounded-full ${item.up ? 'bg-gradient-to-r from-[#86efac] to-[#16a34a]' : 'bg-gradient-to-r from-[#fca5a5] to-[#f43f5e]'}`} 
-                                style={{ width: `${rangePercent}%` }}
-                              />
+                          {item.low && item.high ? (
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-bold text-stone-400 w-10 text-right">{item.low}</span>
+                              <div className="flex-1 h-2 bg-stone-100 rounded-full relative overflow-hidden">
+                                <div 
+                                  className={`absolute top-0 bottom-0 left-0 rounded-full ${item.up ? 'bg-gradient-to-r from-[#86efac] to-[#16a34a]' : 'bg-gradient-to-r from-[#fca5a5] to-[#f43f5e]'}`} 
+                                  style={{ width: `${rangePercent}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-bold text-stone-600 w-10">{item.high}</span>
                             </div>
-                            <span className="text-xs font-bold text-stone-600 w-10">{item.high}</span>
-                          </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-stone-400">—</span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-stone-500">{item.volume}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-stone-500">
+                          {item.volume ? `${item.volume} (est.)` : (item.retail ? `Retail: ${item.retail}` : '—')}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-xs font-black px-2.5 py-1 rounded-md ${item.msp && item.msp !== '—' && item.msp !== '-' ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-400'}`}>
                             {item.msp || '—'}

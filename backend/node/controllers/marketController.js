@@ -1,17 +1,17 @@
 import * as cheerio from 'cheerio';
 
-// In-memory cache for market prices
+// In-memory cache for market prices: { data: [...], updatedAt: string }
 let cachedMarketPrices = null;
 
 const STATIC_FALLBACK_PRICES = [
-  { name: 'Tomato', commodity: 'Tomato', price: '₹25/kg', change: '+3.4%', up: true, high: '₹29', low: '₹21', volume: '1420 Tons', msp: '-' },
-  { name: 'Onion', commodity: 'Onion', price: '₹32/kg', change: '+1.8%', up: true, high: '₹36', low: '₹28', volume: '2150 Tons', msp: '-' },
-  { name: 'Potato', commodity: 'Potato', price: '₹18/kg', change: '+2.5%', up: true, high: '₹21', low: '₹15', volume: '1890 Tons', msp: '-' },
-  { name: 'Green Chilli', commodity: 'Green Chilli', price: '₹45/kg', change: '-2.1%', up: false, high: '₹52', low: '₹40', volume: '620 Tons', msp: '-' },
-  { name: 'Carrot', commodity: 'Carrot', price: '₹38/kg', change: '+1.2%', up: true, high: '₹44', low: '₹32', volume: '880 Tons', msp: '-' },
-  { name: 'Cabbage', commodity: 'Cabbage', price: '₹16/kg', change: '-1.5%', up: false, high: '₹19', low: '₹13', volume: '950 Tons', msp: '-' },
-  { name: 'Ginger', commodity: 'Ginger', price: '₹85/kg', change: '+4.0%', up: true, high: '₹95', low: '₹75', volume: '430 Tons', msp: '-' },
-  { name: 'Garlic', commodity: 'Garlic', price: '₹120/kg', change: '+0.5%', up: true, high: '₹135', low: '₹105', volume: '310 Tons', msp: '-' }
+  { name: 'Tomato', commodity: 'Tomato', price: '₹25/kg', retail: '₹32/kg', msp: '—' },
+  { name: 'Onion', commodity: 'Onion', price: '₹32/kg', retail: '₹40/kg', msp: '—' },
+  { name: 'Potato', commodity: 'Potato', price: '₹18/kg', retail: '₹24/kg', msp: '—' },
+  { name: 'Green Chilli', commodity: 'Green Chilli', price: '₹45/kg', retail: '₹55/kg', msp: '—' },
+  { name: 'Carrot', commodity: 'Carrot', price: '₹38/kg', retail: '₹48/kg', msp: '—' },
+  { name: 'Cabbage', commodity: 'Cabbage', price: '₹16/kg', retail: '₹22/kg', msp: '—' },
+  { name: 'Ginger', commodity: 'Ginger', price: '₹85/kg', retail: '₹110/kg', msp: '—' },
+  { name: 'Garlic', commodity: 'Garlic', price: '₹120/kg', retail: '₹150/kg', msp: '—' }
 ];
 
 // @desc    Get APMC Market Prices
@@ -49,31 +49,12 @@ export const getMarketPrices = async (req, res, next) => {
         const retail = $(cols[3]).text().trim();
         
         if (priceText.includes('₹')) {
-          const numPriceStr = priceText.replace(/\D/g, '');
-          const numPrice = numPriceStr ? parseInt(numPriceStr, 10) : 20;
-          
-          // Adding deterministic yet varied fluctuations for UI realism, 
-          // seeded by the length of the name so it remains stable for a day
-          const changeVal = ((name.length * 3.14) % 25) - 10;
-          const roundedChange = changeVal.toFixed(1);
-          const change = changeVal > 0 ? `+${roundedChange}%` : `${roundedChange}%`;
-          const up = changeVal > 0;
-          
-          const high = `₹${Math.round(numPrice * 1.15)}`;
-          const low = `₹${Math.round(numPrice * 0.85)}`;
-          
-          const volume = `${(name.length * 153) % 4000 + 100} Tons`;
-          
           marketData.push({
             name,
             commodity: name,
             price: `${priceText}/kg`,
-            change,
-            up,
-            high,
-            low,
-            volume,
-            msp: '-',
+            retail: retail ? `${retail}/kg` : undefined,
+            msp: '—',
           });
         }
       }
@@ -81,22 +62,50 @@ export const getMarketPrices = async (req, res, next) => {
     });
 
     if (marketData.length === 0) {
-      const fallbackList = cachedMarketPrices && cachedMarketPrices.length > 0 ? cachedMarketPrices : STATIC_FALLBACK_PRICES;
+      if (cachedMarketPrices && cachedMarketPrices.data?.length > 0) {
+        return res.status(200).json({
+          stale: true,
+          source: 'cache',
+          updatedAt: cachedMarketPrices.updatedAt,
+          data: cachedMarketPrices.data
+        });
+      }
       return res.status(200).json({
         stale: true,
-        data: fallbackList
+        source: 'sample',
+        updatedAt: new Date().toISOString(),
+        data: STATIC_FALLBACK_PRICES
       });
     }
 
-    cachedMarketPrices = marketData;
-    res.json(marketData);
+    const now = new Date().toISOString();
+    cachedMarketPrices = {
+      data: marketData,
+      updatedAt: now
+    };
+
+    return res.status(200).json({
+      stale: false,
+      source: 'live',
+      updatedAt: now,
+      data: marketData
+    });
   } catch (error) {
     clearTimeout(timeoutId);
     console.error('Market Controller Error:', error.message || error);
-    const fallbackList = cachedMarketPrices && cachedMarketPrices.length > 0 ? cachedMarketPrices : STATIC_FALLBACK_PRICES;
+    if (cachedMarketPrices && cachedMarketPrices.data?.length > 0) {
+      return res.status(200).json({
+        stale: true,
+        source: 'cache',
+        updatedAt: cachedMarketPrices.updatedAt,
+        data: cachedMarketPrices.data
+      });
+    }
     return res.status(200).json({
       stale: true,
-      data: fallbackList
+      source: 'sample',
+      updatedAt: new Date().toISOString(),
+      data: STATIC_FALLBACK_PRICES
     });
   }
 };

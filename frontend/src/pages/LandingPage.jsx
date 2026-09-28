@@ -16,6 +16,7 @@ export default function LandingPage() {
 
   const [livePrices, setLivePrices] = useState([]);
   const [pricesLoading, setPricesLoading] = useState(true);
+  const [priceMeta, setPriceMeta] = useState({ stale: false, source: 'live', updatedAt: null });
   const [priceError, setPriceError] = useState(false);
 
   useEffect(() => {
@@ -23,12 +24,19 @@ export default function LandingPage() {
       setPricesLoading(true);
       setPriceError(false);
       try {
-        const { data } = await api.get('/market-prices');
-        const list = Array.isArray(data) ? data : (data?.data || []);
+        const res = await api.get('/market-prices');
+        const resData = res.data;
+        const list = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+        setPriceMeta({
+          stale: resData?.stale ?? false,
+          source: resData?.source ?? 'live',
+          updatedAt: resData?.updatedAt || null
+        });
+
         if (list && list.length > 0) {
-          const enriched = list.slice(0, 4).map((item, idx) => ({
+          const enriched = list.slice(0, 4).map((item) => ({
             ...item,
-            trend: item.change || (idx % 2 === 0 ? '+3.4%' : '+1.8%'),
+            trend: item.change || null,
             isUp: item.up !== undefined ? item.up : true
           }));
           setLivePrices(enriched);
@@ -185,16 +193,23 @@ export default function LandingPage() {
         {/* 2. LIVE APMC MANDI PRICES */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 mb-16 relative z-20">
           <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-green-100 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${priceMeta.stale ? 'bg-amber-400' : 'bg-green-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-3 w-3 ${priceMeta.stale ? 'bg-amber-500' : 'bg-green-500'}`}></span>
                 </span>
                 <span className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
-                  Live APMC Mandi Prices
+                  <TrendingUp className={`w-4 h-4 ${priceMeta.stale ? 'text-amber-600' : 'text-green-600'}`} />
+                  APMC Mandi Prices
                 </span>
+                {priceMeta.stale && (
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                    {priceMeta.source === 'sample'
+                      ? 'Sample data - live prices unavailable'
+                      : `Last updated ${priceMeta.updatedAt ? new Date(priceMeta.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'recently'}`}
+                  </span>
+                )}
               </div>
               <button 
                 onClick={() => navigate('/market-prices')}
@@ -221,10 +236,16 @@ export default function LandingPage() {
                     <div className="text-xs text-slate-500 font-medium truncate">{item.name || item.commodity}</div>
                     <div className="flex items-baseline justify-between mt-1.5">
                       <span className="text-base font-extrabold text-slate-800">{item.price || `₹${item.modal_price}/q`}</span>
-                      <span className={`text-xs font-bold flex items-center ${item.up !== false && item.isUp !== false ? 'text-green-600' : 'text-rose-600'}`}>
-                        {item.up !== false && item.isUp !== false ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
-                        {item.change || item.trend || '+2.5%'}
-                      </span>
+                      {item.trend ? (
+                        <span className={`text-[11px] font-bold flex items-center ${item.up !== false && item.isUp !== false ? 'text-green-600' : 'text-rose-600'}`}>
+                          {item.up !== false && item.isUp !== false ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
+                          {item.trend} <span className="text-[9px] text-slate-400 font-normal ml-0.5">(est.)</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                          Live Rate
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

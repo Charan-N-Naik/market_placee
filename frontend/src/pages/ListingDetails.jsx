@@ -64,13 +64,18 @@ export default function ListingDetails() {
       api.get('/market-prices')
         .then(res => {
           const raw = res.data;
-          const prices = Array.isArray(raw) ? raw : (raw?.data || []);
+          const prices = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
           const matched = prices.find(p => 
             p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
             p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
           );
           if (matched) {
-            setApmcPriceData(matched);
+            setApmcPriceData({
+              ...matched,
+              _stale: raw?.stale ?? false,
+              _source: raw?.source ?? 'live',
+              _updatedAt: raw?.updatedAt || null
+            });
           }
         })
         .catch(() => { });
@@ -909,9 +914,17 @@ export default function ListingDetails() {
                 <TrendingUp size={24} className="text-[#FF8C42]" />
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">APMC Mandi Rate Comparison</h3>
               </div>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                Live Feed
-              </span>
+              {apmcPriceData._stale ? (
+                <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 px-3 py-1 rounded-full">
+                  {apmcPriceData._source === 'sample'
+                    ? 'Sample data - live prices unavailable'
+                    : `Last updated ${apmcPriceData._updatedAt ? new Date(apmcPriceData._updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'recently'}`}
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                  Live Feed
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-xs">
