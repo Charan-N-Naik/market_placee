@@ -133,5 +133,10 @@ const listingSchema = new mongoose.Schema(
   }
 );
 
+listingSchema.index({ createdAt: -1 });
+listingSchema.index({ farmer: 1 });
+listingSchema.index({ cropName: 1 });
+listingSchema.index({ isVerified: 1 });
+
 const Listing = mongoose.model('Listing', listingSchema);
 export default Listing;

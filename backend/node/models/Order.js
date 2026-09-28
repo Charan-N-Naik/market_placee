@@ -76,5 +76,11 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+orderSchema.index({ buyer: 1, createdAt: -1 });
+orderSchema.index({ farmer: 1, createdAt: -1 });
+orderSchema.index({ deliveryAgent: 1 });
+orderSchema.index({ status: 1, pickupDeadline: 1 });
+orderSchema.index({ 'deliveryOffers.agent': 1 });
+
 const Order = mongoose.model('Order', orderSchema);
 export default Order;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import { useAuth } from './AuthContext';
 
@@ -9,13 +9,18 @@ export function ListingProvider({ children }) {
   const [savedListings, setSavedListings] = useState([]); // Array of full listing objects
   const [loading, setLoading] = useState(true);
   const { user, isAuthenticated } = useAuth();
+  const userId = user?._id || user?.id;
+  const userRole = user?.role;
+  const isFetchingRef = useRef(false);
 
   const fetchListings = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
-      if (user?.role === 'farmer') {
+      if (userRole === 'farmer') {
         const { data } = await api.get('/listings/my');
         setListings(data);
-      } else if (user?.role === 'buyer') {
+      } else if (userRole === 'buyer') {
         const [allListingsSettled, savedListingsSettled] = await Promise.allSettled([
           api.get('/listings'),
           api.get('/listings/saved')
@@ -36,9 +41,10 @@ export function ListingProvider({ children }) {
     } catch (error) {
       console.error('Error fetching listings:', error);
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [user]);
+  }, [userId, userRole]);
 
   useEffect(() => {
     if (isAuthenticated) {

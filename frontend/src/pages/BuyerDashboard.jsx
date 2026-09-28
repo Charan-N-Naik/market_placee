@@ -9,11 +9,12 @@ import CropCard from '../components/CropCard';
 import CheckoutModal from '../components/CheckoutModal';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import AIChatbot from './AIChatbot';
-import AICropAnalyzer from '../components/AICropAnalyzer';
 import DashboardLayout from '../components/DashboardLayout';
-import IndiaCropMap from '../components/IndiaCropMap';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import DeliveryLogisticsSection from '../components/DeliveryLogisticsSection';
+
+const AICropAnalyzer = React.lazy(() => import('../components/AICropAnalyzer'));
+const IndiaCropMap = React.lazy(() => import('../components/IndiaCropMap'));
 import {
   Search, Heart, Bot, Eye, User, Sparkles, Truck,
   ShoppingBag, Bookmark, Filter, X, ArrowRight, ShoppingCart, Pencil, Save, Check,
@@ -701,7 +702,9 @@ export default function BuyerDashboard() {
                     <p className="text-[11px] text-gray-400 font-medium">Click any state to explore primary agricultural output</p>
                   </div>
                 </div>
-                <IndiaCropMap onStateClick={(stateName) => navigate(`/state/${encodeURIComponent(stateName)}`)} />
+                <React.Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading map...</div>}>
+                  <IndiaCropMap onStateClick={(stateName) => navigate(`/state/${encodeURIComponent(stateName)}`)} />
+                </React.Suspense>
               </div>
 
             </div>
@@ -873,7 +876,11 @@ export default function BuyerDashboard() {
           {/* ========================================================== */}
           {activeTab === 'delivery' && <DeliveryLogisticsSection user={user} showToast={showToast} />}
           {activeTab === 'assistant' && <AIChatbot />}
-          {activeTab === 'analyzer' && <AICropAnalyzer />}
+          {activeTab === 'analyzer' && (
+            <React.Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading AI Analyzer...</div>}>
+              <AICropAnalyzer />
+            </React.Suspense>
+          )}
 
           {activeTab === 'notifications' && (() => {
             const visibleNotifications = notifications.filter(n => !dismissedNotificationIds.has(n._id) && !seenNotificationIds.has(n._id));

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import compression from 'compression';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cookieParser from 'cookie-parser';
@@ -16,6 +17,7 @@ dotenv.config();
 
 import connectDB from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { warmMarketPriceCache } from './controllers/marketController.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
@@ -49,6 +51,7 @@ const httpServer = createServer(app);
 connectDB().then(() => {
   seedAgriData();
   initDeliveryScheduler();
+  warmMarketPriceCache();
 });
 
 // Setup Socket.io
@@ -103,7 +106,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Request timing middleware: logs slow requests (>500ms)
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (duration > 500) {
+      console.warn(`[SLOW REQUEST] ${req.method} ${req.originalUrl || req.url} took ${duration}ms (status ${res.statusCode})`);
+    }
+  });
+  next();
+});
+
 // Middleware
+app.use(compression());
 app.use(cors({
   origin: CLIENT_URLS,
   credentials: true,

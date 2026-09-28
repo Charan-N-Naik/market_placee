@@ -9,9 +9,10 @@ import Notification from '../models/Notification.js';
 export const getNotifications = asyncHandler(async (req, res) => {
   const notifications = await Notification.find({ recipient: req.user._id })
     .populate('sender', 'name avatar')
-    .populate('relatedOrder')
-    .populate('relatedChat')
-    .sort({ createdAt: -1 });
+    .populate('relatedOrder', 'orderNumber status totalAmount')
+    .populate('relatedChat', 'lastMessage')
+    .sort({ createdAt: -1 })
+    .lean();
 
   res.json(notifications);
 });

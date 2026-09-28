@@ -229,10 +229,11 @@ export const getOrderById = asyncHandler(async (req, res) => {
 // @access  Private (buyer)
 export const getBuyerOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ buyer: req.user._id })
-    .populate('items.listing')
+    .populate('items.listing', 'cropName variety quantity unit pricePerUnit images location')
     .populate('farmer', 'name email phone location')
     .populate('deliveryAgent', 'name phone location deliveryAgentProfile')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
   res.json(orders);
 });
 
@@ -240,7 +241,7 @@ export const getBuyerOrders = asyncHandler(async (req, res) => {
 // @route   GET /api/orders/seller
 // @access  Private (farmer)
 export const getSellerOrders = asyncHandler(async (req, res) => {
-  const farmerListings = await Listing.find({ farmer: req.user._id }).select('_id');
+  const farmerListings = await Listing.find({ farmer: req.user._id }).select('_id').lean();
   const listingIds = farmerListings.map(l => l._id);
 
   // Build query: always match by farmer field, only add listing filter if farmer has listings
@@ -250,10 +251,11 @@ export const getSellerOrders = asyncHandler(async (req, res) => {
     : { farmer: req.user._id };
 
   const orders = await Order.find(query)
-    .populate('items.listing')
+    .populate('items.listing', 'cropName variety quantity unit pricePerUnit images location')
     .populate('buyer', 'name email phone location')
     .populate('deliveryAgent', 'name phone location deliveryAgentProfile')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
   // NEVER fall back to Order.find({}) — return empty array for farmers with no orders
   res.json(orders);
@@ -810,10 +812,11 @@ export const getDriverJobs = asyncHandler(async (req, res) => {
       { deliveryOffers: { $elemMatch: { agent: req.user._id, status: 'offered' } } }
     ]
   })
-    .populate('items.listing')
+    .populate('items.listing', 'cropName variety quantity unit pricePerUnit images location')
     .populate('buyer', 'name email phone location')
     .populate('farmer', 'name email phone location')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
   res.json(orders);
 });
 
@@ -827,10 +830,11 @@ export const getDriverRequests = asyncHandler(async (req, res) => {
       { deliveryOffers: { $elemMatch: { agent: req.user._id, status: 'offered' } } }
     ]
   })
-    .populate('items.listing')
+    .populate('items.listing', 'cropName variety quantity unit pricePerUnit images location')
     .populate('buyer', 'name email phone location')
     .populate('farmer', 'name email phone location')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
   res.json(orders);
 });
 

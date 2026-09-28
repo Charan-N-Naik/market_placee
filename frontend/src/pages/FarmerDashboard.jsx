@@ -7,10 +7,11 @@ import CropCard from '../components/CropCard';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import AddListingPage from './AddListingPage';
 import AIChatbot from './AIChatbot';
-import AICropAnalyzer from '../components/AICropAnalyzer';
 import AIModelManager from '../components/AIModelManager';
 import EditListingModal from '../components/EditListingModal';
 import DashboardLayout from '../components/DashboardLayout';
+
+const AICropAnalyzer = React.lazy(() => import('../components/AICropAnalyzer'));
 import CropImage from '../components/CropImage';
 import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import GmailNotificationInbox from '../components/GmailNotificationInbox';
@@ -1291,7 +1292,9 @@ export default function FarmerDashboard() {
         {/* CROP HEALTH ANALYZER TAB */}
         {/* ========================================================== */}
         {activeTab === 'analyzer' && (
-          <AICropAnalyzer />
+          <React.Suspense fallback={<div className="h-64 flex items-center justify-center text-sm text-neutral-400">Loading AI Analyzer...</div>}>
+            <AICropAnalyzer />
+          </React.Suspense>
         )}
 
         {/* ========================================================== */}

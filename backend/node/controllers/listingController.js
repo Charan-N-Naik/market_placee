@@ -1,5 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import Listing from '../models/Listing.js';
+import User from '../models/User.js';
 import { uploadToCloudinary } from '../services/uploadService.js';
 import { analyzeCropImage } from '../services/aiService.js';
 import FormDataNode from 'form-data';
@@ -157,7 +158,8 @@ export const getListings = asyncHandler(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 12;
   const sortBy = req.query.sortBy || 'createdAt';
-  const order = req.query.order === 'desc' ? -1 : 1;
+  // Default to newest first (createdAt desc)
+  const order = req.query.order === 'asc' ? 1 : -1;
 
   const filter = {};
   if (req.query.crop) filter.cropName = { $regex: req.query.crop, $options: 'i' };
@@ -166,13 +168,27 @@ export const getListings = asyncHandler(async (req, res) => {
   if (req.query.maxPrice) filter.pricePerUnit = { ...filter.pricePerUnit, $lte: Number(req.query.maxPrice) };
   if (req.query.organic) filter.isOrganic = req.query.organic === 'true';
 
-  const total = await Listing.countDocuments(filter);
-  const listings = await Listing.find(filter)
-    .sort({ [sortBy]: order })
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .populate('farmer', 'name avatar location');
+  const [total, rawListings] = await Promise.all([
+    Listing.countDocuments(filter),
+    Listing.find(filter)
+      .sort({ [sortBy]: order })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select('-verificationReport')
+      .lean(),
+  ]);
 
+  const farmerIds = [...new Set(rawListings.map(l => l.farmer).filter(Boolean))];
+  const farmers = await User.find({ _id: { $in: farmerIds } })
+    .select('name avatar location')
+    .lean();
+  const farmerMap = new Map(farmers.map(f => [f._id.toString(), f]));
+  const listings = rawListings.map(l => ({
+    ...l,
+    farmer: farmerMap.get(l.farmer?.toString()) || null,
+  }));
+
+  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json({ total, page, pages: Math.ceil(total / limit), listings });
 });
 
@@ -180,17 +196,16 @@ export const getListings = asyncHandler(async (req, res) => {
 // @route   GET /api/listings/:id
 // @access  Public
 export const getListingById = asyncHandler(async (req, res) => {
-  const listing = await Listing.findById(req.params.id).populate('farmer', 'name avatar location');
+  const listing = await Listing.findByIdAndUpdate(
+    req.params.id,
+    { $inc: { views: 1 } },
+    { new: true }
+  ).populate('farmer', 'name avatar location');
+
   if (!listing) {
     return res.status(404).json({ message: 'Listing not found' });
   }
-  // Sanitize inflated legacy views and safely increment counter
-  if (!listing.views || listing.views > 500) {
-    listing.views = Math.floor(Math.random() * 40) + 15;
-  } else {
-    listing.views += 1;
-  }
-  await listing.save();
+
   res.json(listing);
 });
 
@@ -242,11 +257,11 @@ export const deleteListing = asyncHandler(async (req, res) => {
 export const getMyListings = asyncHandler(async (req, res) => {
   const listings = await Listing.find({ farmer: req.user.id })
     .sort({ createdAt: -1 })
-    .populate('farmer', 'name avatar location');
+    .populate('farmer', 'name avatar location')
+    .lean();
 
   // Sanitize any inflated view counts for response consistency
-  const sanitizedListings = listings.map(l => {
-    const doc = l.toObject();
+  const sanitizedListings = listings.map(doc => {
     if (!doc.views || doc.views > 500) {
       doc.views = Math.floor(Math.random() * 35) + 12;
     }
@@ -283,6 +298,7 @@ export const toggleSaveListing = asyncHandler(async (req, res) => {
 export const getSavedListings = asyncHandler(async (req, res) => {
   const listings = await Listing.find({ savedBy: req.user.id })
     .sort({ createdAt: -1 })
-    .populate('farmer', 'name avatar location');
+    .populate('farmer', 'name avatar location')
+    .lean();
   res.json(listings);
 });
