@@ -18,47 +18,47 @@ const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_
  * @returns {Promise<Object>}
  */
 export async function analyzeCropImagesMultiAngle(images, cropType = '', role = 'buyer') {
-  if (!images || !Array.isArray(images) || images.length < 3) {
-    throw new Error('All 3 photos (Front View, Left Side, Right Side) are required for multi-angle AI crop verification.');
+  if (!images || !Array.isArray(images) || images.length < 1) {
+    throw new Error('At least one harvest photo (Front View) is required for AI crop verification.');
   }
 
   // ── Step 0: Instant local forensic check (Duplicate photos, AI saturation, crop mismatch) ──
-  const localCheck = verifyImageBatchLocally(images);
-  if (localCheck && localCheck.rejected) {
-    console.log('[CropVerification] Instant local rejection triggered:', localCheck.reason);
-    return localCheck;
+  if (images.length > 1) {
+    const localCheck = verifyImageBatchLocally(images);
+    if (localCheck && localCheck.rejected) {
+      console.log('[CropVerification] Instant local rejection triggered:', localCheck.reason);
+      return localCheck;
+    }
   }
 
-  // Extract visual profiles for Front, Left, Right photos
-  const profiles = images.map(img => ({
-    angle: img.angle,
+  // Extract visual profiles for uploaded photos
+  const profiles = images.map((img, i) => ({
+    angle: img.angle || (i === 0 ? 'Front View' : i === 1 ? 'Left Side' : 'Right Side'),
     profile: computeImageProfile(img.buffer),
   }));
 
   const cropHint = cropType ? ` User states this crop is "${cropType}".` : '';
+  const photoListText = images.map((img, i) => `- Photo ${i + 1} (${img.angle || (i === 0 ? 'Front View' : `Angle ${i + 1}`)})`).join('\n');
+  const profileListText = profiles.map(p => `- ${p.angle}: ${JSON.stringify(p.profile)}`).join('\n');
 
   const promptText = `You are a senior agricultural scientist, digital image forensics expert, and APMC crop quality inspector.
-You are inspecting 3 harvest photos of a crop batch:
-- Photo 1 (Front View)
-- Photo 2 (Left Side View)
-- Photo 3 (Right Side View)${cropHint}
+You are inspecting ${images.length} harvest photo(s) of a crop batch:
+${photoListText}${cropHint}
 
 Color profile telemetry:
-- Front View: ${JSON.stringify(profiles[0].profile)}
-- Left View: ${JSON.stringify(profiles[1].profile)}
-- Right View: ${JSON.stringify(profiles[2].profile)}
+${profileListText}
 
 EXECUTE THIS VERIFICATION IN STRICT ORDER:
 
 STEP 1: REJECTION CHECKS
-- DUPLICATE ANGLE CHECK: If the 3 images appear to be identical photos or the exact same camera shot re-uploaded, set "rejected": true, "rejectionType": "duplicate_images", "reason": "Duplicate photos detected. All 3 photos must be captured from different physical angles (Front, Left, Right)."
+- DUPLICATE ANGLE CHECK: If multiple images appear to be identical photos or the exact same camera shot re-uploaded, set "rejected": true, "rejectionType": "duplicate_images", "reason": "Duplicate photos detected. Photos must be captured from different physical angles."
 - AI / SYNTHETIC CHECK: If any image is an AI-generated digital image or non-farm stock artwork, set "rejected": true, "rejectionType": "ai_generated", "reason": "Synthetic artwork detected. Please upload real photographs of your harvested produce."
-- CROP MISMATCH CHECK: If the images show completely different produce items (e.g., Tomato in photo 1 vs Chilli in photo 2), set "rejected": true, "rejectionType": "crop_mismatch", "reason": "Inconsistent produce detected across photo angles. All 3 photos must belong to the exact same crop batch."
+- CROP MISMATCH CHECK: If the images show completely different produce items, set "rejected": true, "rejectionType": "crop_mismatch", "reason": "Inconsistent produce detected across photos. All photos must belong to the exact same crop batch."
 
 STEP 2: APMC QUALITY ANALYSIS (If Step 1 passes)
 Identify the ACTUAL crop in the photos (e.g. Tomato, Mango, Potato, Onion, Green Chilli, Eggplant, Paddy, Wheat, etc.) and assess:
 - Actual visual color, ripeness, surface texture, and defects.
-- Calculate an accurate, dynamic Trust Score (0-100) based on visual consistency across all 3 photo views.
+- Calculate an accurate, dynamic Trust Score (0-100) based on visual quality and crop freshness.
 
 Return ONLY raw JSON with NO markdown formatting:
 {
@@ -80,40 +80,25 @@ Return ONLY raw JSON with NO markdown formatting:
     "priceGradeJustification": "Reasoning based on visual quality grade",
     "storageRecommendation": "Storage advice",
     "logisticsAdvice": "Packaging and transport advice",
-    "summary": "2-3 sentence visual analysis summary across Front, Left, and Right views.",
+    "summary": "2-3 sentence visual analysis summary of the produce.",
     "recommendations": ["Recommendation 1", "Recommendation 2"]
   }
 }`;
 
-  // Attempt 1: Call Gemini Vision API passing all 3 image buffers
+  // Attempt 1: Call Gemini Vision API passing all provided image buffers
   if (process.env.GEMINI_API_KEY) {
     try {
-      const contents = [
-        {
-          role: 'user',
-          parts: [
-            { text: promptText },
-            {
-              inlineData: {
-                mimeType: images[0].mimeType || 'image/jpeg',
-                data: Buffer.isBuffer(images[0].buffer) ? images[0].buffer.toString('base64') : images[0].buffer,
-              },
-            },
-            {
-              inlineData: {
-                mimeType: images[1].mimeType || 'image/jpeg',
-                data: Buffer.isBuffer(images[1].buffer) ? images[1].buffer.toString('base64') : images[1].buffer,
-              },
-            },
-            {
-              inlineData: {
-                mimeType: images[2].mimeType || 'image/jpeg',
-                data: Buffer.isBuffer(images[2].buffer) ? images[2].buffer.toString('base64') : images[2].buffer,
-              },
-            },
-          ],
-        },
+      const parts = [
+        { text: promptText },
+        ...images.map(img => ({
+          inlineData: {
+            mimeType: img.mimeType || 'image/jpeg',
+            data: Buffer.isBuffer(img.buffer) ? img.buffer.toString('base64') : img.buffer,
+          },
+        })),
       ];
+
+      const contents = [{ role: 'user', parts }];
 
       const response = await _callGeminiWithFallback(contents, {
         temperature: 0.15,

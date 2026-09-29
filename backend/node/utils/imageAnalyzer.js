@@ -152,10 +152,12 @@ export function generateVisualFallbackReport(images, cropType = '') {
     }
   }
 
-  // Calculate visual color uniformity from variance across the 3 photos
+  // Calculate visual color uniformity from variance across photos
   const norm0 = p0.avgR / (p0.avgR + p0.avgG + p0.avgB || 1);
-  const norm1 = (profiles[1]?.avgR || 100) / ((profiles[1]?.avgR || 100) + (profiles[1]?.avgG || 100) + (profiles[1]?.avgB || 100) || 1);
-  const variance = Math.abs(norm0 - norm1);
+  const norm1 = profiles[1]
+    ? (profiles[1].avgR / (profiles[1].avgR + profiles[1].avgG + profiles[1].avgB || 1))
+    : norm0;
+  const variance = profiles.length > 1 ? Math.abs(norm0 - norm1) : 0.03;
   const colorUniformityPct = Math.min(98, Math.max(85, Math.round(96 - variance * 50)));
 
   return {
