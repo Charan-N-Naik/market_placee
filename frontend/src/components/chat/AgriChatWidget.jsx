@@ -259,7 +259,8 @@ export function AgriChatWidget() {
                 />
                 <button
                   type="submit"
-                  disabled={!input.trim() || isLoading}
+                  disabled={!input.trim()}
+                  title={isLoading ? (lang === 'kn' ? "ಹೊಸ ಪ್ರಶ್ನೆ ಕಳುಹಿಸಿ (ಹಿಂದಿನದನ್ನು ನಿಲ್ಲಿಸುತ್ತದೆ)" : "Send new prompt (interrupts current answer)") : (lang === 'kn' ? "ಕಳುಹಿಸಿ" : "Send")}
                   className="p-2.5 bg-gradient-to-tr from-green-700 to-emerald-600 hover:from-green-600 hover:to-emerald-500 disabled:opacity-40 disabled:pointer-events-none text-white rounded-xl transition-all shadow-md cursor-pointer active:scale-95"
                 >
                   <Send className="w-4 h-4" />

@@ -435,17 +435,30 @@ function normalizeAnalysis(analysis) {
  * @returns {string} AI response text
  */
 export async function chatResponse(message, lang = 'en') {
-  const prompt = `You are KisanMitra, an agricultural assistant. Respond concisely to the user query. Use language: ${lang === 'en' ? 'English' : 'Kannada'}.\n\nUser: ${message}`;
+  const isKn = lang === 'kn' || (typeof lang === 'string' && lang.startsWith('kn'));
+  const prompt = isKn
+    ? `ನೀವು ಕಿಸಾನ್‌ಬಜಾರ್‌ನ ಕಿಸಾನ್ ಮಿತ್ರ ಎಂಬ ಶ್ರೇಷ್ಠ ಕೃಷಿ AI ಸಹಾಯಕರು.
+ಕಡ್ಡಾಯ ಸೂಚನೆ: ಬಳಕೆದಾರರ ಪ್ರಶ್ನೆಗೆ ಸಂಪೂರ್ಣವಾಗಿ ಶುದ್ಧ ಮತ್ತು ನೈಸರ್ಗಿಕ ಕನ್ನಡದಲ್ಲೇ (ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ) ಉತ್ತರಿಸಿ. ಇಂಗ್ಲಿಷ್ ಬಳಸಬೇಡಿ.
+ಬೆಳೆ ದರ, ಕೀಟ ನಿಯಂತ್ರಣ, ಹವಾಮಾನ ಅಥವಾ ಕೃಷಿ ಸಲಹೆಯನ್ನು ಸವಿಸ್ತಾರವಾಗಿ ಮತ್ತು ಸ್ಪಷ್ಟವಾಗಿ ನೀಡಿ.
+
+ಬಳಕೆದಾರರ ಪ್ರಶ್ನೆ: ${message}`
+    : `You are KisanMitra, an agricultural AI assistant in KisanBazaar. Respond concisely and helpfully to the user query in English.
+
+User: ${message}`;
   try {
     const response = await _callGeminiWithFallback(
       [{ role: 'user', parts: [{ text: prompt }] }],
-      { temperature: 0.3 }
+      { temperature: 0.2 }
     );
     const text = response.text?.trim() || '';
-    return text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    const clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    if (clean) return clean;
+    throw new Error('Empty response');
   } catch (error) {
-    console.error('Gemini chat error:', error);
-    return "I am KisanMitra, your agricultural assistant. I am here to help you with crop advice, pricing, and market guidance.";
+    console.error('Gemini chat error:', error.message);
+    return isKn
+      ? "ನಮಸ್ಕಾರ! ನಾನು ಕಿಸಾನ್ ಮಿತ್ರ. ಬೆಳೆ ದರಗಳು, ಕೀಟ ನಿಯಂತ್ರಣ ಮತ್ತು ಕೃಷಿ ಕುರಿತು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ನಾನು ಸದಾ ಸಿದ್ಧನಾಗಿದ್ದೇನೆ."
+      : "I am KisanMitra, your agricultural assistant. I am here to help you with crop advice, pricing, and market guidance.";
   }
 }
 

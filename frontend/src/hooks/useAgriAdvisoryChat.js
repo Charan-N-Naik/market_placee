@@ -1,16 +1,29 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 export function useAgriAdvisoryChat() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
   
-  // Set default language based on local storage or 'en'
+  // Realtime language state synchronized with global i18n
   const [lang, setLang] = useState(() => {
-    return localStorage.getItem('i18nextLng')?.startsWith('kn') ? 'kn' : 'en';
+    return (i18n.language || localStorage.getItem('i18nextLng') || 'en').startsWith('kn') ? 'kn' : 'en';
   });
+
+  useEffect(() => {
+    const handleLangChange = (lng) => {
+      const activeLang = (lng || 'en').startsWith('kn') ? 'kn' : 'en';
+      setLang(activeLang);
+    };
+    i18n.on('languageChanged', handleLangChange);
+    return () => {
+      i18n.off('languageChanged', handleLangChange);
+    };
+  }, [i18n]);
 
   const getWelcomeMessage = useCallback((language) => {
     return language === 'kn'
@@ -22,8 +35,8 @@ export function useAgriAdvisoryChat() {
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: getWelcomeMessage(localStorage.getItem('i18nextLng')?.startsWith('kn') ? 'kn' : 'en'),
-      detectedLang: localStorage.getItem('i18nextLng')?.startsWith('kn') ? 'kn' : 'en',
+      content: getWelcomeMessage((i18n.language || localStorage.getItem('i18nextLng') || 'en').startsWith('kn') ? 'kn' : 'en'),
+      detectedLang: (i18n.language || localStorage.getItem('i18nextLng') || 'en').startsWith('kn') ? 'kn' : 'en',
       timestamp: new Date().toISOString(),
     }
   ]);
@@ -47,6 +60,9 @@ export function useAgriAdvisoryChat() {
     if (newLang === lang) return;
     setLang(newLang);
     localStorage.setItem('i18nextLng', newLang);
+    if (i18n && i18n.changeLanguage) {
+      i18n.changeLanguage(newLang);
+    }
 
     const nonWelcomeMessages = messages.filter(m => m.id !== 'welcome-1');
     if (nonWelcomeMessages.length === 0) {
@@ -87,7 +103,7 @@ export function useAgriAdvisoryChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [lang, messages, getWelcomeMessage]);
+  }, [lang, messages, getWelcomeMessage, i18n]);
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -99,6 +115,7 @@ export function useAgriAdvisoryChat() {
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const recordingTimerRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -158,14 +175,25 @@ export function useAgriAdvisoryChat() {
     }
   }, [isSpeechEnabled, stopAudioPlayback]);
 
-  // Send Text query to Anthropic Claude (POST /api/assistant/query)
+  // Send Text query to AI Assistant (/api/assistant/query)
   const sendMessageDirect = useCallback(async (textToSend) => {
     const trimmed = (textToSend || '').trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed) return;
 
-    // Detect language of the input text
+    // 1. Interrupt and abort any older pending query
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    stopAudioPlayback();
+
+    // 2. Setup fresh AbortController for incoming prompt
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // Detect language of the input text or currently selected UI language
     const isKannadaInput = /[\u0D80-\u0DFF\u0C80-\u0CFF]/.test(trimmed);
-    const queryLang = isKannadaInput ? 'kn' : lang;
+    const queryLang = (isKannadaInput || lang === 'kn') ? 'kn' : 'en';
 
     const userMsg = {
       id: `msg-user-${Date.now()}`,
@@ -192,10 +220,11 @@ export function useAgriAdvisoryChat() {
         language: queryLang,
         role: user?.role || 'buyer',
         conversationHistory: history
+      }, {
+        signal: controller.signal
       });
 
       const data = response.data;
-      setIsLoading(false);
 
       if (data && data.success) {
         const botMsg = {
@@ -224,7 +253,10 @@ export function useAgriAdvisoryChat() {
       }
 
     } catch (err) {
-      setIsLoading(false);
+      if (err.name === 'CanceledError' || err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+        console.log('[AgriAdvisoryChat] Older prompt cancelled for incoming prompt.');
+        return;
+      }
       console.error('AI assistant query error:', err);
       const errMsg = queryLang === 'kn' 
         ? 'ಕ್ಷಮಿಸಿ, ಪ್ರತಿಕ್ರಿಯೆಯನ್ನು ಪಡೆಯಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೊಮ್ಮೆ ಪ್ರಯತ್ನಿಸಿ.' 
@@ -240,28 +272,25 @@ export function useAgriAdvisoryChat() {
           timestamp: new Date().toISOString(),
         }
       ]);
+    } finally {
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false);
+      }
     }
-  }, [isLoading, lang, messages, user, isSpeechEnabled, playAudioResponse, navigate]);
+  }, [lang, messages, user?.role, navigate, isSpeechEnabled, playAudioResponse, stopAudioPlayback]);
 
-  const sendMessage = useCallback((e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    sendMessageDirect(input);
-  }, [input, sendMessageDirect]);
+  // Voice recording & STT integration using Web Speech API
+  const startRecording = useCallback(() => {
+    if (typeof window === 'undefined') return;
 
-  // STT Voice Recognition using Web Speech API
-  const startRecording = useCallback(async () => {
-    const SpeechRecognition = typeof window !== 'undefined'
-      ? (window.SpeechRecognition || window.webkitSpeechRecognition)
-      : null;
-
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser.');
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert(lang === 'kn' ? 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಧ್ವನಿ ಇನ್‌ಪುಟ್ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.' : 'Voice recognition is not supported in this browser.');
       return;
     }
 
     try {
-      stopAudioPlayback();
-      const rec = new SpeechRecognition();
+      const rec = new SpeechRec();
       rec.continuous = false;
       rec.interimResults = false;
       rec.lang = lang === 'kn' ? 'kn-IN' : 'en-IN';
@@ -270,57 +299,53 @@ export function useAgriAdvisoryChat() {
         setIsRecording(true);
         setRecordingTime(0);
         recordingTimerRef.current = setInterval(() => {
-          setRecordingTime((prev) => prev + 1);
+          setRecordingTime(prev => prev + 1);
         }, 1000);
       };
 
       rec.onresult = (event) => {
-        const resultText = event.results[0][0].transcript;
-        if (resultText && resultText.trim()) {
-          sendMessageDirect(resultText.trim());
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          sendMessageDirect(transcript);
         }
       };
 
-      rec.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        clearInterval(recordingTimerRef.current);
+      rec.onerror = (e) => {
+        console.error('Speech recognition error:', e.error);
+        stopRecording();
       };
 
       rec.onend = () => {
-        setIsRecording(false);
-        clearInterval(recordingTimerRef.current);
+        stopRecording();
       };
 
       rec.start();
       recognitionRef.current = rec;
     } catch (err) {
       console.error('Failed to start speech recognition:', err);
-      setIsRecording(false);
+      stopRecording();
     }
-  }, [lang, sendMessageDirect, stopAudioPlayback]);
+  }, [lang, sendMessageDirect]);
 
   const stopRecording = useCallback(() => {
-    if (recognitionRef.current && isRecording) {
-      recognitionRef.current.stop();
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (_e) {
+        // ignore
+      }
+      recognitionRef.current = null;
     }
     setIsRecording(false);
-    clearInterval(recordingTimerRef.current);
-  }, [isRecording]);
-
-  // Handle voices loaded event in synthesis
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      const handleVoices = () => {
-        // Just triggers refresh of voices array internally
-        window.speechSynthesis.getVoices();
-      };
-      window.speechSynthesis.addEventListener('voiceschanged', handleVoices);
-      return () => {
-        window.speechSynthesis.removeEventListener('voiceschanged', handleVoices);
-      };
-    }
   }, []);
+
+  const sendMessage = useCallback(() => {
+    sendMessageDirect(input);
+  }, [input, sendMessageDirect]);
 
   return {
     messages,
@@ -333,6 +358,7 @@ export function useAgriAdvisoryChat() {
     recordingTime,
     activeAudioId,
     sendMessage,
+    sendMessageDirect,
     startRecording,
     stopRecording,
     playAudioResponse,

@@ -9,12 +9,17 @@ import govSchemeService from '../services/agriChat/govSchemeService.js';
  */
 export async function processTextQuery(req, res, next) {
   try {
-    const { message, lang, sessionId, generateAudio } = req.body;
+    const message = req.body.message || req.body.text || '';
+    const rawLang = req.body.lang || req.body.targetLang || req.body.language || 'en';
+    const targetLang = typeof rawLang === 'string' && rawLang.startsWith('kn') ? 'kn' : rawLang;
+    const sessionId = req.body.sessionId || req.ip || 'rest-session';
+    const generateAudio = req.body.generateAudio !== false;
+
     const result = await agriChatOrchestrator.processQuery({
       message,
-      targetLang: lang,
-      sessionId: sessionId || req.ip || 'rest-session',
-      generateAudio: generateAudio !== false,
+      targetLang,
+      sessionId,
+      generateAudio,
     });
     return res.status(200).json(result);
   } catch (error) {

@@ -113,13 +113,12 @@ export default function ChatInput({
                 ? t('aiAssistant.listeningPlaceholder') 
                 : t('aiAssistant.typeMessage')
             }
-            disabled={isLoading}
             className="w-full px-3 py-2 bg-transparent outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
           />
 
           {/* Clear & Send Actions */}
           <div className="flex items-center gap-1 shrink-0">
-            {input.trim() && !isLoading && (
+            {input.trim() && (
               <button
                 type="button"
                 onClick={() => setInput('')}
@@ -133,9 +132,10 @@ export default function ChatInput({
             <button
               type="submit"
               aria-label="Send message"
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim()}
+              title={isLoading ? "Send new question (interrupts current answer)" : "Send question"}
               className={`p-2.5 rounded-xl transition-all flex items-center justify-center cursor-pointer ${
-                input.trim() && !isLoading
+                input.trim()
                   ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm'
                   : 'text-slate-300 cursor-not-allowed'
               }`}
