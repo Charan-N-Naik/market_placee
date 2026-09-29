@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Menu, Bell, CloudSun, TrendingUp, Globe, ChevronDown,
   Mail, CheckCheck, ExternalLink, X, Package, Check, ArrowRight,
-  MessageSquare, Star, ShoppingBag, Truck, AlertCircle, Trash2
+  MessageSquare, Star, ShoppingBag, Truck, AlertCircle, Trash2,
+  User, Settings, LogOut, Landmark, LayoutDashboard, ChevronRight
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
@@ -85,9 +86,10 @@ export default function Navbar({
   setActiveTab,
   role,
   topBarExtra,
-  user
+  user,
+  onLogout
 }) {
-  const { user: authUser } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const currentUser = user || authUser;
   const isFarmer = role === 'farmer';
   const isBuyer = role === 'buyer';
@@ -95,14 +97,10 @@ export default function Navbar({
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const menuRef = useRef(null);
+
   const handleHamburgerClick = () => {
-    if (toggleSidebar) {
-      toggleSidebar();
-    } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setSidebarOpen?.(prev => !prev);
-    } else {
-      setCollapsed?.(prev => !prev);
-    }
+    setActiveDropdown(prev => prev === 'menu' ? null : 'menu');
   };
 
   // Separate unread counts:
@@ -271,7 +269,9 @@ export default function Navbar({
   // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      const outsideContainer = !containerRef.current || !containerRef.current.contains(e.target);
+      const outsideMenu = !menuRef.current || !menuRef.current.contains(e.target);
+      if (outsideContainer && outsideMenu) {
         setActiveDropdown(null);
       }
     };
@@ -710,6 +710,233 @@ export default function Navbar({
   );
 
   // =========================================================================
+  // DROPDOWN 3: QUICK PROFILE & SETTINGS MENU (HAMBURGER / MENU BUTTON)
+  // =========================================================================
+  const renderQuickMenu = (accent = 'emerald') => {
+    const isEmerald = accent === 'emerald';
+    const primaryColor = isEmerald ? '#15803d' : '#ea580c';
+    const primaryBg = isEmerald ? '#f0fdf4' : '#fff7ed';
+    const primaryBorder = isEmerald ? '#bbf7d0' : '#fed7aa';
+
+    const handleAction = (cb) => {
+      setActiveDropdown(null);
+      if (typeof cb === 'function') cb();
+    };
+
+    const handleLogoutAction = () => {
+      setActiveDropdown(null);
+      if (onLogout) {
+        onLogout();
+      } else if (logout) {
+        logout();
+      } else {
+        localStorage.clear();
+        window.location.href = '/';
+      }
+    };
+
+    return (
+      <div
+        className="absolute left-0 top-full mt-2.5 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        style={{
+          boxShadow: '0 20px 45px -10px rgba(0,0,0,0.18), 0 8px 16px -6px rgba(0,0,0,0.08)'
+        }}
+      >
+        {/* User Card Header */}
+        <div className="p-4 bg-gradient-to-br from-gray-50 via-white to-gray-50 border-b border-gray-100 flex items-center gap-3">
+          <div
+            onClick={() => handleAction(() => setActiveTab?.('profile'))}
+            title={t('navbar.viewProfile', 'View Profile')}
+            className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-md flex-shrink-0 cursor-pointer transition-transform hover:scale-105 overflow-hidden"
+            style={{
+              background: isEmerald
+                ? 'linear-gradient(135deg, #22C55E, #15803d)'
+                : 'linear-gradient(135deg, #f97316, #ea580c)'
+            }}
+          >
+            {currentUser?.avatar ? (
+              <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              (formatDisplayName(currentUser?.name)?.charAt(0) || 'U').toUpperCase()
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-black text-gray-900 truncate leading-tight">
+              {formatDisplayName(currentUser?.name) || 'User'}
+            </h4>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                style={{ background: primaryBg, color: primaryColor, border: `1px solid ${primaryBorder}` }}
+              >
+                {isFarmer ? '🌾 Farmer' : isAgent ? '🚚 Agent' : '🛒 Buyer'}
+              </span>
+              {(currentUser?.location?.district || currentUser?.location?.state || (typeof currentUser?.location === 'string' && currentUser?.location)) && (
+                <span className="text-[10px] font-medium text-gray-500 truncate max-w-[120px]">
+                  📍 {typeof currentUser?.location === 'object'
+                    ? (currentUser?.location?.district || currentUser?.location?.state)
+                    : String(currentUser?.location)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Menu Items List */}
+        <div className="p-2 space-y-0.5">
+          {/* 1. Profile */}
+          <button
+            onClick={() => handleAction(() => setActiveTab?.('profile'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0"
+              style={{ background: primaryBg, color: primaryColor }}
+            >
+              <User size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                {t('sidebar.profile', 'My Profile')}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Personal details & address</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          {/* 2. Settings */}
+          <button
+            onClick={() => handleAction(() => setActiveTab?.('settings'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+              <Settings size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                {t('sidebar.settings', 'Settings')}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Preferences & security</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          {/* 3. Dashboard */}
+          <button
+            onClick={() => handleAction(() => setActiveTab?.('dashboard'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+              <LayoutDashboard size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                {t('sidebar.dashboard', 'Dashboard Overview')}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Real-time statistics & activity</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          {/* 4. Orders / My Listings */}
+          {isFarmer ? (
+            <button
+              onClick={() => handleAction(() => setActiveTab?.('listings'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+            >
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+                <Package size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                  {t('sidebar.myListings', 'My Listings')}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Manage crops & prices</p>
+              </div>
+              <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+            </button>
+          ) : (
+            <button
+              onClick={() => handleAction(() => setActiveTab?.('orders'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+            >
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+                <Package size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                  {t('sidebar.orders', 'My Orders')}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Track purchases & shipments</p>
+              </div>
+              <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+            </button>
+          )}
+
+          {/* 5. Govt Schemes for Farmer */}
+          {isFarmer && (
+            <button
+              onClick={() => handleAction(() => navigate('/schemes'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+            >
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+                <Landmark size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                  {t('navbar.govtSchemes', 'Government Schemes')}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Subsidies, loans & grants</p>
+              </div>
+              <ExternalLink size={13} className="text-gray-300 group-hover:text-gray-500 transition-all" />
+            </button>
+          )}
+
+          {/* 6. Collapse/Expand Sidebar option */}
+          <button
+            onClick={() => handleAction(() => {
+              if (toggleSidebar) toggleSidebar();
+              else setCollapsed?.(prev => !prev);
+            })}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+              <Menu size={15} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-700 group-hover:text-gray-900 leading-tight">
+                {collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Toggle sidebar width</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-gray-100 my-1" />
+
+        {/* Footer: Language + Logout */}
+        <div className="p-3 bg-gray-50/80 space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1.5">
+              <Globe size={13} /> Language
+            </span>
+            <LanguageToggle />
+          </div>
+
+          <button
+            onClick={handleLogoutAction}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            <LogOut size={14} />
+            <span>{t('common.logout', 'Sign Out')}</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
   // DUAL BUTTONS COMPONENT (✉️ MESSAGES & 🔔 NOTIFICATIONS)
   // =========================================================================
   const renderDualTopButtons = (accent = 'emerald') => (
@@ -785,25 +1012,26 @@ export default function Navbar({
         backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       }}>
         {/* Left */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }} ref={isFarmer ? null : menuRef}>
           <button
             onClick={handleHamburgerClick}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label="Toggle navigation menu"
+            title="Profile & Quick Menu"
+            aria-label="Toggle profile and quick settings menu"
             className="transition-all hover:scale-105 active:scale-95"
             style={{
-              background: collapsed ? '#fde68a' : 'var(--color-primary-light, #fef3c7)',
-              border: '1px solid #fed7aa',
+              background: activeDropdown === 'menu' ? '#fed7aa' : 'var(--color-primary-light, #fef3c7)',
+              border: activeDropdown === 'menu' ? '1.5px solid #ea580c' : '1px solid #fed7aa',
               borderRadius: 10,
               padding: '0.5rem',
               cursor: 'pointer',
               color: 'var(--color-primary, #ea580c)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              boxShadow: activeDropdown === 'menu' ? '0 0 0 3px rgba(234,88,12,0.2)' : 'none'
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#fde68a'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = collapsed ? '#fde68a' : 'var(--color-primary-light, #fef3c7)'; }}
+            onMouseEnter={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = '#fde68a'; }}
+            onMouseLeave={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = 'var(--color-primary-light, #fef3c7)'; }}
           >
             <Menu size={20} />
           </button>
@@ -829,6 +1057,9 @@ export default function Navbar({
               </p>
             </div>
           </div>
+
+          {/* Profile & Settings Quick Menu Dropdown */}
+          {activeDropdown === 'menu' && renderQuickMenu(isAgent ? 'emerald' : 'orange')}
         </div>
 
         {/* Right */}
@@ -929,25 +1160,26 @@ export default function Navbar({
       position: 'sticky', top: 0, zIndex: 30,
     }}>
       {/* Left: Hamburger + Welcome */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }} ref={menuRef}>
         <button
           onClick={handleHamburgerClick}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-label="Toggle navigation menu"
+          title="Profile & Quick Menu"
+          aria-label="Toggle profile and quick settings menu"
           className="transition-all hover:scale-105 active:scale-95"
           style={{
-            background: collapsed ? '#e4e4e7' : '#f4f4f5',
-            border: '1px solid #d4d4d8',
+            background: activeDropdown === 'menu' ? '#dcfce7' : '#f4f4f5',
+            border: activeDropdown === 'menu' ? '1.5px solid #22c55e' : '1px solid #d4d4d8',
             borderRadius: 10,
             padding: '0.5rem',
             cursor: 'pointer',
-            color: '#18181b',
+            color: activeDropdown === 'menu' ? '#15803d' : '#18181b',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            boxShadow: activeDropdown === 'menu' ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none'
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#e4e4e7'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = collapsed ? '#e4e4e7' : '#f4f4f5'; }}
+          onMouseEnter={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = '#e4e4e7'; }}
+          onMouseLeave={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = '#f4f4f5'; }}
         >
           <Menu size={20} />
         </button>
@@ -966,6 +1198,9 @@ export default function Navbar({
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
+
+        {/* Profile & Settings Quick Menu Dropdown */}
+        {activeDropdown === 'menu' && renderQuickMenu('emerald')}
       </div>
 
       {/* Right: Widgets */}
