@@ -211,9 +211,9 @@ export default function AddListingPage({ onSuccess }) {
         harvestDate: formData.harvestDate,
         location:    { address: formData.location, district: formData.location, state: formData.location },
         isOrganic:   false,
+        // Only pass ONE of photoFile (raw File) or imageUrl (Cloudinary URL) — never both
         photoFile:   uploadedUrl ? null : images.front.file,
-        photo:       uploadedUrl,
-        imageUrl:    uploadedUrl,
+        imageUrl:    uploadedUrl || null,
         aiVerify:    isVerifiedSuccess ? 'true' : 'false',
         report:      isVerifiedSuccess ? verificationReport : null,
       });

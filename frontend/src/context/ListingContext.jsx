@@ -152,8 +152,11 @@ export function ListingProvider({ children }) {
         } else {
           formData.append('location[address]', loc || '');
         }
-      } else if (key === 'photo' || key === 'imageUrl') {
+      } else if (key === 'imageUrl') {
+        // Only append a single Cloudinary URL \u2014 never 'photo' key to avoid duplicate array
         if (listingData[key]) formData.append('imageUrl', listingData[key]);
+      } else if (key === 'photo') {
+        // 'photo' key is intentionally ignored \u2014 use 'imageUrl' or 'photoFile' instead
       } else if (listingData[key] !== undefined && listingData[key] !== null) {
         formData.append(key, listingData[key]);
       }
