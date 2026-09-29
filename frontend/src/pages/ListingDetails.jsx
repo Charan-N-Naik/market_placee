@@ -539,8 +539,21 @@ export default function ListingDetails() {
   const shortDesc = description.length > 200 ? description.slice(0, 200) + '...' : description;
 
   // APMC calculation if backend returns data
-  const apmcPrice = apmcPriceData ? (apmcPriceData.modalPrice || apmcPriceData.price) : null;
-  const priceDiff = (apmcPrice && price) ? Math.round(((price - apmcPrice) / apmcPrice) * 100) : null;
+  const rawApmcPrice = apmcPriceData ? (apmcPriceData.modalPrice || apmcPriceData.price) : null;
+  const apmcMatch = rawApmcPrice != null ? String(rawApmcPrice).match(/(\d+(?:\.\d+)?)/) : null;
+  const numericApmcPrice = apmcMatch ? parseFloat(apmcMatch[1]) : null;
+
+  const rawFarmerPrice = listing.pricePerUnit ?? listing.price;
+  const farmerMatch = rawFarmerPrice != null ? String(rawFarmerPrice).match(/(\d+(?:\.\d+)?)/) : null;
+  const numericFarmerPrice = farmerMatch ? parseFloat(farmerMatch[1]) : null;
+
+  const validApmc = numericApmcPrice != null && !isNaN(numericApmcPrice) && numericApmcPrice > 0;
+  const validFarmerPrice = numericFarmerPrice != null && !isNaN(numericFarmerPrice) && numericFarmerPrice > 0;
+
+  const priceDiffAmount = (validApmc && validFarmerPrice) ? Math.round((numericFarmerPrice - numericApmcPrice) * 100) / 100 : null;
+  const priceDiffPercent = (validApmc && validFarmerPrice) ? Math.round(((numericFarmerPrice - numericApmcPrice) / numericApmcPrice) * 100) : null;
+  const apmcPrice = numericApmcPrice;
+  const priceDiff = priceDiffPercent;
 
   return (
     <div className="min-h-screen bg-[#FFFDF6] text-gray-900 font-sans pb-36">
@@ -1061,23 +1074,52 @@ export default function ListingDetails() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-xs">
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Farmer Price</span>
-                <span className="text-2xl font-black text-[#FF8C42] mt-1 block">₹{price} / {listing.unit || 'kg'}</span>
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Farmer Price</span>
+                  <span className="text-2xl font-black text-[#FF8C42] mt-1 block">₹{numericFarmerPrice ?? price} / {listing.unit || 'kg'}</span>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">Direct farm rate</span>
               </div>
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Today APMC Rate</span>
-                <span className="text-2xl font-black text-gray-900 mt-1 block">₹{apmcPrice} / kg</span>
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Today APMC Rate</span>
+                  <span className="text-2xl font-black text-gray-900 mt-1 block">
+                    {validApmc ? `₹${numericApmcPrice} / ${listing.unit || 'kg'}` : '—'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">Mandi benchmark</span>
               </div>
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Price Difference</span>
-                <span className={`text-2xl font-black mt-1 block ${priceDiff && priceDiff <= 0 ? 'text-emerald-600' : 'text-[#FF8C42]'}`}>
-                  {priceDiff != null ? `${priceDiff > 0 ? '+' : ''}${priceDiff}%` : '—'}
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Price Difference</span>
+                  {priceDiffAmount != null && !isNaN(priceDiffAmount) ? (
+                    <span className={`text-2xl font-black mt-1 block ${priceDiffAmount <= 0 ? 'text-emerald-600' : 'text-[#FF8C42]'}`}>
+                      {priceDiffAmount > 0 ? '+' : ''}₹{priceDiffAmount}
+                      <span className="text-sm font-bold ml-1.5 opacity-90">
+                        ({priceDiffPercent > 0 ? '+' : ''}{priceDiffPercent}%)
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-2xl font-black text-gray-400 mt-1 block">—</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">
+                  {priceDiffAmount != null && !isNaN(priceDiffAmount) ? (
+                    priceDiffAmount === 0
+                      ? 'Matches Mandi rate'
+                      : priceDiffAmount < 0
+                        ? `₹${Math.abs(priceDiffAmount)} / ${listing.unit || 'kg'} below Mandi`
+                        : `₹${priceDiffAmount} / ${listing.unit || 'kg'} above Mandi`
+                  ) : 'Comparison unavailable'}
                 </span>
               </div>
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Reference Mandi</span>
-                <span className="text-sm font-black text-gray-900 mt-1 block truncate">{apmcPriceData.mandi || 'Karnataka APMC'}</span>
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Reference Mandi</span>
+                  <span className="text-sm font-black text-gray-900 mt-1 block truncate">{apmcPriceData.mandi || 'Karnataka APMC'}</span>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">Official wholesale yard</span>
               </div>
             </div>
           </div>
