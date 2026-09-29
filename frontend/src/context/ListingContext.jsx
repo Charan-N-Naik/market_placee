@@ -127,73 +127,57 @@ export function ListingProvider({ children }) {
   }, [userId]);
 
   const addListing = useCallback(async (listingData) => {
-    try {
-      const formData = new FormData();
-      Object.keys(listingData).forEach(key => {
-        if (key === 'photoFile' && listingData[key]) {
-          formData.append('images', listingData[key]);
-        } else if (key === 'report') {
-          if (listingData[key]) {
-            formData.append('aiVerify', 'true');
-            formData.append('verificationReport', JSON.stringify(listingData[key]));
-          }
-        } else if (key === 'aiVerify') {
-          formData.append('aiVerify', listingData[key]);
-        } else if (key === 'location') {
-          const locVal = typeof listingData[key] === 'object'
-            ? (listingData[key].address || listingData[key].district || listingData[key].state || '')
-            : listingData[key];
-          formData.append('location[address]', locVal);
-        } else if (key === 'photo' || key === 'imageUrl') {
-          if (listingData[key]) formData.append('imageUrl', listingData[key]);
-        } else if (listingData[key] !== undefined) {
-          formData.append(key, listingData[key]);
-        }
-      });
+    const formData = new FormData();
 
-      try {
-        const { data } = await api.post('/listings', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        setListings(prev => {
-          const id = (data._id || data.id)?.toString();
-          if (prev.some(l => (l._id || l.id)?.toString() === id)) return prev;
-          return [data, ...prev];
-        });
-        setMyListings(prev => {
-          const id = (data._id || data.id)?.toString();
-          if (prev.some(l => (l._id || l.id)?.toString() === id)) return prev;
-          return [data, ...prev];
-        });
-        return data;
-      } catch (apiErr) {
-        console.warn('Error posting listing to API, fallback to local state:', apiErr.message);
-        const newLocalListing = {
-          _id: 'loc_' + Date.now(),
-          id: 'loc_' + Date.now(),
-          cropName: listingData.cropName || 'Crop',
-          variety: listingData.variety || '',
-          quantity: Number(listingData.quantity) || 1,
-          unit: listingData.unit || 'kg',
-          pricePerUnit: Number(listingData.pricePerUnit || listingData.price) || 0,
-          price: Number(listingData.pricePerUnit || listingData.price) || 0,
-          description: listingData.description || '',
-          isOrganic: listingData.isOrganic === true || listingData.isOrganic === 'true',
-          location: listingData.location || 'Karnataka',
-          harvestDate: listingData.harvestDate || new Date().toISOString(),
-          photo: listingData.photo || null,
-          status: 'active',
-          views: 0,
-          createdAt: new Date().toISOString(),
-        };
-        setListings(prev => [newLocalListing, ...prev]);
-        setMyListings(prev => [newLocalListing, ...prev]);
-        return newLocalListing;
+    Object.keys(listingData).forEach(key => {
+      if (key === 'photoFile' && listingData[key]) {
+        // Attach raw file for multipart upload (used when /api/upload is unavailable)
+        formData.append('images', listingData[key]);
+      } else if (key === 'report') {
+        if (listingData[key]) {
+          formData.append('aiVerify', 'true');
+          formData.append('verificationReport', JSON.stringify(listingData[key]));
+        }
+      } else if (key === 'aiVerify') {
+        formData.append('aiVerify', listingData[key]);
+      } else if (key === 'location') {
+        // Send as flat form fields so the controller can parse them
+        const loc = listingData[key];
+        if (typeof loc === 'object' && loc !== null) {
+          formData.append('location[address]', loc.address || loc.district || loc.state || '');
+          if (loc.district) formData.append('location[district]', loc.district);
+          if (loc.state)   formData.append('location[state]',   loc.state);
+          if (loc.lat)     formData.append('location[lat]',     String(loc.lat));
+          if (loc.lng)     formData.append('location[lng]',     String(loc.lng));
+        } else {
+          formData.append('location[address]', loc || '');
+        }
+      } else if (key === 'photo' || key === 'imageUrl') {
+        if (listingData[key]) formData.append('imageUrl', listingData[key]);
+      } else if (listingData[key] !== undefined && listingData[key] !== null) {
+        formData.append(key, listingData[key]);
       }
-    } catch (err) {
-      console.error('Error adding listing', err);
-      throw err;
-    }
+    });
+
+    // This call MUST succeed — no silent local fallback.
+    // If it throws, the error propagates to the caller (AddListingPage) which shows the user.
+    const { data } = await api.post('/listings', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    // Update both market catalog and farmer's own list optimistically
+    setListings(prev => {
+      const id = (data._id || data.id)?.toString();
+      if (prev.some(l => (l._id || l.id)?.toString() === id)) return prev;
+      return [data, ...prev];
+    });
+    setMyListings(prev => {
+      const id = (data._id || data.id)?.toString();
+      if (prev.some(l => (l._id || l.id)?.toString() === id)) return prev;
+      return [data, ...prev];
+    });
+
+    return data;
   }, []);
 
   const toggleSaved = useCallback(async (listingId) => {

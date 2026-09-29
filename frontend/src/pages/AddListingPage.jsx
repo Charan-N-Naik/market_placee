@@ -202,14 +202,14 @@ export default function AddListingPage({ onSuccess }) {
       const isVerifiedSuccess = verificationState === 'done' && verificationReport;
 
       await addListing({
-        cropName:   formData.cropName,
-        variety:    formData.variety,
-        quantity:   parseInt(formData.quantity),
-        unit:       formData.unit,
+        cropName:    formData.cropName,
+        variety:     formData.variety,
+        quantity:    parseInt(formData.quantity),
+        unit:        formData.unit,
         pricePerUnit: parseInt(formData.price),
         description: formData.notes,
         harvestDate: formData.harvestDate,
-        location:    formData.location,
+        location:    { address: formData.location, district: formData.location, state: formData.location },
         isOrganic:   false,
         photoFile:   uploadedUrl ? null : images.front.file,
         photo:       uploadedUrl,
@@ -220,7 +220,13 @@ export default function AddListingPage({ onSuccess }) {
       if (onSuccess) onSuccess();
     } catch (err) {
       console.error('Failed to submit listing:', err);
-      alert('Failed to save listing. Please try again.');
+      // Show the real API error message if available
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Failed to save listing. Please try again.';
+      alert(`Error: ${apiMsg}`);
     } finally {
       setSubmitting(false);
     }
