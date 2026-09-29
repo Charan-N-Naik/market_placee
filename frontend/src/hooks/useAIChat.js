@@ -57,6 +57,8 @@ export function useAIChat() {
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
+  const audioRef = useRef(null);
+
   // Setup Speech Recognition
   const SpeechRecognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
   const recognition = useRef(null);
@@ -70,17 +72,34 @@ export function useAIChat() {
   }, [messages, isLoading, isListening, scrollToBottom]);
 
   const stopSpeaking = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setActiveSpeakingId(null);
   }, []);
 
+  useEffect(() => {
+    if (!isSpeechEnabled) {
+      stopSpeaking();
+    }
+  }, [isSpeechEnabled, stopSpeaking]);
+
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, [stopSpeaking]);
+
   const speak = useCallback((text, msgId = null) => {
-    if (!isSpeechEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (!isSpeechEnabled || typeof window === 'undefined') return;
     
     try {
-      window.speechSynthesis.cancel();
+      stopSpeaking();
 
       if (msgId && activeSpeakingId === msgId) {
         setActiveSpeakingId(null);
@@ -88,13 +107,55 @@ export function useAIChat() {
       }
 
       // Clean markdown symbols so TTS reads naturally
-      const cleanText = text
+      const cleanText = (text || '')
         .replace(/[*#_`~]/g, '')
         .replace(/https?:\/\/\S+/g, '')
-        .replace(/\n+/g, '. ');
+        .replace(/\n+/g, '. ')
+        .trim();
+
+      if (!cleanText) return;
+
+      const isKannada = lang === 'kn' || /[\u0C80-\u0CFF]/.test(cleanText);
+
+      // If Kannada is selected or text contains Kannada characters, use high-fidelity backend TTS
+      // because native Windows/Chromium Web Speech API lacks Kannada speech synthesis engines.
+      if (isKannada) {
+        setActiveSpeakingId(msgId || 'latest');
+        const ttsUrl = `/api/agri-chat/tts?text=${encodeURIComponent(cleanText.slice(0, 400))}&lang=kn`;
+        const audio = new Audio(ttsUrl);
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setActiveSpeakingId(null);
+          audioRef.current = null;
+        };
+
+        audio.onerror = (e) => {
+          console.warn('Kannada backend TTS audio playback failed, attempting browser fallback:', e);
+          audioRef.current = null;
+          if (window.speechSynthesis) {
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'kn-IN';
+            utterance.rate = 0.95;
+            utterance.onend = () => setActiveSpeakingId(null);
+            utterance.onerror = () => setActiveSpeakingId(null);
+            window.speechSynthesis.speak(utterance);
+          } else {
+            setActiveSpeakingId(null);
+          }
+        };
+
+        audio.play().catch(playErr => {
+          console.warn('Audio play error (user interaction or autoplay):', playErr);
+          setActiveSpeakingId(null);
+        });
+        return;
+      }
+
+      if (!window.speechSynthesis) return;
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = lang === 'kn' ? 'kn-IN' : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+      utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
       utterance.rate = 0.95;
 
       utterance.onstart = () => {
@@ -114,7 +175,7 @@ export function useAIChat() {
       console.warn('SpeechSynthesis warning:', err);
       setActiveSpeakingId(null);
     }
-  }, [isSpeechEnabled, lang, activeSpeakingId]);
+  }, [isSpeechEnabled, lang, activeSpeakingId, stopSpeaking]);
 
   const sendMessageDirect = useCallback(async (text) => {
     if (!text || !text.trim()) return;

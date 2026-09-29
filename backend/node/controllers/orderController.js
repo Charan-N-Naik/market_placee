@@ -97,6 +97,11 @@ export const createOrder = asyncHandler(async (req, res) => {
   const resolvedChosenAgentId = chosenAgentId || selectedAgentId || undefined;
 
   try {
+    const buyerProvidedFare = Number(req.body.deliveryFare);
+    const farePerOrder = Number.isFinite(buyerProvidedFare) && buyerProvidedFare > 0
+      ? Math.round(buyerProvidedFare / Math.max(1, farmerGroups.size))
+      : 150;
+
     // Create ONE Order document per farmer
     for (const [farmerKey, group] of farmerGroups.entries()) {
       const order = await Order.create({
@@ -108,6 +113,7 @@ export const createOrder = asyncHandler(async (req, res) => {
           priceAtPurchase: i.priceAtPurchase,
         })),
         totalAmount: group.totalAmount,
+        deliveryFare: farePerOrder,
         paymentMethod: paymentMethod || 'pending_farmer_approval',
         deliveryAddress,
         deliveryMode,
@@ -655,6 +661,9 @@ export async function dispatchDeliveryOffers(order, chosenAgentId = null) {
     ? new Date(order.pickupDeadline).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
     : `${windowHours} hours`;
   const orderShort = order._id.toString().slice(-6).toUpperCase();
+  if (!order.deliveryFare) {
+    order.deliveryFare = 150;
+  }
 
   // 1. If order already has an assigned & accepted delivery agent, specifically notify them of the pickup deadline
   if (order.deliveryAgent && order.deliveryRequestStatus === 'driver_accepted') {
@@ -875,7 +884,11 @@ export const getDriverJobs = asyncHandler(async (req, res) => {
     .populate('farmer', 'name email phone location')
     .sort({ createdAt: -1 })
     .lean();
-  res.json(orders);
+  const formatted = orders.map(o => ({
+    ...o,
+    deliveryFare: (o.deliveryFare !== undefined && o.deliveryFare !== null) ? o.deliveryFare : 150
+  }));
+  res.json(formatted);
 });
 
 // @desc    Get pending delivery requests for the agent
@@ -893,7 +906,11 @@ export const getDriverRequests = asyncHandler(async (req, res) => {
     .populate('farmer', 'name email phone location')
     .sort({ createdAt: -1 })
     .lean();
-  res.json(orders);
+  const formatted = orders.map(o => ({
+    ...o,
+    deliveryFare: (o.deliveryFare !== undefined && o.deliveryFare !== null) ? o.deliveryFare : 150
+  }));
+  res.json(formatted);
 });
 
 // @desc    Initiate or dispatch a delivery request for an order
@@ -1168,7 +1185,7 @@ export const getDriverStats = asyncHandler(async (req, res) => {
     deliveryRequestStatus: 'delivered'
   });
 
-  const totalEarnings = completedOrders.reduce((sum, o) => sum + (o.deliveryFare || 0), 0);
+  const totalEarnings = completedOrders.reduce((sum, o) => sum + ((o.deliveryFare !== undefined && o.deliveryFare !== null) ? o.deliveryFare : 150), 0);
   const tripsCompleted = completedOrders.length;
 
   const activeOrders = await Order.countDocuments({

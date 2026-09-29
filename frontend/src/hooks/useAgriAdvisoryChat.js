@@ -116,6 +116,7 @@ export function useAgriAdvisoryChat() {
   const recognitionRef = useRef(null);
   const recordingTimerRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const audioRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -125,31 +126,91 @@ export function useAgriAdvisoryChat() {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
-  // TTS Audio synthesis using Web Speech API with Kannada voice support
+  const stopAudioPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setActiveAudioId(null);
+  }, []);
+
+  // Halt speech playback immediately if speech is disabled/muted or unmounted
+  useEffect(() => {
+    if (!isSpeechEnabled) {
+      stopAudioPlayback();
+    }
+  }, [isSpeechEnabled, stopAudioPlayback]);
+
+  useEffect(() => {
+    return () => {
+      stopAudioPlayback();
+    };
+  }, [stopAudioPlayback]);
+
+  // TTS Audio synthesis using backend proxy for Kannada or Web Speech API for English/Hindi
   const playAudioResponse = useCallback((audioOutput, textToSpeak, languageCode, msgId) => {
-    if (!isSpeechEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (!isSpeechEnabled || typeof window === 'undefined') return;
 
     try {
-      window.speechSynthesis.cancel();
-      setActiveAudioId(msgId);
+      stopAudioPlayback();
+      setActiveAudioId(msgId || 'latest');
 
       // Clean formatting symbols from markdown
-      const cleanText = textToSpeak
+      const cleanText = (textToSpeak || '')
         .replace(/[*#_`~]/g, '')
         .replace(/https?:\/\/\S+/g, '')
-        .replace(/\n+/g, '. ');
+        .replace(/\n+/g, '. ')
+        .trim();
+
+      if (!cleanText) {
+        setActiveAudioId(null);
+        return;
+      }
+
+      const isKannada = languageCode === 'kn' || /[\u0C80-\u0CFF]/.test(cleanText);
+
+      if (isKannada) {
+        const ttsUrl = `/api/agri-chat/tts?text=${encodeURIComponent(cleanText.slice(0, 400))}&lang=kn`;
+        const audio = new Audio(ttsUrl);
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setActiveAudioId(null);
+          audioRef.current = null;
+        };
+
+        audio.onerror = (e) => {
+          console.warn('Kannada backend TTS audio playback failed, falling back to browser synthesis:', e);
+          audioRef.current = null;
+          if (window.speechSynthesis) {
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'kn-IN';
+            utterance.rate = 0.95;
+            utterance.onend = () => setActiveAudioId(null);
+            utterance.onerror = () => setActiveAudioId(null);
+            window.speechSynthesis.speak(utterance);
+          } else {
+            setActiveAudioId(null);
+          }
+        };
+
+        audio.play().catch(playErr => {
+          console.warn('Audio autoplay failed:', playErr);
+          setActiveAudioId(null);
+        });
+        return;
+      }
+
+      if (!window.speechSynthesis) return;
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      const targetLang = languageCode === 'kn' ? 'kn-IN' : 'en-IN';
+      const targetLang = languageCode === 'hi' ? 'hi-IN' : 'en-IN';
       utterance.lang = targetLang;
       utterance.rate = 0.95;
-
-      // Try to find native Kannada voice if available
-      const voices = window.speechSynthesis.getVoices();
-      const voice = voices.find(v => v.lang.startsWith(languageCode));
-      if (voice) {
-        utterance.voice = voice;
-      }
 
       utterance.onend = () => setActiveAudioId(null);
       utterance.onerror = () => setActiveAudioId(null);
@@ -158,20 +219,6 @@ export function useAgriAdvisoryChat() {
     } catch (err) {
       console.warn('Speech synthesis warning:', err);
       setActiveAudioId(null);
-    }
-  }, [isSpeechEnabled]);
-
-  const stopAudioPlayback = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    setActiveAudioId(null);
-  }, []);
-
-  // Halt speech playback immediately if speech is disabled/muted
-  useEffect(() => {
-    if (!isSpeechEnabled) {
-      stopAudioPlayback();
     }
   }, [isSpeechEnabled, stopAudioPlayback]);
 

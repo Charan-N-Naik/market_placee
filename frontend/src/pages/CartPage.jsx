@@ -262,7 +262,7 @@ function OrderSummary({ cartItems, onCheckout, itemsCount }) {
     return sum + p * item.quantity;
   }, 0);
 
-  const deliveryCharge = 0;
+  const deliveryCharge = 150;
   const finalTotal = itemsTotal + deliveryCharge;
 
   return (
@@ -277,9 +277,9 @@ function OrderSummary({ cartItems, onCheckout, itemsCount }) {
           <span style={summaryRowValStyle}>₹{itemsTotal.toLocaleString('en-IN')}</span>
         </div>
         <div style={summaryRowStyle}>
-          <span>Delivery</span>
-          <span style={{ ...summaryRowValStyle, color: '#16a34a', fontWeight: 700 }}>
-            {deliveryCharge === 0 ? 'FREE' : `₹${deliveryCharge}`}
+          <span>Delivery Partner Fee (To Driver)</span>
+          <span style={{ ...summaryRowValStyle, color: '#0f172a', fontWeight: 700 }}>
+            ₹{deliveryCharge}
           </span>
         </div>
       </div>

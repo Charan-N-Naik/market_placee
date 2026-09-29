@@ -74,8 +74,8 @@ function generateInvoiceHTML(order, items, address, paymentMethod, total) {
     </table>
     <div style="display:flex;justify-content:flex-end">
       <div style="width:240px">
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#666"><span>Subtotal</span><span>₹${total.toLocaleString('en-IN')}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#16a34a"><span>Delivery</span><span>FREE</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#666"><span>Subtotal</span><span>₹${(total > 150 ? total - 150 : total).toLocaleString('en-IN')}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#0f172a"><span>Delivery Fee (To Driver)</span><span>₹150</span></div>
         <div style="border-top:2px solid #ea580c;margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:#ea580c"><span>Total</span><span>₹${total.toLocaleString('en-IN')}</span></div>
       </div>
     </div>
@@ -175,7 +175,7 @@ export default function CheckoutPage() {
     const p = i.listing?.pricePerUnit ?? i.priceAtAdd ?? 0;
     return s + p * i.quantity;
   }, 0);
-  const delivery = 0;
+  const delivery = 150;
   const total = subtotal + delivery;
   const activeAddr = addresses.find(a => a.id === selectedAddr) || addresses[0];
   const selectedAgent = availableAgents.find(a => (a.id === selectedAgentId || a._id === selectedAgentId)) || availableAgents[0];
@@ -240,6 +240,7 @@ export default function CheckoutPage() {
       deliveryMode,
       chosenAgentId: deliveryMode === 'buyer_choice' ? selectedAgentId : undefined,
       selectedAgentId: deliveryMode === 'buyer_choice' ? selectedAgentId : undefined,
+      deliveryFare: delivery,
       totalAmount: total,
     };
 
@@ -859,8 +860,8 @@ export default function CheckoutPage() {
                 <span style={S.summaryVal}>₹{subtotal.toLocaleString('en-IN')}</span>
               </div>
               <div style={S.summaryRow}>
-                <span>Delivery</span>
-                <span style={{ fontWeight: 700, color: '#16a34a' }}>FREE</span>
+                <span>Delivery Partner Fee (To Driver)</span>
+                <span style={{ fontWeight: 700, color: '#0f172a' }}>₹{delivery}</span>
               </div>
             </div>
 

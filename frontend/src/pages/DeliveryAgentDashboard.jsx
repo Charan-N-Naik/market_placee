@@ -112,7 +112,7 @@ export default function DeliveryAgentDashboard() {
 
     const activeCount = finalJobs.filter(j => ['driver_accepted', 'collected'].includes(j.deliveryRequestStatus || j.status)).length;
     const completedCount = finalJobs.filter(j => (j.deliveryRequestStatus || j.status) === 'delivered').length;
-    const totalEarn = finalJobs.filter(j => (j.deliveryRequestStatus || j.status) === 'delivered').reduce((s, j) => s + (j.deliveryFare || 0), 0);
+    const totalEarn = finalJobs.filter(j => (j.deliveryRequestStatus || j.status) === 'delivered').reduce((s, j) => s + (j.deliveryFare ?? 150), 0);
 
     setStats({
       ...apiStats,
@@ -480,7 +480,7 @@ export default function DeliveryAgentDashboard() {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-extrabold text-sm text-emerald-700 bg-white px-3 py-1 rounded-lg border border-emerald-200">₹{order.deliveryFare || 0}</span>
+                          <span className="font-extrabold text-sm text-emerald-700 bg-white px-3 py-1 rounded-lg border border-emerald-200">₹{order.deliveryFare ?? 150}</span>
                           <button
                             onClick={() => setSelectedFullDetailOrder(order)}
                             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1"
@@ -559,7 +559,7 @@ export default function DeliveryAgentDashboard() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-bold text-sm text-gray-900">📦 {getCropTitle(order)} {getQtyText(order) && `(${getQtyText(order)})`}</h4>
-                          <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare}</p>
+                          <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare ?? 150}</p>
                         </div>
                         {getStatusBadge(order.deliveryRequestStatus || order.status)}
                       </div>
@@ -637,7 +637,7 @@ export default function DeliveryAgentDashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-bold text-base text-gray-900">📦 {getCropTitle(order)}</h3>
-                        <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare}</p>
+                        <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare ?? 150}</p>
                       </div>
                       <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">Action Required</span>
                     </div>
@@ -701,7 +701,7 @@ export default function DeliveryAgentDashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-bold text-base text-gray-900">📦 {getCropTitle(order)}</h3>
-                        <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare}</p>
+                        <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare ?? 150}</p>
                       </div>
                       {getStatusBadge(order.deliveryRequestStatus || order.status)}
                     </div>
@@ -778,7 +778,7 @@ export default function DeliveryAgentDashboard() {
                       <p className="text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()}</p>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-emerald-700 text-sm">₹{order.deliveryFare || 0}</span>
+                      <span className="font-bold text-emerald-700 text-sm">₹{order.deliveryFare ?? 150}</span>
                       <p className="text-[10px] text-gray-400 font-bold uppercase">Delivered ✓</p>
                     </div>
                   </div>
@@ -1484,7 +1484,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
   const orderId = (order._id || order.id || '').slice(-6).toUpperCase();
   const cropTitle = getCropTitle(order);
   const qtyText = getQtyText(order);
-  const fare = order.deliveryFare || 0;
+  const fare = order.deliveryFare ?? 150;
   const status = order.deliveryRequestStatus || order.status || 'assigned';
 
   const isPending = status === 'pending_driver_approval';
