@@ -7,6 +7,7 @@ import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import PaymentModal from '../components/PaymentModal';
 import api from '../api/axios';
+import ConfirmModal from '../components/common/ConfirmModal';
 import {
   ArrowLeft, ShoppingBag, MapPin, Phone, MessageSquare, Star, Info,
   CheckCircle, Truck, Package, Clock, ShieldCheck, Download, AlertTriangle,
@@ -193,6 +194,8 @@ export default function BuyerOrdersPage() {
 
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  // ConfirmModal state
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', variant: 'default', isAlert: false, onConfirm: null });
 
   useEffect(() => {
     fetchOrders();
