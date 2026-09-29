@@ -1,16 +1,21 @@
 import { GoogleGenAI } from '@google/genai';
 import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
-import { verifyImageBatchLocally, computeImageProfile } from '../utils/imageAnalyzer.js';
+import crypto from 'crypto';
+import { verifyImageBatchLocally, computeImageProfile, generateVisualFallbackReport } from '../utils/imageAnalyzer.js';
 
 dotenv.config();
 
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
-// ─── Multi-Angle Crop Quality Analysis (Groq llama-3.3-70b-versatile Engine) ──
+// In-memory verification cache to ensure 100% deterministic consistency when re-verifying the same crop
+const verificationCache = new Map();
+const MAX_CACHE_SIZE = 1000;
+
+// ─── Multi-Angle Crop Quality Analysis (Groq / Gemini / Visual Telemetry Engine) ──
 /**
- * Analyze 3 crop images (Front, Left, Right) using Groq AI + Visual Telemetry.
+ * Analyze 3 crop images (Front, Left, Right) using AI + Visual Telemetry.
  *
  * @param {Array<{ buffer: Buffer, mimeType: string, angle: string }>} images
  * @param {string} [cropType]
@@ -20,6 +25,15 @@ const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_
 export async function analyzeCropImagesMultiAngle(images, cropType = '', role = 'buyer') {
   if (!images || !Array.isArray(images) || images.length < 1) {
     throw new Error('At least one harvest photo (Front View) is required for AI crop verification.');
+  }
+
+  // Check cache for identical image uploads (guarantees identical result when re-verifying same images)
+  const combinedBuffer = Buffer.concat(images.map(img => Buffer.isBuffer(img.buffer) ? img.buffer : Buffer.from(img.buffer)));
+  const cacheKey = crypto.createHash('sha256').update(combinedBuffer).digest('hex') + `_${(cropType || '').trim().toLowerCase()}`;
+
+  if (verificationCache.has(cacheKey)) {
+    console.log('[CropVerification] Returning cached consistent verification report for hash:', cacheKey.slice(0, 12));
+    return verificationCache.get(cacheKey);
   }
 
   // ── Step 0: Instant local forensic check (Duplicate photos, AI saturation, crop mismatch) ──
@@ -58,7 +72,13 @@ STEP 1: REJECTION CHECKS
 STEP 2: APMC QUALITY ANALYSIS (If Step 1 passes)
 Identify the ACTUAL crop in the photos (e.g. Tomato, Mango, Potato, Onion, Green Chilli, Eggplant, Paddy, Wheat, etc.) and assess:
 - Actual visual color, ripeness, surface texture, and defects.
-- Calculate an accurate, dynamic Trust Score (0-100) based on visual quality and crop freshness.
+- CRITICAL APMC TRUST SCORE RUBRIC (0-100):
+  * Grade A+ (90-98): Flawless, bright uniform skin, zero dark blemishes or decay, premium export quality.
+  * Grade A (80-89): Normal healthy farm harvest, slight natural surface variation, firm texture.
+  * Grade B (65-79): Noticeable skin blemishes, uneven ripening, minor sunburn or small dark spots.
+  * Grade C (45-64): Visible bruising, significant dark necrotic lesions, pest punctures, or over-ripeness.
+  * Below 45: Rotten, moldy, or diseased produce.
+DO NOT arbitrarily default to high scores like 95-98. Grade realistically across the full spectrum based strictly on what is visible in the photos.
 
 Return ONLY raw JSON with NO markdown formatting:
 {
@@ -67,9 +87,9 @@ Return ONLY raw JSON with NO markdown formatting:
     "cropName": "Identified Crop Name",
     "variety": "Identified Variety or Hybrid",
     "qualityGrade": "A+ or A or B or C",
-    "trustScore": 88,
+    "trustScore": 82,
     "ripeness": "Optimal Harvest / Overripe / Unripe",
-    "freshness": "Excellent / Good / Fair",
+    "freshness": "Excellent / Good / Fair / Poor",
     "colorUniformity": "Percentage Uniformity",
     "surfaceTexture": "Visual Texture description",
     "defects": ["List of visual defects or empty"],
@@ -101,7 +121,7 @@ Return ONLY raw JSON with NO markdown formatting:
       const contents = [{ role: 'user', parts }];
 
       const response = await _callGeminiWithFallback(contents, {
-        temperature: 0.15,
+        temperature: 0.0, // Zero temperature for deterministic, consistent outputs
         maxOutputTokens: 900,
       });
 
@@ -109,18 +129,22 @@ Return ONLY raw JSON with NO markdown formatting:
       if (rawText) {
         const parsed = JSON.parse(_stripFences(rawText));
         if (parsed.rejected) {
-          return {
+          const rejectionResult = {
             rejected: true,
             rejectionType: parsed.rejectionType || 'crop_mismatch',
             reason: parsed.reason || 'Crop verification failed.',
           };
+          verificationCache.set(cacheKey, rejectionResult);
+          return rejectionResult;
         }
         if (parsed.report) {
           console.log('[CropVerification] Gemini Vision successfully generated multi-angle report for:', parsed.report.cropName);
-          return {
+          const finalResult = {
             rejected: false,
             report: _normalizeReport(parsed.report),
           };
+          verificationCache.set(cacheKey, finalResult);
+          return finalResult;
         }
       }
     } catch (err) {
@@ -143,24 +167,28 @@ Return ONLY raw JSON with NO markdown formatting:
         const completion = await groq.chat.completions.create({
           model: modelName,
           messages: [{ role: 'user', content: promptText }],
-          temperature: 0.1,
+          temperature: 0.0,
           max_tokens: 1024,
         });
         const rawText = completion.choices?.[0]?.message?.content || '';
         if (rawText) {
           const parsed = JSON.parse(_stripFences(rawText));
           if (parsed.rejected) {
-            return {
+            const rejectionResult = {
               rejected: true,
               rejectionType: parsed.rejectionType || 'crop_mismatch',
               reason: parsed.reason || 'Verification failed.',
             };
+            verificationCache.set(cacheKey, rejectionResult);
+            return rejectionResult;
           }
           if (parsed.report) {
-            return {
+            const finalResult = {
               rejected: false,
               report: _normalizeReport(parsed.report),
             };
+            verificationCache.set(cacheKey, finalResult);
+            return finalResult;
           }
         }
       } catch (err) {
@@ -169,33 +197,44 @@ Return ONLY raw JSON with NO markdown formatting:
     }
   }
 
-  // Attempt 3: Dynamic Visual Telemetry Report (Calculated from actual RGB pixel profiles of the 3 images)
-  console.log('[CropVerification] Generating dynamic visual telemetry report based on crop image profiles.');
+  // Attempt 3: Dynamic Visual Telemetry Report (Calculated from actual RGB defect & uniformity metrics)
+  console.log('[CropVerification] Generating authentic dynamic visual telemetry report based on crop image profiles.');
   const dynamicReport = generateVisualFallbackReport(images, cropType);
-  return {
+  const finalResult = {
     rejected: false,
     report: _normalizeReport(dynamicReport),
   };
+  verificationCache.set(cacheKey, finalResult);
+  if (verificationCache.size > MAX_CACHE_SIZE) {
+    const firstKey = verificationCache.keys().next().value;
+    verificationCache.delete(firstKey);
+  }
+  return finalResult;
 }
 
 function _normalizeReport(r) {
+  const trustNum = Number(r.trustScore);
+  const validTrust = (!isNaN(trustNum) && trustNum >= 0 && trustNum <= 100) ? Math.round(trustNum) : 80;
+
   return {
     cropName:              String(r.cropName || 'Identified Harvest'),
     variety:               String(r.variety || 'General'),
-    qualityGrade:          ['A+','A','B','C'].includes(r.qualityGrade) ? r.qualityGrade : 'A',
-    trustScore:            Math.min(100, Math.max(0, Number(r.trustScore ?? 88))),
-    ripeness:              String(r.ripeness || 'Ripe'),
-    freshness:             String(r.freshness || 'Excellent'),
-    colorUniformity:       String(r.colorUniformity || '92% Uniform Color'),
-    surfaceTexture:        String(r.surfaceTexture || 'Firm & Smooth'),
+    qualityGrade:          ['A+','A','B','C'].includes(r.qualityGrade)
+      ? r.qualityGrade
+      : (validTrust >= 90 ? 'A+' : validTrust >= 80 ? 'A' : validTrust >= 65 ? 'B' : 'C'),
+    trustScore:            validTrust,
+    ripeness:              String(r.ripeness || 'Optimal Harvest'),
+    freshness:             String(r.freshness || (validTrust >= 85 ? 'Excellent' : validTrust >= 65 ? 'Good' : 'Fair')),
+    colorUniformity:       String(r.colorUniformity || `${validTrust}% Surface Uniformity`),
+    surfaceTexture:        String(r.surfaceTexture || (validTrust >= 85 ? 'Firm & Smooth' : 'Natural Texture with Irregularities')),
     defects:               Array.isArray(r.defects) ? r.defects.map(String) : [],
     diseaseSigns:          Array.isArray(r.diseaseSigns) ? r.diseaseSigns.map(String) : [],
     pestDetection:         r.pestDetection === true,
-    estimatedShelfLife:    String(r.estimatedShelfLife || '5-7 days'),
+    estimatedShelfLife:    String(r.estimatedShelfLife || (validTrust >= 80 ? '5-7 days' : '2-4 days')),
     estimatedPricePerKg:   Number(r.estimatedPricePerKg ?? 30),
     priceGradeJustification: String(r.priceGradeJustification || 'Market price estimated based on visual quality grade.'),
-    storageRecommendation: String(r.storageRecommendation || 'Keep in a cool, dry place.'),
-    logisticsAdvice:       String(r.logisticsAdvice || 'Transport in ventilated crates.'),
+    storageRecommendation: String(r.storageRecommendation || 'Store in a cool, shaded, well-ventilated space at 12-15°C.'),
+    logisticsAdvice:       String(r.logisticsAdvice || 'Transport in ventilated crates with protective padding.'),
     summary:               String(r.summary || ''),
     recommendations:       Array.isArray(r.recommendations) ? r.recommendations.map(String) : [],
   };

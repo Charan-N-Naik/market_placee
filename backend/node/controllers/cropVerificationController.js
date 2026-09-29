@@ -81,7 +81,7 @@ export const analyzeCrop = asyncHandler(async (req, res) => {
   const listingId = req.body.listingId;
   if (listingId) {
     try {
-      const trustScoreNum = report.trustScore ?? 92;
+      const trustScoreNum = typeof report.trustScore === 'number' ? report.trustScore : (report.confidenceScore ?? 80);
       await Listing.findByIdAndUpdate(listingId, {
         isVerified: true,
         aiVerified: true,

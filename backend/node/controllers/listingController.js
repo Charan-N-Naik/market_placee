@@ -117,7 +117,7 @@ export const createListing = asyncHandler(async (req, res) => {
     }
   }
 
-  const trustScoreNum = verificationReport?.trustScore ?? verificationReport?.confidenceScore ?? (aiVerified ? 92 : 0);
+  const trustScoreNum = verificationReport?.trustScore ?? verificationReport?.confidenceScore ?? (aiVerified ? 80 : 0);
   const normalizedTrust = trustScoreNum > 1 ? trustScoreNum / 100 : trustScoreNum;
 
   const initialVerification = aiVerified ? {
@@ -269,7 +269,7 @@ export const getListingById = asyncHandler(async (req, res) => {
   );
 
   if (hasAIVerified && (!listing.verification?.status || listing.verification.status === 'pending_review')) {
-    const score = listing.verificationReport?.trustScore ?? listing.verificationReport?.confidenceScore ?? 92;
+    const score = listing.verificationReport?.trustScore ?? listing.verificationReport?.confidenceScore ?? 80;
     const normalizedScore = score > 1 ? score / 100 : score;
     const healedVerification = {
       ...(listing.verification ? (listing.verification.toObject?.() || listing.verification) : {}),
@@ -336,7 +336,7 @@ export const updateListing = asyncHandler(async (req, res) => {
     listing.aiVerified = true;
     listing.isVerified = true;
     const rep = updates.verificationReport || listing.verificationReport || {};
-    const score = rep.trustScore ?? rep.confidenceScore ?? 92;
+    const score = rep.trustScore ?? rep.confidenceScore ?? 80;
     listing.verification = {
       ...(listing.verification ? (listing.verification.toObject?.() || listing.verification) : {}),
       status: score >= 50 ? 'verified' : 'flagged',
