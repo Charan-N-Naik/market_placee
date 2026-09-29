@@ -26,18 +26,24 @@ export default function ListingDetails() {
   const [apiListing, setApiListing] = useState(null);
   const listing = contextListing || apiListing;
 
-  const MIN_BULK_QTY = listing ? Math.min(50, listing.quantity || 50) : 50;
-  const [quantity, setQuantity] = useState(MIN_BULK_QTY);
+  const availableStock = listing?.quantity !== undefined && listing?.quantity !== null ? Number(listing.quantity) : 0;
+  const isOutOfStock = availableStock <= 0;
+  const MIN_BULK_QTY = isOutOfStock ? 0 : (listing ? Math.min(50, availableStock) : 50);
+  const [quantity, setQuantity] = useState(isOutOfStock ? 0 : MIN_BULK_QTY);
 
   useEffect(() => {
     if (listing) {
-      setQuantity(prev => {
-        if (prev > listing.quantity) return listing.quantity;
-        if (prev < MIN_BULK_QTY) return MIN_BULK_QTY;
-        return prev;
-      });
+      if (isOutOfStock) {
+        setQuantity(0);
+      } else {
+        setQuantity(prev => {
+          if (prev > availableStock) return availableStock;
+          if (prev < MIN_BULK_QTY) return MIN_BULK_QTY;
+          return prev;
+        });
+      }
     }
-  }, [listing?.quantity, MIN_BULK_QTY]);
+  }, [availableStock, isOutOfStock, MIN_BULK_QTY]);
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -149,17 +155,21 @@ export default function ListingDetails() {
     .slice(0, 4);
 
   const handleGoBack = () => {
-    if (location.state?.from) {
+    if (location.state?.from && location.state.from !== location.pathname) {
       navigate(location.state.from);
+      return;
+    }
+    if (window.history.length > 2) {
+      navigate(-1);
+      return;
+    }
+    const role = user?.role || user?.userType;
+    if (role === 'farmer') {
+      navigate('/farmer/dashboard');
+    } else if (role === 'delivery_agent' || role === 'driver') {
+      navigate('/delivery/dashboard');
     } else {
-      const role = user?.role || user?.userType;
-      if (role === 'farmer') {
-        navigate('/farmer/dashboard');
-      } else if (role === 'delivery_agent' || role === 'driver') {
-        navigate('/delivery/dashboard');
-      } else {
-        navigate('/buyer/dashboard');
-      }
+      navigate('/buyer/dashboard');
     }
   };
 
@@ -169,6 +179,11 @@ export default function ListingDetails() {
   };
 
   const handleAddToCart = async () => {
+    if (isOutOfStock || quantity <= 0) {
+      setCartError('This produce lot is completely out of stock.');
+      setTimeout(() => setCartError(''), 4000);
+      return;
+    }
     if (quantity < MIN_BULK_QTY) {
       setCartError(`Bulk Marketplace Requirement: Minimum purchase quantity is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}.`);
       setTimeout(() => setCartError(''), 4000);
@@ -191,6 +206,11 @@ export default function ListingDetails() {
   };
 
   const handleBuyNow = async () => {
+    if (isOutOfStock || quantity <= 0) {
+      setCartError('This produce lot is completely out of stock.');
+      setTimeout(() => setCartError(''), 4000);
+      return;
+    }
     if (quantity < MIN_BULK_QTY) {
       setCartError(`Bulk Marketplace Requirement: Minimum purchase quantity is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}.`);
       setTimeout(() => setCartError(''), 4000);
@@ -565,6 +585,11 @@ export default function ListingDetails() {
 
               {/* Top Left Badges */}
               <div className="absolute top-5 left-5 flex flex-wrap gap-2.5 z-10">
+                {isOutOfStock && (
+                  <span className="bg-rose-600 text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse">
+                    <AlertCircle size={14} /> Out of Stock
+                  </span>
+                )}
                 {listing.isOrganic && (
                   <span className="bg-[#1F7A4D] text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
                     <Leaf size={14} /> Organic Produce 🌿
@@ -660,9 +685,15 @@ export default function ListingDetails() {
 
                 <div className="text-right">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Stock Availability</span>
-                  <span className="text-base font-black text-[#1F7A4D] mt-1 block bg-[#E8F7EE] px-3 py-1 rounded-xl border border-[#1F7A4D]/20">
-                    {listing.quantity} {listing.unit || 'kg'}
-                  </span>
+                  {isOutOfStock ? (
+                    <span className="text-base font-black text-rose-600 mt-1 block bg-rose-50 px-3 py-1 rounded-xl border border-rose-200">
+                      Out of Stock (0 {listing?.unit || 'kg'})
+                    </span>
+                  ) : (
+                    <span className="text-base font-black text-[#1F7A4D] mt-1 block bg-[#E8F7EE] px-3 py-1 rounded-xl border border-[#1F7A4D]/20">
+                      {listing.quantity} {listing.unit || 'kg'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -687,33 +718,44 @@ export default function ListingDetails() {
 
               {/* Quantity Counter */}
               {!isFarmer && (
-                <div className="space-y-2 pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Select Quantity ({listing.unit || 'kg'}):</span>
-                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 inline-flex items-center gap-1 mt-0.5">
-                        📦 Bulk Minimum: 50 {listing?.unit || 'kg'}
-                      </span>
+                isOutOfStock ? (
+                  <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center space-y-1 my-2">
+                    <div className="flex items-center justify-center gap-2 text-rose-700 font-extrabold text-sm">
+                      <AlertCircle size={18} /> Out of Stock
                     </div>
-                    <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
-                      <button
-                        onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
-                        disabled={quantity <= MIN_BULK_QTY}
-                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="w-14 text-center text-sm font-black text-gray-900">{quantity}</span>
-                      <button
-                        onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
-                      >
-                        <Plus size={16} />
-                      </button>
+                    <p className="text-xs text-rose-600 font-semibold">
+                      This harvest lot has been completely sold out and is unavailable for order.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Select Quantity ({listing.unit || 'kg'}):</span>
+                        <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 inline-flex items-center gap-1 mt-0.5">
+                          📦 Bulk Minimum: 50 {listing?.unit || 'kg'}
+                        </span>
+                      </div>
+                      <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+                        <button
+                          onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
+                          disabled={quantity <= MIN_BULK_QTY}
+                          className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="w-14 text-center text-sm font-black text-gray-900">{quantity}</span>
+                        <button
+                          onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                          className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
 
               {/* ACTION BUTTONS / FARMER BANNER */}
@@ -726,6 +768,16 @@ export default function ListingDetails() {
                       className="w-full py-3 bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-sm"
                     >
                       Return to Farmer Dashboard
+                    </button>
+                  </div>
+                ) : isOutOfStock ? (
+                  <div className="space-y-2">
+                    <button
+                      disabled
+                      className="w-full min-h-[48px] py-3 px-6 bg-gray-100 text-gray-400 font-bold text-sm rounded-xl cursor-not-allowed flex items-center justify-center gap-2 border border-gray-200"
+                    >
+                      <AlertCircle size={18} />
+                      <span>Currently Out of Stock</span>
                     </button>
                   </div>
                 ) : (
@@ -1010,53 +1062,79 @@ export default function ListingDetails() {
       {!isFarmer && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
           <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-start gap-1">
-                <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
-                  Min Bulk: {MIN_BULK_QTY} {listing?.unit || 'kg'}
-                </span>
-                <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+            {isOutOfStock ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-rose-600 font-extrabold text-sm bg-rose-50 px-3.5 py-2 rounded-xl border border-rose-200">
+                    <AlertCircle size={18} /> Out of Stock
+                  </div>
+                  <div className="hidden sm:block pl-2 border-l border-gray-200">
+                    <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
+                    <span className="text-xl font-black text-gray-400">₹0</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 flex-1 sm:flex-none">
                   <button
-                    onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
-                    disabled={quantity <= MIN_BULK_QTY}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                    disabled
+                    className="w-full sm:w-auto sm:px-8 min-h-[48px] py-3 bg-gray-100 text-gray-400 text-sm font-bold rounded-xl cursor-not-allowed border border-gray-200 flex items-center justify-center gap-2"
                   >
-                    <Minus size={16} />
-                  </button>
-                  <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
-                  >
-                    <Plus size={16} />
+                    <AlertCircle size={16} />
+                    <span>Out of Stock</span>
                   </button>
                 </div>
-              </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-start gap-1">
+                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
+                      Min Bulk: {MIN_BULK_QTY} {listing?.unit || 'kg'}
+                    </span>
+                    <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+                      <button
+                        onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
+                        disabled={quantity <= MIN_BULK_QTY}
+                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="hidden sm:block pl-2 border-l border-gray-200">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
-                <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
-              </div>
-            </div>
+                  <div className="hidden sm:block pl-2 border-l border-gray-200">
+                    <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
+                    <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
 
-            <div className="flex gap-3 flex-1 sm:flex-none">
-              <button
-                onClick={handleAddToCart}
-                disabled={addingToCart}
-                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-              >
-                <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
-                <ChevronRight size={16} className="shrink-0" />
-              </button>
-              <button
-                onClick={handleBuyNow}
-                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-              >
-                <span>Buy Now</span>
-                <ChevronRight size={16} className="shrink-0" />
-              </button>
-            </div>
+                <div className="flex gap-3 flex-1 sm:flex-none">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={addingToCart}
+                    className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
+                    <ChevronRight size={16} className="shrink-0" />
+                  </button>
+                  <button
+                    onClick={handleBuyNow}
+                    className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Buy Now</span>
+                    <ChevronRight size={16} className="shrink-0" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -183,9 +183,18 @@ export const createOrder = asyncHandler(async (req, res) => {
     for (const createdOrder of createdOrders) {
       await Order.findByIdAndDelete(createdOrder._id);
     }
-    throw creationErr;
   }
 
+  if (req.io && reservedItems.length > 0) {
+    for (const item of reservedItems) {
+      Listing.findById(item.listingId).populate('farmer', 'name avatar location').lean().then(updatedDoc => {
+        if (updatedDoc && req.io) {
+          req.io.emit('listing:stock_updated', { listingId: updatedDoc._id, quantity: updatedDoc.quantity });
+          req.io.emit('listing:updated', updatedDoc);
+        }
+      }).catch(() => {});
+    }
+  }
 
   res.status(201).json({
     message: 'Orders placed successfully',

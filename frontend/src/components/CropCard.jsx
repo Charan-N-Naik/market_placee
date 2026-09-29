@@ -6,7 +6,7 @@ import { useCart } from '../context/CartContext';
 import CropImage from './CropImage';
 import { 
   Phone, Share2, Eye, Heart, MapPin, Calendar, Scale, User, Leaf, 
-  Star, ShoppingCart, ArrowRight, ShieldCheck, Zap, Sparkles, Check, X, FileText
+  Star, ShoppingCart, ArrowRight, ShieldCheck, Zap, Sparkles, Check, X, FileText, AlertCircle
 } from 'lucide-react';
 
 export default function CropCard({ listing, showContact = true, onBuyNow }) {
@@ -52,7 +52,8 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
 
   const categoryName = listing.category || 'Fresh Produce';
   const varietyName = listing.variety || 'Hybrid Quality';
-  const stockQuantity = listing.quantity || 250;
+  const stockQuantity = listing.quantity !== undefined && listing.quantity !== null ? Number(listing.quantity) : 0;
+  const isOutOfStock = stockQuantity <= 0;
 
   // Diagnostic Report Data (derived or fallback)
   const reportData = {
@@ -81,9 +82,10 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
 
   const handleAddToCart = async (e) => {
     e.stopPropagation();
+    if (isOutOfStock) return;
     try {
       setAdding(true);
-      const qtyToAdd = Math.min(50, listing?.quantity || 50);
+      const qtyToAdd = Math.min(50, stockQuantity);
       await addToCart(listingId, qtyToAdd);
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
@@ -103,6 +105,7 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
 
   const handleBuyNowClick = (e) => {
     e.stopPropagation();
+    if (isOutOfStock) return;
     if (onBuyNow) {
       onBuyNow(listing);
     } else {
@@ -129,12 +132,16 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
         <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-gray-100">
           <CropImage cropName={listing.cropName} photo={photo} size="lg" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           
-          {/* Organic Tag */}
-          {listing.isOrganic && (
+          {/* Organic / Out of Stock Tag */}
+          {isOutOfStock ? (
+            <div className="absolute top-3 left-3 bg-rose-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase tracking-wider flex items-center gap-1.5 z-20">
+              <AlertCircle size={11} /> Out of Stock
+            </div>
+          ) : listing.isOrganic ? (
             <div className="absolute top-3 left-3 bg-[#1F7A4D] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase tracking-wider flex items-center gap-1.5">
               <Leaf size={11} /> Organic <span className="text-xs">🌿</span>
             </div>
-          )}
+          ) : null}
 
           {/* Multiple Image Count Badge */}
           <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-white/20 shadow-md">
@@ -196,9 +203,15 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
                 <span className="text-[11px] text-gray-500 font-bold">/ {unit}</span>
                 <span className="text-[11px] text-gray-400 line-through font-semibold">₹{previousPrice}</span>
               </div>
-              <p className="text-[11px] font-bold text-[#FF8C42] mt-1 leading-snug">
-                {discountPercent}% OFF • Available Stock: {stockQuantity} {unit}
-              </p>
+              {isOutOfStock ? (
+                <p className="text-[11px] font-black text-rose-600 mt-1 leading-snug">
+                  ⚠️ Out of Stock (0 {unit})
+                </p>
+              ) : (
+                <p className="text-[11px] font-bold text-[#FF8C42] mt-1 leading-snug">
+                  {discountPercent}% OFF • Available Stock: {stockQuantity} {unit}
+                </p>
+              )}
             </div>
 
             <span className="px-2.5 py-1.5 bg-[#E8F7EE] text-[#1F7A4D] text-[11px] font-black rounded-lg border border-[#1F7A4D]/25 shadow-xs shrink-0">
@@ -207,39 +220,57 @@ export default function CropCard({ listing, showContact = true, onBuyNow }) {
           </div>
 
           {/* ACTION BUTTONS — BOUNDED TEXT & SPACIOUS */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+          {isOutOfStock ? (
+            <div className="space-y-2">
               <button
-                onClick={handleAddToCart}
-                disabled={adding}
-                className={`min-h-[36px] px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 whitespace-nowrap overflow-hidden
-                  ${added 
-                    ? 'bg-emerald-600 text-white border border-emerald-600' 
-                    : 'bg-[#E8F7EE] text-[#1F7A4D] hover:bg-[#1F7A4D] hover:text-white border-2 border-[#1F7A4D]/30'
-                  }
-                `}
+                disabled
+                className="w-full min-h-[36px] px-3 py-1.5 bg-gray-100 text-gray-400 font-bold text-xs rounded-xl cursor-not-allowed border border-gray-200 flex items-center justify-center gap-1.5"
               >
-                <ShoppingCart size={13} className="shrink-0" />
-                <span className="truncate">{added ? 'Added ✓' : 'Add to C...'}</span>
+                <X size={14} /> Out of Stock
               </button>
-
               <button
-                onClick={handleBuyNowClick}
-                className="min-h-[36px] px-2.5 py-1.5 bg-[#FF8C42] hover:bg-[#e07530] text-white rounded-xl font-black text-[11px] uppercase tracking-wide shadow-md shadow-orange-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 whitespace-nowrap overflow-hidden border-2 border-[#FF8C42]"
+                onClick={handleFullView}
+                className="w-full min-h-[36px] px-3 py-2 bg-gray-900 hover:bg-black text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 whitespace-nowrap overflow-hidden border-2 border-gray-900"
               >
-                <Zap size={13} className="shrink-0" />
-                <span className="truncate">BUY NOW</span>
+                <span>Full View Details</span>
+                <ArrowRight size={14} className="shrink-0" />
               </button>
             </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={adding}
+                  className={`min-h-[36px] px-2.5 py-1.5 rounded-xl font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 whitespace-nowrap overflow-hidden
+                    ${added 
+                      ? 'bg-emerald-600 text-white border border-emerald-600' 
+                      : 'bg-[#E8F7EE] text-[#1F7A4D] hover:bg-[#1F7A4D] hover:text-white border-2 border-[#1F7A4D]/30'
+                    }
+                  `}
+                >
+                  <ShoppingCart size={13} className="shrink-0" />
+                  <span className="truncate">{added ? 'Added ✓' : 'Add to C...'}</span>
+                </button>
 
-            <button
-              onClick={handleFullView}
-              className="w-full min-h-[36px] px-3 py-2 bg-gray-900 hover:bg-black text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 whitespace-nowrap overflow-hidden border-2 border-gray-900"
-            >
-              <span>Full View Details</span>
-              <ArrowRight size={14} className="shrink-0" />
-            </button>
-          </div>
+                <button
+                  onClick={handleBuyNowClick}
+                  className="min-h-[36px] px-2.5 py-1.5 bg-[#FF8C42] hover:bg-[#e07530] text-white rounded-xl font-black text-[11px] uppercase tracking-wide shadow-md shadow-orange-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 whitespace-nowrap overflow-hidden border-2 border-[#FF8C42]"
+                >
+                  <Zap size={13} className="shrink-0" />
+                  <span className="truncate">BUY NOW</span>
+                </button>
+              </div>
+
+              <button
+                onClick={handleFullView}
+                className="w-full min-h-[36px] px-3 py-2 bg-gray-900 hover:bg-black text-white rounded-xl font-extrabold text-[11px] uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 whitespace-nowrap overflow-hidden border-2 border-gray-900"
+              >
+                <span>Full View Details</span>
+                <ArrowRight size={14} className="shrink-0" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

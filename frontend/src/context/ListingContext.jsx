@@ -1,11 +1,13 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import { useAuth } from './AuthContext';
+import { getSocket } from '../utils/socket';
 
 const ListingContext = createContext();
 
 export function ListingProvider({ children }) {
   const [listings, setListings] = useState([]);
+  const [myListings, setMyListings] = useState([]);
   const [savedListings, setSavedListings] = useState([]); // Array of full listing objects
   const [loading, setLoading] = useState(true);
   const { user, isAuthenticated } = useAuth();
@@ -16,29 +18,27 @@ export function ListingProvider({ children }) {
   const fetchListings = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     try {
-      if (userRole === 'farmer') {
-        const { data } = await api.get('/listings/my');
-        if (requestId !== requestIdRef.current) return;
-        setListings(data);
-      } else if (userRole === 'buyer') {
-        const [allListingsSettled, savedListingsSettled] = await Promise.allSettled([
-          api.get('/listings'),
-          api.get('/listings/saved')
-        ]);
-        if (requestId !== requestIdRef.current) return;
-        if (allListingsSettled.status === 'fulfilled') {
-          const allData = allListingsSettled.value.data;
-          setListings(allData.listings || allData);
-        }
-        if (savedListingsSettled.status === 'fulfilled') {
-          setSavedListings(savedListingsSettled.value.data || []);
-        } else {
-          setSavedListings([]);
-        }
-      } else {
-        const { data } = await api.get('/listings');
-        if (requestId !== requestIdRef.current) return;
-        setListings(data.listings || data);
+      const promises = [
+        api.get('/listings?limit=100'),
+        userRole === 'farmer' ? api.get('/listings/my') : Promise.resolve({ data: [] }),
+        userRole === 'buyer' ? api.get('/listings/saved') : Promise.resolve({ data: [] })
+      ];
+
+      const [marketRes, myRes, savedRes] = await Promise.allSettled(promises);
+      if (requestId !== requestIdRef.current) return;
+
+      if (marketRes.status === 'fulfilled') {
+        const mData = marketRes.value.data;
+        const allListings = Array.isArray(mData?.listings) ? mData.listings : (Array.isArray(mData) ? mData : []);
+        setListings(allListings);
+      }
+
+      if (myRes.status === 'fulfilled' && userRole === 'farmer') {
+        setMyListings(Array.isArray(myRes.value.data) ? myRes.value.data : []);
+      }
+
+      if (savedRes.status === 'fulfilled' && userRole === 'buyer') {
+        setSavedListings(Array.isArray(savedRes.value.data) ? savedRes.value.data : []);
       }
     } catch (error) {
       if (requestId === requestIdRef.current) {
@@ -56,10 +56,75 @@ export function ListingProvider({ children }) {
       fetchListings();
     } else {
       setListings([]);
+      setMyListings([]);
       setSavedListings([]);
       setLoading(false);
     }
   }, [isAuthenticated, fetchListings]);
+
+  // Real-time socket event listeners for instant catalog synchronisation
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleListingCreated = (newListing) => {
+      if (!newListing) return;
+      const newId = (newListing._id || newListing.id)?.toString();
+      setListings(prev => {
+        if (prev.some(l => (l._id || l.id)?.toString() === newId)) return prev;
+        return [newListing, ...prev];
+      });
+      const farmerId = (newListing.farmer?._id || newListing.farmer?.id || newListing.farmer)?.toString();
+      if (userId && farmerId === userId.toString()) {
+        setMyListings(prev => {
+          if (prev.some(l => (l._id || l.id)?.toString() === newId)) return prev;
+          return [newListing, ...prev];
+        });
+      }
+    };
+
+    const handleListingUpdated = (updatedListing) => {
+      if (!updatedListing) return;
+      const upId = (updatedListing._id || updatedListing.id)?.toString();
+      setListings(prev =>
+        prev.map(l => (l._id || l.id)?.toString() === upId ? { ...l, ...updatedListing } : l)
+      );
+      setMyListings(prev =>
+        prev.map(l => (l._id || l.id)?.toString() === upId ? { ...l, ...updatedListing } : l)
+      );
+    };
+
+    const handleListingDeleted = (deletedId) => {
+      if (!deletedId) return;
+      const delStr = deletedId.toString();
+      setListings(prev => prev.filter(l => (l._id || l.id)?.toString() !== delStr));
+      setMyListings(prev => prev.filter(l => (l._id || l.id)?.toString() !== delStr));
+      setSavedListings(prev => prev.filter(l => (l._id || l.id)?.toString() !== delStr));
+    };
+
+    const handleStockUpdated = ({ listingId, quantity }) => {
+      if (!listingId) return;
+      const strId = listingId.toString();
+      setListings(prev =>
+        prev.map(l => (l._id || l.id)?.toString() === strId ? { ...l, quantity: Number(quantity) } : l)
+      );
+      setMyListings(prev =>
+        prev.map(l => (l._id || l.id)?.toString() === strId ? { ...l, quantity: Number(quantity) } : l)
+      );
+    };
+
+    socket.on('listing:created', handleListingCreated);
+    socket.on('listing:updated', handleListingUpdated);
+    socket.on('listing:deleted', handleListingDeleted);
+    socket.on('listing:stock_updated', handleStockUpdated);
+
+    return () => {
+      socket.off('listing:created', handleListingCreated);
+      socket.off('listing:updated', handleListingUpdated);
+      socket.off('listing:deleted', handleListingDeleted);
+      socket.off('listing:stock_updated', handleStockUpdated);
+    };
+  }, [userId]);
 
   const addListing = useCallback(async (listingData) => {
     try {
@@ -68,13 +133,11 @@ export function ListingProvider({ children }) {
         if (key === 'photoFile' && listingData[key]) {
           formData.append('images', listingData[key]);
         } else if (key === 'report') {
-          // New multi-angle Gemini report
           if (listingData[key]) {
             formData.append('aiVerify', 'true');
             formData.append('verificationReport', JSON.stringify(listingData[key]));
           }
         } else if (key === 'aiVerify') {
-          // Allow explicit aiVerify flag from AddListingPage
           formData.append('aiVerify', listingData[key]);
         } else if (key === 'location') {
           const locVal = typeof listingData[key] === 'object'
@@ -92,7 +155,16 @@ export function ListingProvider({ children }) {
         const { data } = await api.post('/listings', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        setListings(prev => [data, ...prev]);
+        setListings(prev => {
+          const id = (data._id || data.id)?.toString();
+          if (prev.some(l => (l._id || l.id)?.toString() === id)) return prev;
+          return [data, ...prev];
+        });
+        setMyListings(prev => {
+          const id = (data._id || data.id)?.toString();
+          if (prev.some(l => (l._id || l.id)?.toString() === id)) return prev;
+          return [data, ...prev];
+        });
         return data;
       } catch (apiErr) {
         console.warn('Error posting listing to API, fallback to local state:', apiErr.message);
@@ -115,6 +187,7 @@ export function ListingProvider({ children }) {
           createdAt: new Date().toISOString(),
         };
         setListings(prev => [newLocalListing, ...prev]);
+        setMyListings(prev => [newLocalListing, ...prev]);
         return newLocalListing;
       }
     } catch (err) {
@@ -123,11 +196,9 @@ export function ListingProvider({ children }) {
     }
   }, []);
 
-
   const toggleSaved = useCallback(async (listingId) => {
     try {
       await api.post(`/listings/${listingId}/save`);
-      // Refetch saved listings to ensure state is in sync with backend
       const { data } = await api.get('/listings/saved');
       setSavedListings(data);
     } catch (err) {
@@ -140,9 +211,14 @@ export function ListingProvider({ children }) {
   }, [savedListings]);
 
   const getMyListings = useCallback((farmerName) => {
-    // Backend already filters by user if we fetched /my
-    return listings;
-  }, [listings]);
+    if (myListings && myListings.length > 0) return myListings;
+    return listings.filter(l => {
+      const fId = l.farmer?._id || l.farmer?.id || l.farmer;
+      if (fId && userId && fId.toString() === userId.toString()) return true;
+      if (farmerName && l.farmer?.name && l.farmer.name.toLowerCase() === farmerName.toLowerCase()) return true;
+      return false;
+    });
+  }, [myListings, listings, userId]);
 
   const getSavedListingItems = useCallback(() => {
     return savedListings;
@@ -150,8 +226,8 @@ export function ListingProvider({ children }) {
   
   const incrementView = useCallback(async (listingId) => {
     try {
-      // Backend automatically increments view when GET /:id is called. We can manually update state.
       setListings(prev => prev.map(l => (l._id || l.id) === listingId ? { ...l, views: (l.views || 0) + 1 } : l));
+      setMyListings(prev => prev.map(l => (l._id || l.id) === listingId ? { ...l, views: (l.views || 0) + 1 } : l));
       await api.get(`/listings/${listingId}`);
     } catch (err) {
       console.error('Error incrementing view', err);
@@ -162,10 +238,12 @@ export function ListingProvider({ children }) {
     try {
       const { data } = await api.put(`/listings/${listingId}`, updatedData);
       setListings(prev => prev.map(l => (l._id || l.id) === listingId ? { ...l, ...data } : l));
+      setMyListings(prev => prev.map(l => (l._id || l.id) === listingId ? { ...l, ...data } : l));
       return data;
     } catch (err) {
       console.warn('Error updating listing via API, updating local state:', err.message);
       setListings(prev => prev.map(l => (l._id || l.id) === listingId ? { ...l, ...updatedData } : l));
+      setMyListings(prev => prev.map(l => (l._id || l.id) === listingId ? { ...l, ...updatedData } : l));
       return updatedData;
     }
   }, []);
@@ -177,6 +255,7 @@ export function ListingProvider({ children }) {
       console.warn('Error deleting listing via API, updating local state:', err.message);
     } finally {
       setListings(prev => prev.filter(l => (l._id || l.id) !== listingId));
+      setMyListings(prev => prev.filter(l => (l._id || l.id) !== listingId));
       setSavedListings(prev => prev.filter(l => (l._id || l.id) !== listingId));
     }
   }, []);
@@ -184,6 +263,7 @@ export function ListingProvider({ children }) {
   return (
     <ListingContext.Provider value={{
       listings,
+      myListings,
       loading,
       addListing,
       updateListing,

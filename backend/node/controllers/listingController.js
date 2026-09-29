@@ -163,7 +163,16 @@ export const createListing = asyncHandler(async (req, res) => {
     });
   }
 
-  res.status(201).json(listing);
+  // Populate farmer details so buyers receiving the real-time event get full data
+  const populatedListing = await Listing.findById(listing._id)
+    .populate('farmer', 'name avatar location')
+    .lean();
+
+  if (req.io) {
+    req.io.emit('listing:created', populatedListing || listing);
+  }
+
+  res.status(201).json(populatedListing || listing);
 });
 
 // @desc    Get listings with filters, pagination, sorting
@@ -171,7 +180,7 @@ export const createListing = asyncHandler(async (req, res) => {
 // @access  Public
 export const getListings = asyncHandler(async (req, res) => {
   const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 12;
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
   const sortBy = req.query.sortBy || 'createdAt';
   // Default to newest first (createdAt desc)
   const order = req.query.order === 'asc' ? 1 : -1;
@@ -259,7 +268,13 @@ export const updateListing = asyncHandler(async (req, res) => {
   }
   Object.assign(listing, updates);
   await listing.save();
-  res.json(listing);
+  const populatedListing = await Listing.findById(listing._id)
+    .populate('farmer', 'name avatar location')
+    .lean();
+  if (req.io) {
+    req.io.emit('listing:updated', populatedListing || listing);
+  }
+  res.json(populatedListing || listing);
 });
 
 // @desc    Delete a listing (farmer only)
@@ -274,6 +289,9 @@ export const deleteListing = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized' });
   }
   await listing.deleteOne();
+  if (req.io) {
+    req.io.emit('listing:deleted', req.params.id);
+  }
   res.json({ message: 'Listing removed' });
 });
 

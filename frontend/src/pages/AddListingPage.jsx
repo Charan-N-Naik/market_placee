@@ -168,8 +168,16 @@ export default function AddListingPage({ onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (verificationState !== 'done') {
-      alert('Please wait for AI verification to complete before publishing.');
+    if (verificationState === 'analyzing') {
+      alert('Please wait for photo verification to complete before publishing.');
+      return;
+    }
+    if (verificationState === 'rejected') {
+      alert('Please upload a valid crop photo to resolve the rejection.');
+      return;
+    }
+    if (!images.front.file && !images.front.preview) {
+      alert('Please upload at least the Front View crop photo.');
       return;
     }
     if (!validateForm()) return;
@@ -191,6 +199,8 @@ export default function AddListingPage({ onSuccess }) {
         }
       }
 
+      const isVerifiedSuccess = verificationState === 'done' && verificationReport;
+
       await addListing({
         cropName:   formData.cropName,
         variety:    formData.variety,
@@ -204,8 +214,8 @@ export default function AddListingPage({ onSuccess }) {
         photoFile:   uploadedUrl ? null : images.front.file,
         photo:       uploadedUrl,
         imageUrl:    uploadedUrl,
-        aiVerify:    'true',
-        report:      verificationReport,
+        aiVerify:    isVerifiedSuccess ? 'true' : 'false',
+        report:      isVerifiedSuccess ? verificationReport : null,
       });
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -216,7 +226,7 @@ export default function AddListingPage({ onSuccess }) {
     }
   };
 
-  const canPublish = verificationState === 'done' && !submitting;
+  const canPublish = !submitting && Boolean(images.front.preview || images.front.file) && verificationState !== 'analyzing' && verificationState !== 'rejected';
 
   return (
     <div className="max-w-[760px] mx-auto pb-16">
@@ -501,7 +511,12 @@ export default function AddListingPage({ onSuccess }) {
         <div className="pt-4">
           {!images.front.preview && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 font-semibold mb-4">
-              ⚠ Upload the Front View photo first — AI verification is required to publish a listing.
+              ⚠ Upload at least the Front View photo to publish your produce.
+            </p>
+          )}
+          {verificationState === 'error' && (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 font-semibold mb-4">
+              ℹ AI quality scan encountered a delay. You can publish now with standard review.
             </p>
           )}
           {verificationState === 'rejected' && (

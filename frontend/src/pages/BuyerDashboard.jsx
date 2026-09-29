@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
@@ -60,6 +60,8 @@ function getPaymentLabel(order) {
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'en';
   const toggleLanguage = () => {
@@ -70,8 +72,16 @@ export default function BuyerDashboard() {
   const { listings, loading: listingsLoading, toggleSaved, isSaved, savedListings, fetchListings } = useListings();
   const { cartItemsCount, addToCart } = useCart();
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const initialTab = searchParams.get('tab') || location.state?.tab || 'dashboard';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') || location.state?.tab;
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, location.state]);
 
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,10 +89,16 @@ export default function BuyerDashboard() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterOrganic, setFilterOrganic] = useState(false);
   const [filterVerified, setFilterVerified] = useState(false);
+  const [includeOutOfStock, setIncludeOutOfStock] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
 
   const handleCardBuyNow = async (item) => {
-    const minQty = item.minQuantity || item.minOrder || Math.min(50, item.quantity || 50);
+    const stock = item?.quantity !== undefined && item?.quantity !== null ? Number(item.quantity) : 0;
+    if (stock <= 0) {
+      showToast('This crop is currently out of stock', 'error');
+      return;
+    }
+    const minQty = item.minQuantity || item.minOrder || Math.min(50, stock);
     try {
       await addToCart(item, minQty, { mode: 'set' });
       navigate('/checkout');
@@ -407,6 +423,14 @@ export default function BuyerDashboard() {
       if (!isVerified) return false;
       return true;
     });
+
+    // Zero-stock handling: by default, remove sold out crops from the buyer feed
+    if (!includeOutOfStock) {
+      result = result.filter(l => {
+        const stock = l.quantity !== undefined && l.quantity !== null ? Number(l.quantity) : 0;
+        return stock > 0;
+      });
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -744,6 +768,15 @@ export default function BuyerDashboard() {
                       className="accent-[#166534] rounded"
                     />
                     <span>{t('buyerDashboard.aiVerifiedOnly')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeOutOfStock}
+                      onChange={(e) => setIncludeOutOfStock(e.target.checked)}
+                      className="accent-rose-600 rounded"
+                    />
+                    <span className={includeOutOfStock ? 'text-rose-600 font-extrabold' : ''}>Include Out of Stock</span>
                   </label>
                 </div>
               </div>
