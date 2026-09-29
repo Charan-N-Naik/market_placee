@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Sidebar from './layout/Sidebar';
 import Navbar from './layout/Navbar';
 
@@ -13,6 +13,15 @@ export default function DashboardLayout({
   topBarExtra
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const toggleSidebar = useCallback(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(prev => !prev);
+    } else {
+      setCollapsed(prev => !prev);
+    }
+  }, []);
 
   return (
     <div
@@ -34,6 +43,8 @@ export default function DashboardLayout({
           role={role}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
         />
       </div>
 
@@ -42,7 +53,11 @@ export default function DashboardLayout({
         <Navbar
           activeTab={activeTab}
           navItems={navItems}
+          sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          toggleSidebar={toggleSidebar}
           setActiveTab={setActiveTab}
           role={role}
           topBarExtra={topBarExtra}

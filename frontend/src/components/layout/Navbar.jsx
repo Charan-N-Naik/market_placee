@@ -77,7 +77,11 @@ function formatTimeAgo(dateString) {
 export default function Navbar({
   activeTab,
   navItems,
+  sidebarOpen,
   setSidebarOpen,
+  collapsed,
+  setCollapsed,
+  toggleSidebar,
   setActiveTab,
   role,
   topBarExtra,
@@ -90,6 +94,16 @@ export default function Navbar({
   const isAgent = role === 'delivery_agent' || role === 'delivery';
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const handleHamburgerClick = () => {
+    if (toggleSidebar) {
+      toggleSidebar();
+    } else if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen?.(prev => !prev);
+    } else {
+      setCollapsed?.(prev => !prev);
+    }
+  };
 
   // Separate unread counts:
   // 1. Notifications count (only product purchases, reviews, delivery status)
@@ -772,8 +786,25 @@ export default function Navbar({
       }}>
         {/* Left */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => setSidebarOpen(true)} className="md:hidden"
-            style={{ background: 'var(--color-primary-light, #fef3c7)', border: 'none', borderRadius: 10, padding: '0.5rem', cursor: 'pointer', color: 'var(--color-primary, #ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            onClick={handleHamburgerClick}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label="Toggle navigation menu"
+            className="transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: collapsed ? '#fde68a' : 'var(--color-primary-light, #fef3c7)',
+              border: '1px solid #fed7aa',
+              borderRadius: 10,
+              padding: '0.5rem',
+              cursor: 'pointer',
+              color: 'var(--color-primary, #ea580c)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#fde68a'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = collapsed ? '#fde68a' : 'var(--color-primary-light, #fef3c7)'; }}
+          >
             <Menu size={20} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -900,12 +931,23 @@ export default function Navbar({
       {/* Left: Hamburger + Welcome */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <button
-          onClick={() => setSidebarOpen(true)}
-          className="md:hidden"
+          onClick={handleHamburgerClick}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label="Toggle navigation menu"
+          className="transition-all hover:scale-105 active:scale-95"
           style={{
-            background: '#f4f4f5', border: 'none', borderRadius: 8, padding: '0.5rem',
-            cursor: 'pointer', color: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            background: collapsed ? '#e4e4e7' : '#f4f4f5',
+            border: '1px solid #d4d4d8',
+            borderRadius: 10,
+            padding: '0.5rem',
+            cursor: 'pointer',
+            color: '#18181b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#e4e4e7'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = collapsed ? '#e4e4e7' : '#f4f4f5'; }}
         >
           <Menu size={20} />
         </button>

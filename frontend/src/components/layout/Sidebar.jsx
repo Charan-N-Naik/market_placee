@@ -32,12 +32,16 @@ export default function Sidebar({
   setActiveTab,
   role,
   sidebarOpen,
-  setSidebarOpen
+  setSidebarOpen,
+  collapsed: collapsedProp,
+  setCollapsed: setCollapsedProp
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isFarmer = role === 'farmer';
-  const [collapsed, setCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const collapsed = collapsedProp !== undefined ? collapsedProp : internalCollapsed;
+  const setCollapsed = setCollapsedProp || setInternalCollapsed;
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch unread notification count for all users (Farmer, Buyer, Delivery Agent)
@@ -154,9 +158,10 @@ export default function Sidebar({
           />
         )}
         <aside
-          className={`fixed md:relative inset-y-0 left-0 z-50 w-[272px] h-full flex flex-col
-            transform transition-transform duration-300 ease-out md:translate-x-0
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`fixed md:relative inset-y-0 left-0 z-50 h-full flex flex-col
+            transform transition-all duration-300 ease-out md:translate-x-0
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            ${collapsed ? 'w-[72px]' : 'w-[272px]'}`}
           style={{
             background: 'var(--bg-card, #fff)',
             borderRight: '1px solid var(--border-subtle, #f3f4f6)',
@@ -165,11 +170,38 @@ export default function Sidebar({
         >
           {/* Logo Header */}
           <div style={{
-            padding: '1.25rem 1.25rem 1rem',
+            padding: collapsed ? '1.25rem 0.75rem' : '1.25rem 1.25rem 1rem',
             borderBottom: '1px solid #FED7AA40',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
+            minHeight: 68
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {!collapsed ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: 12,
+                  background: '#FFF7ED',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '1.5px solid #FED7AA',
+                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.08)'
+                }}>
+                  <Sprout size={22} style={{ color: '#EA580C' }} />
+                </div>
+                <div>
+                  <h1 style={{
+                    fontWeight: 900, fontSize: '1.2rem', color: '#1c1917',
+                    margin: 0, lineHeight: 1, letterSpacing: '-0.03em'
+                  }}>
+                    Kisan<span style={{ color: '#EA580C' }}>Bazaar</span>
+                  </h1>
+                  <p style={{
+                    fontSize: '0.58rem', fontWeight: 800, color: '#EA580C',
+                    textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
+                  }}>
+                    🚚 {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : `🛒 ${t('sidebar.buyerHub', 'Buyer Hub')}`}
+                  </p>
+                </div>
+              </div>
+            ) : (
               <div style={{
                 width: 38, height: 38, borderRadius: 12,
                 background: '#FFF7ED',
@@ -179,79 +211,82 @@ export default function Sidebar({
               }}>
                 <Sprout size={22} style={{ color: '#EA580C' }} />
               </div>
-              <div>
-                <h1 style={{
-                  fontWeight: 900, fontSize: '1.2rem', color: '#1c1917',
-                  margin: 0, lineHeight: 1, letterSpacing: '-0.03em'
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={() => setSidebarOpen(false)} className="md:hidden"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716c' }}>
+                <X size={20} />
+              </button>
+              <button onClick={() => setCollapsed(!collapsed)} className="hidden md:flex"
+                style={{
+                  background: '#FFF7ED', border: '1px solid #FED7AA',
+                  cursor: 'pointer', color: '#EA580C',
+                  borderRadius: 8, padding: '0.35rem', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
                 }}>
-                  Kisan<span style={{ color: '#EA580C' }}>Bazaar</span>
-                </h1>
-                <p style={{
-                  fontSize: '0.58rem', fontWeight: 800, color: '#EA580C',
-                  textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
-                }}>
-                  🚚 {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : `🛒 ${t('sidebar.buyerHub', 'Buyer Hub')}`}
-                </p>
-              </div>
+                <ChevronLeft size={14} style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+              </button>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716c' }}>
-              <X size={20} />
-            </button>
           </div>
 
           {/* User Profile Card */}
-          <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid #FED7AA33' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
-              borderRadius: 16, padding: '0.75rem 0.875rem',
-              border: '1.5px solid #FED7AA',
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-              boxShadow: '0 2px 8px rgba(234, 88, 12, 0.06)'
-            }}>
-              <div 
-                onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
-                title={t('navbar.viewProfile', 'View Profile')}
-                style={{
-                  width: 42, height: 42, borderRadius: 14,
-                  background: '#FFF7ED', color: '#EA580C',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
-                  flexShrink: 0, border: '1.5px solid #FDBA74',
-                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.12)',
-                  cursor: 'pointer', transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.borderColor = '#EA580C'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = '#FDBA74'; }}
-              >
-                {user?.avatar ? (
-                  <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <User size={22} style={{ color: '#EA580C' }} />
-                )}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1c1917', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
-                <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EA580C', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  📍 {typeof user?.location === 'object'
-                    ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
-                    : (user?.location || 'Karnataka')}
-                </p>
+          {!collapsed && (
+            <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid #FED7AA33' }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+                borderRadius: 16, padding: '0.75rem 0.875rem',
+                border: '1.5px solid #FED7AA',
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                boxShadow: '0 2px 8px rgba(234, 88, 12, 0.06)'
+              }}>
+                <div 
+                  onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
+                  title={t('navbar.viewProfile', 'View Profile')}
+                  style={{
+                    width: 42, height: 42, borderRadius: 14,
+                    background: '#FFF7ED', color: '#EA580C',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
+                    flexShrink: 0, border: '1.5px solid #FDBA74',
+                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.12)',
+                    cursor: 'pointer', transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.borderColor = '#EA580C'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = '#FDBA74'; }}
+                >
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={22} style={{ color: '#EA580C' }} />
+                  )}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1c1917', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
+                  <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EA580C', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    📍 {typeof user?.location === 'object'
+                      ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
+                      : (user?.location || 'Karnataka')}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Navigation Links */}
-          <nav style={{ flex: 1, padding: '0.75rem 0.875rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <nav style={{ flex: 1, padding: collapsed ? '0.75rem 0.5rem' : '0.75rem 0.875rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const notifCount = item.count > 0 ? item.count : (item.id === 'notifications' && unreadCount > 0 ? unreadCount : 0);
               return (
                 <button key={item.id} id={`nav-${item.id}`}
                   onClick={() => handleItemClick(item)}
+                  title={collapsed ? item.label : undefined}
                   style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    padding: '0.75rem 0.875rem', borderRadius: 14,
+                    width: '100%', display: 'flex', alignItems: 'center',
+                    gap: collapsed ? 0 : '0.75rem',
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    padding: collapsed ? '0.75rem' : '0.75rem 0.875rem', borderRadius: 14,
                     border: isActive ? '1.5px solid #FED7AA' : '1.5px solid transparent',
                     cursor: 'pointer', textAlign: 'left',
                     background: isActive ? '#FFF7ED' : 'transparent',
@@ -283,49 +318,62 @@ export default function Sidebar({
                     }} />
                   )}
                   {Icon && <Icon size={18} style={{ color: isActive ? '#EA580C' : '#78716c', flexShrink: 0 }} />}
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {item.badge && (
-                    <span style={{
-                      fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99,
-                      fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
-                      background: 'linear-gradient(to right, #EA580C, #F59E0B)', color: '#fff',
-                      boxShadow: '0 0 6px rgba(234,88,12,0.3)'
-                    }}>
-                      {item.badge}
-                    </span>
+                  {!collapsed && (
+                    <>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {item.badge && (
+                        <span style={{
+                          fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99,
+                          fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                          background: 'linear-gradient(to right, #EA580C, #F59E0B)', color: '#fff',
+                          boxShadow: '0 0 6px rgba(234,88,12,0.3)'
+                        }}>
+                          {item.badge}
+                        </span>
+                      )}
+                      {notifCount > 0 && (
+                        <span style={{
+                          fontSize: '0.6rem', minWidth: 20, height: 20,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: 99, fontWeight: 800, background: '#ef4444', color: '#fff',
+                          padding: '0 4px'
+                        }}>
+                          {notifCount > 99 ? '99+' : notifCount}
+                        </span>
+                      )}
+                      {isActive && <ChevronRight size={14} style={{ color: '#EA580C', flexShrink: 0 }} />}
+                    </>
                   )}
-                  {((item.count > 0) || (item.id === 'notifications' && unreadCount > 0)) && (
-                    <span style={{
-                      fontSize: '0.6rem', minWidth: 20, height: 20,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      borderRadius: 99, fontWeight: 800, background: '#ef4444', color: '#fff',
-                      padding: '0 4px'
-                    }}>
-                      {item.count > 0 ? (item.count > 99 ? '99+' : item.count) : (unreadCount > 99 ? '99+' : unreadCount)}
-                    </span>
+                  {collapsed && notifCount > 0 && (
+                    <div style={{
+                      position: 'absolute', top: 6, right: 6, width: 8, height: 8,
+                      borderRadius: '50%', background: '#ef4444', border: '2px solid #fff',
+                    }} />
                   )}
-                  {isActive && <ChevronRight size={14} style={{ color: '#EA580C', flexShrink: 0 }} />}
                 </button>
               );
             })}
           </nav>
 
           {/* Footer Controls */}
-          <div style={{ padding: '0.875rem 1rem', borderTop: '1px solid #FED7AA40', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{
-              background: '#FFF7ED',
-              borderRadius: '9999px',
-              border: '1.5px solid #FED7AA',
-              padding: '0.25rem 0.5rem',
-              display: 'flex', justifyContent: 'center',
-              boxShadow: '0 2px 4px rgba(234, 88, 12, 0.04)',
-              transition: 'background 0.2s'
-            }}>
-              <LanguageToggle className="w-full justify-center !text-orange-900 hover:!bg-orange-100/60" />
-            </div>
-            <button id="btn-logout" onClick={onLogout}
+          <div style={{ padding: collapsed ? '0.75rem 0.5rem' : '0.875rem 1rem', borderTop: '1px solid #FED7AA40', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {!collapsed && (
+              <div style={{
+                background: '#FFF7ED',
+                borderRadius: '9999px',
+                border: '1.5px solid #FED7AA',
+                padding: '0.25rem 0.5rem',
+                display: 'flex', justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(234, 88, 12, 0.04)',
+                transition: 'background 0.2s'
+              }}>
+                <LanguageToggle className="w-full justify-center !text-orange-900 hover:!bg-orange-100/60" />
+              </div>
+            )}
+            <button id="btn-logout" onClick={onLogout} title={collapsed ? t('common.logout') : undefined}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: collapsed ? 0 : '0.5rem',
                 padding: '0.65rem', background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '9999px',
                 color: '#ef4444', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.08em',
                 textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s ease'
@@ -333,7 +381,7 @@ export default function Sidebar({
               onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#FEF2F2'; }}
             >
-              <LogOut size={15} />{t('common.logout')}
+              <LogOut size={15} />{!collapsed && t('common.logout')}
             </button>
           </div>
         </aside>
