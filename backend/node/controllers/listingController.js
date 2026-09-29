@@ -198,19 +198,31 @@ export const getListings = asyncHandler(async (req, res) => {
       .sort({ [sortBy]: order })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select('-verificationReport.summary -verificationReport.defects -verificationReport.diseaseSigns -verificationReport.analyzedAngles -verificationReport.overallAssessment')
+      .select('-verificationReport.summary -verificationReport.defects -verificationReport.diseaseSigns -verificationReport.analyzedAngles -verificationReport.overallAssessment -images -verification.authenticity_reasons -verification.geo_flags')
       .lean(),
   ]);
 
+  // Attach only the first thumbnail URL to each listing (avoids sending huge base64 blobs)
   const farmerIds = [...new Set(rawListings.map(l => l.farmer).filter(Boolean))];
+  const thumbnailDocs = await Listing.find(
+    { _id: { $in: rawListings.map(l => l._id) } },
+    { 'images': { $slice: 1 } }
+  ).select('images').lean();
+  const thumbMap = new Map(thumbnailDocs.map(d => [d._id.toString(), d.images?.[0]?.url || null]));
+
   const farmers = await User.find({ _id: { $in: farmerIds } })
     .select('name avatar location')
     .lean();
   const farmerMap = new Map(farmers.map(f => [f._id.toString(), f]));
-  const listings = rawListings.map(l => ({
-    ...l,
-    farmer: farmerMap.get(l.farmer?.toString()) || null,
-  }));
+  const listings = rawListings.map(l => {
+    const thumbUrl = thumbMap.get(l._id.toString()) || null;
+    return {
+      ...l,
+      farmer: farmerMap.get(l.farmer?.toString()) || null,
+      // Attach thumbnail URL only (first image) — avoids sending huge base64 blobs to the card grid
+      images: thumbUrl ? [{ url: thumbUrl }] : [],
+    };
+  });
 
   res.set('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
   res.json({ total, page, pages: Math.ceil(total / limit), listings });

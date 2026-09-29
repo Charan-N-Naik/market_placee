@@ -165,14 +165,12 @@ export default function ListingDetails() {
     .slice(0, 4);
 
   const handleGoBack = () => {
-    if (location.state?.from && location.state.from !== location.pathname) {
+    // Only navigate(-1) if we came from within this app (location.state.from is set by internal links)
+    if (location.state?.from) {
       navigate(location.state.from);
       return;
     }
-    if (window.history.length > 2) {
-      navigate(-1);
-      return;
-    }
+    // Otherwise always go to the right dashboard — never trust window.history.length
     const role = user?.role || user?.userType;
     if (role === 'farmer') {
       navigate('/farmer/dashboard');
