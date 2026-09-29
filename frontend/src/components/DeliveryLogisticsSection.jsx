@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Truck, MapPin, Phone, Star, Search, User, X, CheckCircle2, 
   ShieldCheck, Calendar, Clock, Package, Hash, FileText, Radio, Map
@@ -8,6 +9,7 @@ import { locations } from '../data/mockData';
 import LiveDeliveryTracker from './LiveDeliveryTracker';
 
 export default function DeliveryLogisticsSection({ user, showToast }) {
+  const { t } = useTranslation();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
@@ -122,11 +124,11 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 max-w-3xl space-y-3">
           <div className="inline-flex items-center gap-2 bg-emerald-800/80 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider text-emerald-200 border border-emerald-700">
-            <Truck size={14} className="text-emerald-400" /> Direct Farm Transport Hub
+            <Truck size={14} className="text-emerald-400" /> {t('delivery.hubBadge')}
           </div>
-          <h2 className="text-3xl md:text-4xl font-black tracking-tight">Verified Agri Delivery Agents</h2>
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight">{t('delivery.title')}</h2>
           <p className="text-xs md:text-sm text-emerald-100 font-semibold leading-relaxed">
-            Provide the sourcing farmer details, choose a verified regional delivery driver, calculate per-KM shipping costs, and schedule crop pickups directly from farm locations across Karnataka.
+            {t('delivery.description')}
           </p>
         </div>
       </div>
@@ -138,8 +140,8 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             📍
           </div>
           <div>
-            <h3 className="text-lg font-black text-stone-900 tracking-tight">1. Sourcing Farmer & Pickup Details</h3>
-            <p className="text-xs text-stone-500 font-semibold">Enter complete farmer contact and pickup location information for driver assignment</p>
+            <h3 className="text-lg font-black text-stone-900 tracking-tight">{t('delivery.pickupTitle')}</h3>
+            <p className="text-xs text-stone-500 font-semibold">{t('delivery.pickupSub')}</p>
           </div>
         </div>
 
@@ -149,14 +151,14 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
           <div className="bg-amber-50/70 rounded-2xl border border-amber-200/90 p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-amber-200/60 pb-3">
               <span className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <User size={15} className="text-amber-700" /> Sourcing Farmer Details
+                <User size={15} className="text-amber-700" /> {t('delivery.sourcingFarmerDetails')}
               </span>
-              <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full">Pickup Origin</span>
+              <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full">{t('delivery.pickupOrigin')}</span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Farmer Full Name *</label>
+                <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.farmerFullName')}</label>
                 <input
                   type="text"
                   placeholder="e.g. Basavaraj Gowda"
@@ -168,7 +170,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Primary Phone *</label>
+                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.primaryPhone')}</label>
                   <input
                     type="text"
                     placeholder="98450xxxxx"
@@ -179,7 +181,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Alt. Contact Phone</label>
+                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.altPhone')}</label>
                   <input
                     type="text"
                     placeholder="99001xxxxx"
@@ -192,7 +194,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Crop & Quantity</label>
+                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.cropQuantity')}</label>
                   <input
                     type="text"
                     placeholder="e.g. 500 kg Tomatoes"
@@ -203,7 +205,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Pickup District *</label>
+                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.pickupDistrict')}</label>
                   <select
                     value={farmerDetails.pickupDistrict}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupDistrict: e.target.value })}
@@ -217,7 +219,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               </div>
 
               <div>
-                <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Farm / Warehouse Landmark & Address *</label>
+                <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.farmAddress')}</label>
                 <input
                   type="text"
                   placeholder="e.g. Near Milk Dairy Gate, Kyatsandra Post, Tumakuru"
@@ -229,7 +231,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Pincode</label>
+                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.pincode')}</label>
                   <input
                     type="text"
                     placeholder="572101"
@@ -240,15 +242,15 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">Pickup Slot</label>
+                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.pickupSlot')}</label>
                   <select
                     value={farmerDetails.pickupTimeSlot}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupTimeSlot: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
                   >
-                    <option value="Morning (8 AM - 11 AM)">Morning (8 AM - 11 AM)</option>
-                    <option value="Noon (12 PM - 3 PM)">Noon (12 PM - 3 PM)</option>
-                    <option value="Evening (4 PM - 7 PM)">Evening (4 PM - 7 PM)</option>
+                    <option value="Morning (8 AM - 11 AM)">{t('delivery.morningSlot')}</option>
+                    <option value="Noon (12 PM - 3 PM)">{t('delivery.noonSlot')}</option>
+                    <option value="Evening (4 PM - 7 PM)">{t('delivery.eveningSlot')}</option>
                   </select>
                 </div>
               </div>
@@ -260,14 +262,14 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
           <div className="bg-emerald-50/70 rounded-2xl border border-emerald-200/90 p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
               <span className="text-xs font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin size={15} className="text-emerald-700" /> Buyer Destination Details
+                <MapPin size={15} className="text-emerald-700" /> {t('delivery.buyerDestinationDetails')}
               </span>
-              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">Destination Drop</span>
+              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">{t('delivery.destinationDrop')}</span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">Buyer Name</label>
+                <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.buyerName')}</label>
                 <input
                   type="text"
                   value={buyerDropDetails.buyerName}
@@ -278,7 +280,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">Buyer Phone</label>
+                  <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.buyerPhone')}</label>
                   <input
                     type="text"
                     value={buyerDropDetails.buyerPhone}
@@ -288,7 +290,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">Drop District</label>
+                  <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.dropDistrict')}</label>
                   <select
                     value={buyerDropDetails.dropDistrict}
                     onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, dropDistrict: e.target.value })}
@@ -302,7 +304,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               </div>
 
               <div>
-                <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">Delivery Street Address</label>
+                <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.deliveryAddress')}</label>
                 <input
                   type="text"
                   value={buyerDropDetails.dropAddress}
@@ -319,7 +321,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
         <div className="bg-[#FFFDF6] rounded-2xl border border-stone-200 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-[10px] font-black text-[#1F7A4D] uppercase tracking-widest bg-[#E8F7EE] px-2.5 py-1 rounded-md border border-[#1F7A4D]/20">
-              Transport Distance & Cost Calculation
+              {t('delivery.calcTitle')}
             </span>
             <p className="text-xs font-bold text-stone-800 pt-1">
               {farmerDetails.pickupDistrict || 'Farmer Origin'} → {buyerDropDetails.dropDistrict || 'Buyer Destination'} ({distanceKm} km)
@@ -328,12 +330,12 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
           <div className="flex items-center gap-6 bg-white p-3.5 rounded-xl border border-stone-200 shadow-xs w-full md:w-auto justify-between md:justify-end">
             <div>
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Base + Distance Rate</span>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{t('delivery.baseRate')}</span>
               <span className="text-xs font-black text-stone-800">₹100 Base + ₹{ratePerKm}/km</span>
             </div>
             <div className="h-8 w-px bg-stone-200" />
             <div>
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Est. Expenditure</span>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{t('delivery.estExpenditure')}</span>
               <span className="text-xl font-black text-[#1F7A4D]">₹{expenditure.totalExpenditure}</span>
             </div>
           </div>
@@ -349,37 +351,37 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 🎉
               </div>
               <div>
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">TRANSPORT BOOKING CONFIRMED</span>
-                <h3 className="text-lg font-black text-white">Driver Assigned: {bookingSuccess.agent?.name}</h3>
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{t('delivery.bookingConfirmed')}</span>
+                <h3 className="text-lg font-black text-white">{t('delivery.driverAssigned')} {bookingSuccess.agent?.name}</h3>
               </div>
             </div>
             <button
               onClick={() => setBookingSuccess(null)}
               className="text-xs font-bold text-emerald-300 hover:text-white"
             >
-              ✕ Close
+              {t('delivery.close')}
             </button>
           </div>
 
           <div className="bg-emerald-900/60 p-4 rounded-2xl border border-emerald-800/80 text-xs space-y-2">
             <div className="flex justify-between">
-              <span className="text-emerald-300">Booking ID:</span>
+              <span className="text-emerald-300">{t('delivery.bookingId')}</span>
               <span className="font-mono font-bold text-white">{bookingSuccess.id}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-emerald-300">Farmer Contact:</span>
+              <span className="text-emerald-300">{t('delivery.farmerContact')}</span>
               <span className="font-bold text-white">{bookingSuccess.farmerDetails?.farmerName} ({bookingSuccess.farmerDetails?.farmerPhone || 'N/A'})</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-emerald-300">Farmer Pickup Origin:</span>
+              <span className="text-emerald-300">{t('delivery.farmerPickupOrigin')}</span>
               <span className="font-bold text-white">{bookingSuccess.farmerDetails?.pickupAddress}, {bookingSuccess.farmerDetails?.pickupDistrict}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-emerald-300">Buyer Destination Drop:</span>
+              <span className="text-emerald-300">{t('delivery.buyerDestinationDrop')}</span>
               <span className="font-bold text-white">{bookingSuccess.buyerDropDetails?.buyerName} ({bookingSuccess.buyerDropDetails?.dropDistrict})</span>
             </div>
             <div className="flex justify-between border-t border-emerald-800 pt-2 font-black text-emerald-400 text-sm">
-              <span>Total Transport Fee:</span>
+              <span>{t('delivery.totalFee')}</span>
               <span>₹{bookingSuccess.expenditureDetails?.totalExpenditure}</span>
             </div>
           </div>
@@ -395,8 +397,8 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 🚛
               </div>
               <div>
-                <h3 className="text-lg font-black text-stone-900 tracking-tight">My Transport Bookings & Tracking ({myBookings.length})</h3>
-                <p className="text-xs text-stone-500 font-semibold">Real-time GPS map tracking unlocks once the delivery agent collects the crops from the farmer</p>
+                <h3 className="text-lg font-black text-stone-900 tracking-tight">{t('delivery.myBookings')} ({myBookings.length})</h3>
+                <p className="text-xs text-stone-500 font-semibold">{t('delivery.myBookingsSub')}</p>
               </div>
             </div>
           </div>
@@ -425,27 +427,27 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                     <div>
                       {isPending && (
                         <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1.5">
-                          <Clock size={12} className="animate-spin text-amber-600" /> Awaiting Driver Acceptance
+                          <Clock size={12} className="animate-spin text-amber-600" /> {t('delivery.awaitingDriver')}
                         </span>
                       )}
                       {isAccepted && (
                         <span className="bg-blue-100 text-blue-800 border border-blue-300 text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1.5">
-                          <CheckCircle2 size={12} className="text-blue-600" /> Driver Accepted — Heading to Farm
+                          <CheckCircle2 size={12} className="text-blue-600" /> {t('delivery.driverAccepted')}
                         </span>
                       )}
                       {isCollected && (
                         <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
-                          <Radio size={12} className="text-emerald-600 animate-ping" /> Crops Collected — Live GPS Active
+                          <Radio size={12} className="text-emerald-600 animate-ping" /> {t('delivery.cropsCollected')}
                         </span>
                       )}
                       {isDelivered && (
                         <span className="bg-green-100 text-green-800 border border-green-300 text-[11px] font-black px-3 py-1 rounded-full flex items-center gap-1.5">
-                          <CheckCircle2 size={12} className="text-green-600" /> Delivered to Buyer ✓
+                          <CheckCircle2 size={12} className="text-green-600" /> {t('delivery.deliveredToBuyer')}
                         </span>
                       )}
                       {isRejected && (
                         <span className="bg-red-100 text-red-800 border border-red-300 text-[11px] font-black px-3 py-1 rounded-full">
-                          Driver Declined Request
+                          {t('delivery.driverDeclined')}
                         </span>
                       )}
                     </div>
@@ -457,9 +459,9 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Map size={16} className="text-emerald-600 animate-bounce" />
-                          <h4 className="text-xs font-black text-stone-900 uppercase tracking-wider">Real-Time Crop Transit GPS Tracking</h4>
+                          <h4 className="text-xs font-black text-stone-900 uppercase tracking-wider">{t('delivery.liveGpsTitle')}</h4>
                         </div>
-                        <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full">LIVE TELEMETRY</span>
+                        <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full">{t('delivery.liveTelemetry')}</span>
                       </div>
 
                       <LiveDeliveryTracker order={b} onClose={() => {}} />
@@ -470,9 +472,9 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                         🔒
                       </div>
                       <div>
-                        <p className="font-bold">Real-time Map Track Locked</p>
+                        <p className="font-bold">{t('delivery.trackLocked')}</p>
                         <p className="text-[11px] text-amber-800/80 font-medium">
-                          The live GPS map will be displayed here automatically as soon as the delivery agent arrives at the farm and marks the crops as <span className="font-bold underline">Collected</span>.
+                          {t('delivery.trackLockedDesc')}
                         </p>
                       </div>
                     </div>
@@ -488,8 +490,8 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-black text-stone-900 tracking-tight">Available Delivery Agents & Fleets</h3>
-            <p className="text-xs text-stone-500 font-semibold">Click driver photo to view full profile details or click Book Driver to request transport</p>
+            <h3 className="text-xl font-black text-stone-900 tracking-tight">{t('delivery.agentsTitle')}</h3>
+            <p className="text-xs text-stone-500 font-semibold">{t('delivery.agentsSub')}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -497,7 +499,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               <Search size={14} className="absolute left-3 top-3 text-stone-400" />
               <input
                 type="text"
-                placeholder="Search agent, vehicle, district..."
+                placeholder={t('delivery.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-3.5 py-2 bg-white border border-stone-200 rounded-xl text-xs font-semibold outline-none focus:border-[#1F7A4D]"
@@ -510,7 +512,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               onChange={(e) => setSelectedRegion(e.target.value)}
               className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-bold text-stone-800 outline-none cursor-pointer focus:border-[#1F7A4D]"
             >
-              <option value="all">📍 All Regions / Districts</option>
+              <option value="all">{t('delivery.allRegions')}</option>
               {locations.map(loc => (
                 <option key={loc} value={loc}>📍 {loc}</option>
               ))}
@@ -522,10 +524,10 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               onChange={(e) => setFilterType(e.target.value)}
               className="px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-semibold text-stone-800 outline-none cursor-pointer focus:border-[#1F7A4D]"
             >
-              <option value="all">🚚 All Vehicles</option>
-              <option value="pickup">Bolero Pickup</option>
-              <option value="mini">Tata Ace Mini</option>
-              <option value="truck">Commercial Truck</option>
+              <option value="all">{t('delivery.allVehicles')}</option>
+              <option value="pickup">{t('delivery.pickupVehicle')}</option>
+              <option value="mini">{t('delivery.miniVehicle')}</option>
+              <option value="truck">{t('delivery.truckVehicle')}</option>
             </select>
           </div>
         </div>
@@ -565,7 +567,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                         </div>
                       ) : (
                         <span className="text-[10px] font-bold bg-stone-100 text-stone-500 px-2 py-0.5 rounded-md border border-stone-200">
-                          No ratings yet
+                          {t('delivery.noRatings')}
                         </span>
                       )}
                     </div>
@@ -590,15 +592,15 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 {/* Specs & Pricing Grid */}
                 <div className="bg-stone-50 p-3.5 rounded-2xl border border-stone-100 text-xs space-y-1.5">
                   <div className="flex justify-between text-stone-600 font-semibold">
-                    <span>Capacity:</span>
+                    <span>{t('delivery.capacity')}</span>
                     <span className="font-bold text-stone-900">{agent.capacity || '1.5 Tons'}</span>
                   </div>
                   <div className="flex justify-between text-stone-600 font-semibold">
-                    <span>Operating Region:</span>
+                    <span>{t('delivery.operatingRegion')}</span>
                     <span className="font-bold text-stone-900">{agent.location || agent.district || 'Karnataka Wide'}</span>
                   </div>
                   <div className="flex justify-between text-stone-600 font-semibold border-t border-stone-200 pt-1.5">
-                    <span>Per-KM Tariff:</span>
+                    <span>{t('delivery.perKmTariff')}</span>
                     <span className="font-black text-[#1F7A4D] text-sm">₹{agent.ratePerKm || 18}/km</span>
                   </div>
                 </div>
@@ -610,7 +612,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                     onClick={(e) => e.stopPropagation()}
                     className="flex-1 py-2.5 border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <Phone size={14} /> Call
+                    <Phone size={14} /> {t('delivery.call')}
                   </a>
 
                   <button
@@ -621,7 +623,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                     }}
                     className="flex-1 py-2.5 bg-[#1F7A4D] hover:bg-[#165b38] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                   >
-                    <Truck size={14} /> Book Driver
+                    <Truck size={14} /> {t('delivery.bookDriver')}
                   </button>
                 </div>
               </div>
@@ -677,19 +679,19 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             {/* Detailed Vehicle Specs */}
             <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2.5 text-xs">
               <div className="flex justify-between font-semibold text-stone-700">
-                <span>Vehicle Plate Number:</span>
+                <span>{t('delivery.vehiclePlate')}</span>
                 <span className="font-mono font-bold text-stone-900">{activeProfileAgent.vehicleNumber || 'KA-06-EA-4821'}</span>
               </div>
               <div className="flex justify-between font-semibold text-stone-700">
-                <span>Max Payload Capacity:</span>
+                <span>{t('delivery.maxPayload')}</span>
                 <span className="font-bold text-stone-900">{activeProfileAgent.capacity || '1.5 Tons'}</span>
               </div>
               <div className="flex justify-between font-semibold text-stone-700">
-                <span>Operating Region / District:</span>
+                <span>{t('delivery.operatingRegionDist')}</span>
                 <span className="font-bold text-stone-900">{activeProfileAgent.location || 'Karnataka Wide'}</span>
               </div>
               <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-200 pt-2 text-sm">
-                <span>Transport Rate / KM:</span>
+                <span>{t('delivery.perKmTariff')}</span>
                 <span className="font-black text-[#1F7A4D]">₹{activeProfileAgent.ratePerKm || 18}/km</span>
               </div>
             </div>
@@ -697,7 +699,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             {/* Ratings & Customer Reviews Section */}
             <div className="space-y-3">
               <h4 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Star size={14} className="text-amber-500 fill-amber-500" /> Ratings & Reviews
+                <Star size={14} className="text-amber-500 fill-amber-500" /> {t('delivery.ratingsReviews')}
               </h4>
 
               {activeProfileAgent.reviews && activeProfileAgent.reviews.length > 0 ? (
@@ -714,7 +716,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
               ) : (
                 <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 text-center text-xs text-stone-500 font-medium">
-                  No reviews submitted yet. Rate this driver after delivery completion!
+                  {t('delivery.noReviews')}
                 </div>
               )}
             </div>
@@ -725,7 +727,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 href={`tel:${activeProfileAgent.phone}`}
                 className="flex-1 py-3 border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2"
               >
-                <Phone size={14} /> Call Driver
+                <Phone size={14} /> {t('delivery.callDriver')}
               </a>
               <button
                 type="button"
@@ -735,7 +737,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 }}
                 className="flex-1 py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md"
               >
-                <Truck size={14} /> Book Transport
+                <Truck size={14} /> {t('delivery.bookTransport')}
               </button>
             </div>
 
@@ -760,7 +762,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 🚚
               </div>
               <div>
-                <span className="text-[10px] font-black text-[#1F7A4D] uppercase tracking-wider">Book Transport Driver</span>
+                <span className="text-[10px] font-black text-[#1F7A4D] uppercase tracking-wider">{t('delivery.bookTransport')}</span>
                 <h3 className="text-xl font-black text-stone-900">{activeBookingAgent.name}</h3>
               </div>
             </div>
@@ -768,12 +770,12 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             {/* Comprehensive Farmer Contact & Pickup Details Form */}
             <div className="space-y-4 bg-amber-50/70 p-4 rounded-2xl border border-amber-200/80">
               <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <User size={14} className="text-amber-700" /> Sourcing Farmer Contact & Pickup Details
+                <User size={14} className="text-amber-700" /> {t('delivery.sourcingFarmerDetails')}
               </h4>
               
               <div className="space-y-3">
                 <div>
-                  <label className="text-[11px] font-bold text-amber-900 block mb-1">Farmer Full Name *</label>
+                  <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.farmerFullName')}</label>
                   <input
                     type="text"
                     placeholder="e.g. Ramesh Gowda"
@@ -785,7 +787,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">Primary Phone Number *</label>
+                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.primaryPhone')}</label>
                     <input
                       type="text"
                       placeholder="98450xxxxx"
@@ -795,7 +797,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">Alt. Contact Phone</label>
+                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.altPhone')}</label>
                     <input
                       type="text"
                       placeholder="99001xxxxx"
@@ -808,7 +810,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">Crop Type & Quantity *</label>
+                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.cropQuantity')}</label>
                     <input
                       type="text"
                       placeholder="e.g. 500 kg Fresh Tomatoes"
@@ -818,7 +820,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">Pickup District *</label>
+                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.pickupDistrict')}</label>
                     <select
                       value={farmerDetails.pickupDistrict}
                       onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupDistrict: e.target.value })}
@@ -832,7 +834,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-amber-900 block mb-1">Farm / Warehouse Landmark & Address *</label>
+                  <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.farmAddress')}</label>
                   <input
                     type="text"
                     placeholder="e.g. Near Milk Dairy Gate, Village Road, Tumakuru"
@@ -846,10 +848,10 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
             {/* Buyer Drop Details */}
             <div className="space-y-4 pt-2 border-t border-stone-100">
-              <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">2. Buyer Drop Destination</h4>
+              <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">{t('delivery.buyerDestinationDetails')}</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-stone-700 block mb-1">Buyer Name</label>
+                  <label className="text-[11px] font-bold text-stone-700 block mb-1">{t('delivery.buyerName')}</label>
                   <input
                     type="text"
                     value={buyerDropDetails.buyerName}
@@ -858,7 +860,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-stone-700 block mb-1">Drop District</label>
+                  <label className="text-[11px] font-bold text-stone-700 block mb-1">{t('delivery.dropDistrict')}</label>
                   <select
                     value={buyerDropDetails.dropDistrict}
                     onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, dropDistrict: e.target.value })}
@@ -875,11 +877,16 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             {/* Distance & Expenditure Summary */}
             <div className="bg-[#FFFDF6] p-4 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
               <div>
+<<<<<<< HEAD
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">{t('delivery.calcTitle')}</span>
+                <span className="font-bold text-stone-900">{farmerDetails.pickupDistrict} $\rightarrow$ {buyerDropDetails.dropDistrict} ({distanceKm} km)</span>
+=======
                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Calculated Distance</span>
                 <span className="font-bold text-stone-900">{farmerDetails.pickupDistrict} → {buyerDropDetails.dropDistrict} ({distanceKm} km)</span>
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Total Transport Cost</span>
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">{t('delivery.estExpenditure')}</span>
                 <span className="text-lg font-black text-[#1F7A4D]">₹{expenditure.totalExpenditure}</span>
               </div>
             </div>
@@ -890,7 +897,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               onClick={() => handleConfirmBooking(activeBookingAgent)}
               className="w-full py-4 bg-[#1F7A4D] hover:bg-[#165b38] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
             >
-              <Truck size={16} /> Confirm & Assign Transport Driver
+              <Truck size={16} /> {t('delivery.bookTransport')}
             </button>
 
           </div>

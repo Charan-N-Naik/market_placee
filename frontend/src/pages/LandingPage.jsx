@@ -2,14 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
+<<<<<<< HEAD
+import { 
+  ShieldCheck, Zap, Bot, TrendingUp, ArrowRight, 
+  Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight, 
+  ArrowDownRight, ChevronRight, Tractor, ShoppingCart, Truck 
+=======
 import {
   ShieldCheck, Zap, Bot, TrendingUp, ArrowRight,
   Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight,
   ArrowDownRight, ChevronRight
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
 } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
 import api from '../api/axios';
 
+<<<<<<< HEAD
+const FALLBACK_MARKET_DATA = [
+  { commodity: 'Tomato (Hybrid)', mandi: 'Bengaluru (APMC)', modal_price: 2450, trend: '+4.2%', isUp: true },
+  { commodity: 'Onion (Red)', mandi: 'Tumkur Mandi', modal_price: 3180, trend: '+2.8%', isUp: true },
+  { commodity: 'Ragi (Finger Millet)', mandi: 'Ramanagara APMC', modal_price: 3600, trend: '-1.1%', isUp: false },
+  { commodity: 'Potato (Jyoti)', mandi: 'Hassan Mandi', modal_price: 1850, trend: '+3.5%', isUp: true }
+];
+
+const RoleButton = ({ icon: Icon, title, subtitle, bgCls, borderCls, hoverCls, iconBgCls, iconColorCls, arrowCls, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`group flex items-center justify-between p-4 ${bgCls} ${borderCls} border-2 rounded-2xl hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer w-full text-left`}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgCls} shrink-0`}>
+        <Icon className={`w-5 h-5 ${iconColorCls}`} />
+      </div>
+      <div>
+        <div className="font-bold text-[15px] text-slate-800">{title}</div>
+        <div className="text-[11px] text-slate-500 font-medium">{subtitle}</div>
+      </div>
+    </div>
+    <ArrowRight className={`w-4 h-4 ${arrowCls} group-hover:translate-x-1 transition-all duration-300`} />
+  </button>
+);
+
+=======
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
 export default function LandingPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -124,47 +159,42 @@ export default function LandingPage() {
               </motion.p>
 
               <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-                <button
+                <RoleButton
+                  icon={Tractor}
+                  title={t('landing.imFarmer')}
+                  subtitle={t('landing.farmerPortal')}
+                  bgCls="bg-green-50"
+                  borderCls="border-green-200"
+                  hoverCls="hover:bg-green-100 hover:border-green-300 hover:shadow-green-600/15"
+                  iconBgCls="bg-green-600"
+                  iconColorCls="text-white"
+                  arrowCls="text-green-600 group-hover:text-green-700"
                   onClick={() => navigate('/login/farmer')}
-                  className="group flex items-center justify-between p-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:shadow-xl hover:shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🧑‍🌾</span>
-                    <div className="text-left">
-                      <div className="font-bold text-base">{t('landing.imFarmer')}</div>
-                      <div className="text-[11px] opacity-80 font-medium">Farmer Portal</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
-                </button>
-
-                <button
+                />
+                <RoleButton
+                  icon={ShoppingCart}
+                  title={t('landing.imBuyer')}
+                  subtitle={t('landing.buyerPortal')}
+                  bgCls="bg-orange-50"
+                  borderCls="border-orange-200"
+                  hoverCls="hover:bg-orange-100 hover:border-orange-300 hover:shadow-orange-500/15"
+                  iconBgCls="bg-orange-500"
+                  iconColorCls="text-white"
+                  arrowCls="text-orange-500 group-hover:text-orange-600"
                   onClick={() => navigate('/login/buyer')}
-                  className="group flex items-center justify-between p-4 bg-white text-slate-800 border-2 border-amber-200 rounded-2xl hover:border-amber-400 hover:shadow-xl hover:shadow-amber-200/50 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🛒</span>
-                    <div className="text-left">
-                      <div className="font-bold text-base">{t('landing.imBuyer')}</div>
-                      <div className="text-[11px] text-slate-500 font-medium">Buyer Portal</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-amber-500 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
-                </button>
-
-                <button
+                />
+                <RoleButton
+                  icon={Truck}
+                  title={t('landing.deliveryAgent')}
+                  subtitle={t('landing.driverPortal')}
+                  bgCls="bg-teal-50"
+                  borderCls="border-teal-200"
+                  hoverCls="hover:bg-teal-100 hover:border-teal-300 hover:shadow-teal-500/15"
+                  iconBgCls="bg-teal-500"
+                  iconColorCls="text-white"
+                  arrowCls="text-teal-500 group-hover:text-teal-600"
                   onClick={() => navigate('/login/delivery_agent')}
-                  className="group flex items-center justify-between p-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl hover:shadow-xl hover:shadow-emerald-500/40 transition-all hover:-translate-y-1 active:scale-95 cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">🚚</span>
-                    <div className="text-left">
-                      <div className="font-bold text-base">Delivery Agent</div>
-                      <div className="text-[11px] text-emerald-100 font-medium">Driver Portal</div>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-emerald-100 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" />
-                </button>
+                />
               </motion.div>
             </motion.div>
 
@@ -265,13 +295,13 @@ export default function LandingPage() {
               variants={fadeUp} className="text-center mb-16"
             >
               <span className="text-xs font-bold text-green-700 uppercase tracking-widest bg-green-100 px-3.5 py-1.5 rounded-full border border-green-200">
-                Next-Gen Agri Tech
+                {t('landing.nextGenTech')}
               </span>
               <h2 className="text-3xl lg:text-5xl font-black text-slate-900 mt-4 mb-4 tracking-tight">
-                Supercharging Agriculture
+                {t('landing.superchargingAgri')}
               </h2>
               <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
-                Powerful tools designed specifically for the needs of Indian farmers and bulk buyers.
+                {t('landing.superchargingDesc')}
               </p>
             </motion.div>
 
@@ -328,7 +358,7 @@ export default function LandingPage() {
               variants={fadeUp} className="text-center mb-20"
             >
               <span className="text-xs font-bold text-amber-700 uppercase tracking-widest bg-amber-100 px-3.5 py-1.5 rounded-full border border-amber-200">
-                Simple 4-Step Process
+                {t('landing.simpleProcess')}
               </span>
               <h2 className="text-3xl lg:text-5xl font-black text-slate-900 mt-4 mb-4 tracking-tight">
                 {t('landing.howItWorks')}
@@ -381,6 +411,25 @@ export default function LandingPage() {
         {/* 6. AUDIENCE SPLIT */}
         <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-8">
+<<<<<<< HEAD
+             <div className="bg-green-600 rounded-[2rem] p-10 lg:p-14 text-white relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                <h3 className="text-3xl font-extrabold mb-4">{t('landing.farmersSectionTitle')}</h3>
+                <p className="text-green-100 text-lg mb-8 max-w-md">{t('landing.farmersSectionDesc')}</p>
+                <button onClick={() => navigate('/login/farmer')} className="bg-white text-green-700 font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-green-50 transition-all hover:-translate-y-1 active:scale-95">
+                   {t('landing.joinAsFarmer')}
+                </button>
+             </div>
+
+             <div className="bg-amber-100 rounded-[2rem] p-10 lg:p-14 text-slate-800 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/60 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                <h3 className="text-3xl font-extrabold mb-4">{t('landing.buyersSectionTitle')}</h3>
+                <p className="text-amber-800/80 text-lg mb-8 max-w-md">{t('landing.buyersSectionDesc')}</p>
+                <button onClick={() => navigate('/login/buyer')} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:shadow-xl hover:bg-slate-800 transition-all hover:-translate-y-1 active:scale-95">
+                   {t('landing.startBuying')}
+                </button>
+             </div>
+=======
             <div className="bg-green-600 rounded-[2rem] p-10 lg:p-14 text-white relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-green-500 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
               <h3 className="text-3xl font-extrabold mb-4">{t('landing.farmersSectionTitle')}</h3>
@@ -398,6 +447,7 @@ export default function LandingPage() {
                 Start Buying
               </button>
             </div>
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
           </div>
         </section>
       </main>
@@ -405,14 +455,22 @@ export default function LandingPage() {
       {/* 7. FOOTER & CTA */}
       <footer className="bg-slate-50 border-t border-slate-200 mt-12">
         <div className="max-w-5xl mx-auto px-4 py-20 text-center">
+<<<<<<< HEAD
+           <h2 className="text-4xl font-extrabold text-slate-900 mb-6">{t('landing.ctaFooterTitle')}</h2>
+           <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">{t('landing.ctaFooterDesc')}</p>
+           <button onClick={() => navigate('/login/farmer')} className="bg-green-600 hover:bg-green-700 text-white font-bold text-lg px-10 py-4 rounded-full shadow-xl shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95">
+             {t('landing.getStartedNow')}
+           </button>
+=======
           <h2 className="text-4xl font-extrabold text-slate-900 mb-6">{t('landing.ctaFooterTitle')}</h2>
           <p className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto">{t('landing.ctaFooterDesc')}</p>
           <button onClick={() => navigate('/login/farmer')} className="bg-green-600 hover:bg-green-700 text-white font-bold text-lg px-10 py-4 rounded-full shadow-xl shadow-green-600/30 transition-all hover:-translate-y-1 active:scale-95">
             Get Started Now
           </button>
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
         </div>
         <div className="border-t border-slate-200 py-6 text-center text-slate-500 text-sm font-medium">
-          © {new Date().getFullYear()} KisanBazaar 🌾 — Empowering Bharat's Farmers
+          © {new Date().getFullYear()} KisanBazaar 🌾 — {t('landing.footerRights')}
         </div>
       </footer>
     </div>
@@ -421,6 +479,7 @@ export default function LandingPage() {
 
 function FeatureCard({ icon, title, desc, gradient, topAccent, shadowColor, delay, path }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, y: 40 }}
@@ -440,7 +499,7 @@ function FeatureCard({ icon, title, desc, gradient, topAccent, shadowColor, dela
         <p className="text-slate-500 leading-relaxed font-medium text-sm">{desc}</p>
       </div>
       <div className="text-xs font-bold text-slate-400 group-hover:text-green-600 flex items-center gap-1.5 mt-6 transition-all duration-300">
-        <span>Learn more</span>
+        <span>{t('landing.learnMore')}</span>
         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
       </div>
     </motion.div>
@@ -448,6 +507,7 @@ function FeatureCard({ icon, title, desc, gradient, topAccent, shadowColor, dela
 }
 
 function Step({ number, icon, title, desc, delay }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -459,7 +519,7 @@ function Step({ number, icon, title, desc, delay }) {
       <div className="relative mb-6">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700 text-white flex flex-col items-center justify-center shadow-lg shadow-green-600/30 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300">
           <div className="mb-0.5">{icon}</div>
-          <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-full">Step {number}</span>
+          <span className="text-xs font-black bg-white/20 px-2 py-0.5 rounded-full">{t('landing.step')} {number}</span>
         </div>
       </div>
       <h4 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-green-700 transition-colors">{title}</h4>

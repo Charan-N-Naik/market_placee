@@ -794,7 +794,11 @@ export default function Navbar({
                 fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                 fontSize: '0.68rem', fontWeight: 700, color: '#78716c', margin: '2px 0 0', textTransform: 'uppercase', letterSpacing: '0.08em'
               }}>
+<<<<<<< HEAD
+                {role === 'delivery_agent' || role === 'delivery' ? t('navbar.deliveryAgentHub') : t('navbar.buyerHubBreadcrumb', 'Buyer Hub')} / {currentItem?.label || activeTab}
+=======
                 {headerTitle} / {currentItem?.label || activeTab}
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
               </p>
             </div>
           </div>
@@ -808,7 +812,11 @@ export default function Navbar({
           {/* Profile Avatar */}
           <button
             onClick={() => setActiveTab?.('profile')}
+<<<<<<< HEAD
+            title={t('navbar.viewProfile')}
+=======
             title="View Profile"
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
             style={{
               width: 40, height: 40, borderRadius: 12,
               background: isAgent ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #ea580c, #c2410c)',
@@ -944,7 +952,7 @@ export default function Navbar({
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
         >
           <CloudSun size={15} className="text-[#22C55E]" />
-          <span>{navWeather || 'Loading...'}</span>
+          <span>{navWeather || t('common.loading')}</span>
           <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewWeather')}</span>
         </button>
 
@@ -954,7 +962,7 @@ export default function Navbar({
           className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
         >
           <TrendingUp size={14} className="text-[#22C55E]" />
-          <span>{navPrice || 'Loading...'}</span>
+          <span>{navPrice || t('common.loading')}</span>
           <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewPrices')}</span>
         </button>
 
@@ -969,7 +977,7 @@ export default function Navbar({
         {/* Profile Avatar — click to go to Profile tab */}
         <button
           onClick={() => setActiveTab?.('profile')}
-          title="View Profile"
+          title={t('navbar.viewProfile')}
           style={{
             width: 40, height: 40, borderRadius: 12,
             background: 'linear-gradient(135deg, #22C55E, #166534)',
