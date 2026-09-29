@@ -182,7 +182,6 @@ export const getListings = asyncHandler(async (req, res) => {
   const page = Number(req.query.page) || 1;
   const limit = Math.min(Number(req.query.limit) || 50, 100);
   const sortBy = req.query.sortBy || 'createdAt';
-  // Default to newest first (createdAt desc)
   const order = req.query.order === 'asc' ? 1 : -1;
 
   const filter = {};
@@ -198,28 +197,28 @@ export const getListings = asyncHandler(async (req, res) => {
       .sort({ [sortBy]: order })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select('-verificationReport.summary -verificationReport.defects -verificationReport.diseaseSigns -verificationReport.analyzedAngles -verificationReport.overallAssessment -images -verification.authenticity_reasons -verification.geo_flags')
+      .select('-verificationReport -images -verification.authenticity_reasons -verification.geo_flags')
       .lean(),
   ]);
 
   // Attach only the first thumbnail URL to each listing (avoids sending huge base64 blobs)
-  const farmerIds = [...new Set(rawListings.map(l => l.farmer).filter(Boolean))];
   const thumbnailDocs = await Listing.find(
     { _id: { $in: rawListings.map(l => l._id) } },
     { 'images': { $slice: 1 } }
   ).select('images').lean();
-  const thumbMap = new Map(thumbnailDocs.map(d => [d._id.toString(), d.images?.[0]?.url || null]));
 
+  const thumbMap = new Map(thumbnailDocs.map(d => [d._id.toString(), d.images?.[0]?.url || null]));
+  const farmerIds = [...new Set(rawListings.map(l => l.farmer?.toString()).filter(Boolean))];
   const farmers = await User.find({ _id: { $in: farmerIds } })
     .select('name avatar location')
     .lean();
   const farmerMap = new Map(farmers.map(f => [f._id.toString(), f]));
+
   const listings = rawListings.map(l => {
     const thumbUrl = thumbMap.get(l._id.toString()) || null;
     return {
       ...l,
       farmer: farmerMap.get(l.farmer?.toString()) || null,
-      // Attach thumbnail URL only (first image) — avoids sending huge base64 blobs to the card grid
       images: thumbUrl ? [{ url: thumbUrl }] : [],
     };
   });

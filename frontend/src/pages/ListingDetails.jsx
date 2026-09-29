@@ -76,11 +76,24 @@ export default function ListingDetails() {
     setHeroImageError(false);
   }, [currentPhoto]);
 
+  const [loadingListing, setLoadingListing] = useState(!contextListing);
+  const [fetchError, setFetchError] = useState(false);
+
   useEffect(() => {
     if (!contextListing && id) {
+      setLoadingListing(true);
       api.get(`/listings/${id}`)
-        .then(res => setApiListing(res.data))
-        .catch(err => console.warn('API fetch listing failed:', err.message));
+        .then(res => {
+          setApiListing(res.data);
+          setFetchError(false);
+        })
+        .catch(err => {
+          console.warn('API fetch listing failed:', err.message);
+          setFetchError(true);
+        })
+        .finally(() => setLoadingListing(false));
+    } else if (contextListing) {
+      setLoadingListing(false);
     }
   }, [id, contextListing]);
 
@@ -118,6 +131,15 @@ export default function ListingDetails() {
       .catch(() => {});
   }, [listing?._id || listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (loadingListing && !listing) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FFFDF6] p-6 text-center">
+        <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin mb-4" />
+        <p className="text-sm font-bold text-gray-700">Loading produce details...</p>
+      </div>
+    );
+  }
+
   if (!listing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#fafaf9] p-6 text-center">
@@ -127,10 +149,10 @@ export default function ListingDetails() {
         <h2 className="text-xl font-bold text-gray-900">This listing is no longer available.</h2>
         <p className="text-xs text-gray-500 mt-1 max-w-xs">The requested crop may have been sold or removed by the farmer.</p>
         <button
-          onClick={() => navigate('/buyer/dashboard')}
-          className="mt-6 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md"
+          onClick={handleGoBack}
+          className="mt-6 px-6 py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md inline-flex items-center gap-2"
         >
-          Return to Marketplace
+          <ArrowLeft size={16} /> Return to Marketplace
         </button>
       </div>
     );
@@ -165,12 +187,17 @@ export default function ListingDetails() {
     .slice(0, 4);
 
   const handleGoBack = () => {
-    // Only navigate(-1) if we came from within this app (location.state.from is set by internal links)
+    // 1. If internal navigation passed previous location
     if (location.state?.from) {
       navigate(location.state.from);
       return;
     }
-    // Otherwise always go to the right dashboard — never trust window.history.length
+    // 2. If there is navigation history within this session, go back
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+      return;
+    }
+    // 3. Fallback to appropriate dashboard based on user role
     const role = user?.role || user?.userType;
     if (role === 'farmer') {
       navigate('/farmer/dashboard');
@@ -187,6 +214,10 @@ export default function ListingDetails() {
   };
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      navigate('/login/buyer', { state: { from: location.pathname } });
+      return;
+    }
     if (isOutOfStock || quantity <= 0) {
       setCartError('This produce lot is completely out of stock.');
       setTimeout(() => setCartError(''), 4000);
@@ -205,15 +236,19 @@ export default function ListingDetails() {
       setTimeout(() => setAddedToCart(false), 2500);
     } catch (error) {
       console.error('Failed to add to cart:', error);
-      const msg = error?.response?.data?.message || error?.message || 'Failed to add to cart.';
+      const msg = error?.response?.data?.message || (error?.message === 'Network Error' ? 'Server connection issue. Please try again.' : (error?.message || 'Failed to add to cart.'));
       setCartError(msg);
-      setTimeout(() => setCartError(''), 4000);
+      setTimeout(() => setCartError(''), 5000);
     } finally {
       setAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      navigate('/login/buyer', { state: { from: location.pathname } });
+      return;
+    }
     if (isOutOfStock || quantity <= 0) {
       setCartError('This produce lot is completely out of stock.');
       setTimeout(() => setCartError(''), 4000);
@@ -231,9 +266,9 @@ export default function ListingDetails() {
       navigate('/checkout');
     } catch (error) {
       console.error('Buy Now failed:', error);
-      const msg = error?.response?.data?.message || error?.message || 'Failed to add item to checkout.';
+      const msg = error?.response?.data?.message || (error?.message === 'Network Error' ? 'Server connection issue. Please try again.' : (error?.message || 'Failed to add item to checkout.'));
       setCartError(msg);
-      setTimeout(() => setCartError(''), 4000);
+      setTimeout(() => setCartError(''), 5000);
     } finally {
       setAddingToCart(false);
     }
