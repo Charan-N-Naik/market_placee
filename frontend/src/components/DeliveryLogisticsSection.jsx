@@ -324,7 +324,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               {t('delivery.calcTitle')}
             </span>
             <p className="text-xs font-bold text-stone-800 pt-1">
-              {farmerDetails.pickupDistrict || 'Farmer Origin'} $\rightarrow$ {buyerDropDetails.dropDistrict || 'Buyer Destination'} ({distanceKm} km)
+              {farmerDetails.pickupDistrict || 'Farmer Origin'} → {buyerDropDetails.dropDistrict || 'Buyer Destination'} ({distanceKm} km)
             </p>
           </div>
 
@@ -420,7 +420,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                         <span className="text-xs font-black text-stone-900">• Driver: {b.driverName || b.driver?.name} ({b.driver?.vehicleType || 'Vehicle Assigned'})</span>
                       </div>
                       <p className="text-xs text-stone-500 font-medium mt-0.5">
-                        Origin: <span className="font-bold text-stone-700">{b.farmerDetails?.farmerName || 'Farmer'} ({b.farmerDetails?.pickupDistrict})</span> $\rightarrow$ Drop: <span className="font-bold text-stone-700">{b.buyerDropDetails?.buyerName || 'Buyer'} ({b.buyerDropDetails?.dropDistrict})</span>
+                        Origin: <span className="font-bold text-stone-700">{b.farmerDetails?.farmerName || 'Farmer'} ({b.farmerDetails?.pickupDistrict})</span> → Drop: <span className="font-bold text-stone-700">{b.buyerDropDetails?.buyerName || 'Buyer'} ({b.buyerDropDetails?.dropDistrict})</span>
                       </p>
                     </div>
 
@@ -877,8 +877,13 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             {/* Distance & Expenditure Summary */}
             <div className="bg-[#FFFDF6] p-4 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
               <div>
+<<<<<<< HEAD
                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">{t('delivery.calcTitle')}</span>
                 <span className="font-bold text-stone-900">{farmerDetails.pickupDistrict} $\rightarrow$ {buyerDropDetails.dropDistrict} ({distanceKm} km)</span>
+=======
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Calculated Distance</span>
+                <span className="font-bold text-stone-900">{farmerDetails.pickupDistrict} → {buyerDropDetails.dropDistrict} ({distanceKm} km)</span>
+>>>>>>> 1c461b5c5b2d11914ee8bdb79ffa8fff822ef7cb
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">{t('delivery.estExpenditure')}</span>

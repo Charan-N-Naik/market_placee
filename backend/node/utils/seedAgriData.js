@@ -1,5 +1,7 @@
 import PesticideAdvisory from '../models/PesticideAdvisory.js';
 import GovernmentScheme from '../models/GovernmentScheme.js';
+import User from '../models/User.js';
+import Review from '../models/Review.js';
 
 export async function seedAgriData() {
   try {
@@ -303,7 +305,113 @@ export async function seedAgriData() {
         ]
       }
     ]);
-    console.log('[Seed] Verified Central & State Government Schemes dataset seeded successfully.');
+    // Seed initial delivery agents and reviews into MongoDB if none exist
+    const agentCount = await User.countDocuments({ role: { $in: ['delivery_agent', 'driver'] } });
+    if (agentCount === 0) {
+      console.log('[Seed] Seeding registered delivery agents and reviews into MongoDB...');
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.default.hash('Delivery@123', 10);
+
+      const defaultAgentsData = [
+        {
+          name: 'Ramesh Gowda',
+          phone: '9845012345',
+          email: 'ramesh.gowda.delivery@kisanbazaar.com',
+          passwordHash,
+          role: 'delivery_agent',
+          location: { address: 'APMC Market Yard, Tumakuru', district: 'Tumakuru', state: 'Karnataka' },
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
+          isVerified: true,
+          deliveryAgentProfile: {
+            vehicleType: 'Mahindra Bolero Pickup 🚚',
+            vehicleNumber: 'KA-06-EA-4821',
+            drivingLicense: 'DL-0620200012345',
+            perKmCharge: 18,
+            availabilityStatus: 'available',
+          }
+        },
+        {
+          name: 'Suresh Kumar',
+          phone: '9880198765',
+          email: 'suresh.kumar.delivery@kisanbazaar.com',
+          passwordHash,
+          role: 'delivery_agent',
+          location: { address: 'Kolar Highway, Kolar', district: 'Bengaluru / Kolar', state: 'Karnataka' },
+          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200',
+          isVerified: true,
+          deliveryAgentProfile: {
+            vehicleType: 'Tata Ace Chota Hathi 🚐',
+            vehicleNumber: 'KA-04-MB-9102',
+            drivingLicense: 'DL-0420190054321',
+            perKmCharge: 14,
+            availabilityStatus: 'available',
+          }
+        },
+        {
+          name: 'Basavaraj Patil',
+          phone: '9900234567',
+          email: 'basavaraj.patil.delivery@kisanbazaar.com',
+          passwordHash,
+          role: 'delivery_agent',
+          location: { address: 'Sugar Town, Mandya', district: 'Mandya / Mysuru', state: 'Karnataka' },
+          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
+          isVerified: true,
+          deliveryAgentProfile: {
+            vehicleType: 'Eicher 14ft Commercial Truck 🚚',
+            vehicleNumber: 'KA-13-F-3301',
+            drivingLicense: 'DL-1320180098765',
+            perKmCharge: 28,
+            availabilityStatus: 'available',
+          }
+        },
+        {
+          name: 'Manjunath B.',
+          phone: '9740567890',
+          email: 'manjunath.b.delivery@kisanbazaar.com',
+          passwordHash,
+          role: 'delivery_agent',
+          location: { address: 'APMC Complex, Shimoga', district: 'Shimoga / Davanagere', state: 'Karnataka' },
+          avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200',
+          isVerified: true,
+          deliveryAgentProfile: {
+            vehicleType: 'Swaraj Agricultural Trailer 🚜',
+            vehicleNumber: 'KA-16-TR-8812',
+            drivingLicense: 'DL-1620210045678',
+            perKmCharge: 22,
+            availabilityStatus: 'available',
+          }
+        }
+      ];
+
+      for (const a of defaultAgentsData) {
+        const existing = await User.findOne({ phone: a.phone });
+        if (!existing) {
+          const createdAgent = await User.create(a);
+          // Seed initial verified reviews for each agent in Review collection
+          await Review.create([
+            {
+              agent: createdAgent._id,
+              reviewerName: 'APMC Wholesale Merchant',
+              rating: 5,
+              reviewText: 'Prompt and very careful with tomato crates during transit.'
+            },
+            {
+              agent: createdAgent._id,
+              reviewerName: 'Kaveri FPO Coordinator',
+              rating: 5,
+              reviewText: 'Excellent service, strictly on-time pickup from the farm.'
+            },
+            {
+              agent: createdAgent._id,
+              reviewerName: 'Bangalore Fresh Mart',
+              rating: 4.8,
+              reviewText: 'Reliable vehicle condition and professional handling.'
+            }
+          ]);
+        }
+      }
+      console.log('[Seed] Delivery agents and initial reviews seeded successfully in MongoDB.');
+    }
   } catch (error) {
     console.error('[Seed] Error seeding agricultural data:', error.message);
   }

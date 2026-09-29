@@ -69,6 +69,22 @@ const userSchema = new mongoose.Schema(
       experience: String, // years of farming experience
       bio: String,        // about the farmer
       kisanCardNo: String,
+      rating: {
+        type: Number,
+        default: 5.0,
+      },
+      numReviews: {
+        type: Number,
+        default: 0,
+      },
+    },
+    rating: {
+      type: Number,
+      default: 5.0,
+    },
+    numReviews: {
+      type: Number,
+      default: 0,
     },
     
     // Buyer specific fields
@@ -111,7 +127,7 @@ const userSchema = new mongoose.Schema(
 // Encrypt password before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('passwordHash')) {
-    next();
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
@@ -121,6 +137,8 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.passwordHash);
 };
+
+userSchema.index({ role: 1 });
 
 const User = mongoose.model('User', userSchema);
 export default User;

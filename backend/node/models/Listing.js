@@ -106,7 +106,7 @@ const listingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'sold', 'expired'],
+      enum: ['active', 'available', 'sold', 'expired'],
       default: 'active',
     },
     views: {
@@ -132,6 +132,11 @@ const listingSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+listingSchema.index({ createdAt: -1 });
+listingSchema.index({ farmer: 1 });
+listingSchema.index({ cropName: 1 });
+listingSchema.index({ isVerified: 1 });
 
 const Listing = mongoose.model('Listing', listingSchema);
 export default Listing;

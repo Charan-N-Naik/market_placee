@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import CropImage from '../components/CropImage';
 import VerificationBadge from '../components/VerificationBadge';
 import VerificationReport from '../components/VerificationReport';
-import CheckoutModal from '../components/CheckoutModal';
 import api from '../api/axios';
 import {
   ArrowLeft, Star, ShoppingCart, Minus, Plus, Bookmark,
@@ -27,8 +26,18 @@ export default function ListingDetails() {
   const [apiListing, setApiListing] = useState(null);
   const listing = contextListing || apiListing;
 
-  const MIN_BULK_QTY = 50;
+  const MIN_BULK_QTY = listing ? Math.min(50, listing.quantity || 50) : 50;
   const [quantity, setQuantity] = useState(MIN_BULK_QTY);
+
+  useEffect(() => {
+    if (listing) {
+      setQuantity(prev => {
+        if (prev > listing.quantity) return listing.quantity;
+        if (prev < MIN_BULK_QTY) return MIN_BULK_QTY;
+        return prev;
+      });
+    }
+  }, [listing?.quantity, MIN_BULK_QTY]);
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -38,13 +47,24 @@ export default function ListingDetails() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [heroImageError, setHeroImageError] = useState(false);
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  // Gallery images array
+  const imageGallery = (listing?.images && listing.images.length > 0)
+    ? listing.images.map(img => typeof img === 'object' ? img.url : img)
+    : (listing?.photo ? [listing.photo] : []);
+
+  const currentPhoto = imageGallery[activeImageIndex] || null;
+
   // Live APMC Market Comparison state
   const [apmcPriceData, setApmcPriceData] = useState(null);
+
+  useEffect(() => {
+    setHeroImageError(false);
+  }, [currentPhoto]);
 
   useEffect(() => {
     if (!contextListing && id) {
@@ -63,13 +83,22 @@ export default function ListingDetails() {
       // Fetch matching APMC market price from real backend endpoint
       api.get('/market-prices')
         .then(res => {
-          const prices = res.data || [];
-          const matched = prices.find(p => p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()));
+          const raw = res.data;
+          const prices = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+          const matched = prices.find(p => 
+            p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
+            p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
+          );
           if (matched) {
-            setApmcPriceData(matched);
+            setApmcPriceData({
+              ...matched,
+              _stale: raw?.stale ?? false,
+              _source: raw?.source ?? 'live',
+              _updatedAt: raw?.updatedAt || null
+            });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [listing, isSaved, incrementView]);
 
@@ -81,7 +110,7 @@ export default function ListingDetails() {
         </div>
         <h2 className="text-xl font-bold text-gray-900">This listing is no longer available.</h2>
         <p className="text-xs text-gray-500 mt-1 max-w-xs">The requested crop may have been sold or removed by the farmer.</p>
-        <button 
+        <button
           onClick={() => navigate('/buyer/dashboard')}
           className="mt-6 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md"
         >
@@ -94,13 +123,8 @@ export default function ListingDetails() {
   const listingId = listing._id || listing.id;
   const price = listing.pricePerUnit ?? listing.price;
   const isVerified = listing.aiVerified || listing.isVerified || listing.verified;
-  
-  // Gallery images array
-  const imageGallery = (listing.images && listing.images.length > 0)
-    ? listing.images.map(img => typeof img === 'object' ? img.url : img)
-    : (listing.photo ? [listing.photo] : []);
 
-  const currentPhoto = imageGallery[activeImageIndex] || null;
+
 
   const locationStr = typeof listing.location === 'object'
     ? `${listing.location?.district || listing.location?.address || ''}, ${listing.location?.state || ''}`.replace(/^,\s*|,\s*$/g, '').trim()
@@ -119,16 +143,23 @@ export default function ListingDetails() {
 
   // Related products (real data only)
   const relatedProducts = listings
-    .filter(l => (l._id || l.id) !== listingId && 
+    .filter(l => (l._id || l.id) !== listingId &&
       l.cropName?.toLowerCase() === listing.cropName?.toLowerCase() &&
       (l.aiVerified || l.isVerified || l.status === 'active'))
     .slice(0, 4);
 
   const handleGoBack = () => {
-    if (location.key !== 'default') {
-      navigate(-1);
+    if (location.state?.from) {
+      navigate(location.state.from);
     } else {
-      navigate(user?.role === 'farmer' ? '/farmer/dashboard' : '/buyer/dashboard');
+      const role = user?.role || user?.userType;
+      if (role === 'farmer') {
+        navigate('/farmer/dashboard');
+      } else if (role === 'delivery_agent' || role === 'driver') {
+        navigate('/delivery/dashboard');
+      } else {
+        navigate('/buyer/dashboard');
+      }
     }
   };
 
@@ -146,7 +177,7 @@ export default function ListingDetails() {
     try {
       setAddingToCart(true);
       setCartError('');
-      await addToCart(listingId, quantity, listing);
+      await addToCart(listing, quantity);
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2500);
     } catch (error) {
@@ -167,11 +198,14 @@ export default function ListingDetails() {
     }
     try {
       setAddingToCart(true);
-      await addToCart(listingId, quantity, listing);
-      setShowCheckoutModal(true);
+      setCartError('');
+      await addToCart(listing, quantity, { mode: 'set' });
+      navigate('/checkout');
     } catch (error) {
       console.error('Buy Now failed:', error);
-      setShowCheckoutModal(true);
+      const msg = error?.response?.data?.message || error?.message || 'Failed to add item to checkout.';
+      setCartError(msg);
+      setTimeout(() => setCartError(''), 4000);
     } finally {
       setAddingToCart(false);
     }
@@ -447,15 +481,15 @@ export default function ListingDetails() {
 
   return (
     <div className="min-h-screen bg-[#FFFDF6] text-gray-900 font-sans pb-36">
-      
+
       {/* Top Sticky Header Navbar */}
       <div className="bg-white/90 backdrop-blur-md border-b border-[#E8F7EE] sticky top-0 z-30 shadow-xs">
         <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
-          <button 
+          <button
             onClick={handleGoBack}
             className="inline-flex items-center gap-2 text-xs font-black text-[#1F7A4D] hover:text-[#165b38] uppercase tracking-wider cursor-pointer bg-[#E8F7EE] px-4 py-2 rounded-xl transition-all"
           >
-            <ArrowLeft size={16} /> Back to Marketplace
+            <ArrowLeft size={16} /> {location.state?.from?.includes('/cart') ? 'Back' : 'Back to Marketplace'}
           </button>
 
           <span className="text-xs font-black text-gray-500 uppercase tracking-widest hidden md:inline-block">
@@ -484,37 +518,50 @@ export default function ListingDetails() {
       </div>
 
       <div className="max-w-[1400px] mx-auto px-8 md:px-12 pt-8 space-y-12 md:space-y-16">
-        
+
         {/* ========================================================== */}
         {/* MAIN 2-COLUMN LUXURY SHOWCASE SECTION */}
         {/* ========================================================== */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-          
+
           {/* ========================================================== */}
           {/* LEFT COLUMN: LARGE IMAGE CAROUSEL & THUMBNAILS (COL-SPAN-7) */}
           {/* ========================================================== */}
           <div className="lg:col-span-7 space-y-6">
-            
+
             {/* Main Showcase Container */}
             <div className="relative rounded-3xl overflow-hidden bg-white border-2 border-[#E8F7EE] shadow-xl aspect-square sm:aspect-[4/3] lg:aspect-square flex items-center justify-center group">
-              
-              {/* Zoom Effect Image */}
-              <div className="w-full h-full overflow-hidden">
-                <CropImage 
-                  cropName={listing.cropName} 
-                  photo={currentPhoto} 
-                  size="lg" 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 cursor-zoom-in" 
-                />
+
+              {/* Hero Image with Neutral Fallback */}
+              <div className="w-full h-full overflow-hidden flex items-center justify-center bg-gray-50">
+                {(!currentPhoto || heroImageError) ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8 select-none">
+                    <div className="w-20 h-20 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-3 shadow-inner">
+                      <Leaf size={40} className="text-[#1F7A4D]" />
+                    </div>
+                    <span className="text-xl font-bold text-gray-800 tracking-wide">{listing.cropName || 'Crop Listing'}</span>
+                    <span className="text-xs text-gray-400 mt-1 uppercase tracking-wider font-semibold">No Image Available</span>
+                  </div>
+                ) : (
+                  <img
+                    src={currentPhoto}
+                    alt={listing.cropName || 'Crop'}
+                    onError={() => setHeroImageError(true)}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-zoom-in"
+                    onClick={() => setShowFullImage(true)}
+                  />
+                )}
               </div>
 
               {/* Fullscreen Button */}
-              <button
-                onClick={() => setShowFullImage(true)}
-                className="absolute bottom-5 right-5 px-4 py-2 bg-white/95 backdrop-blur-md border border-gray-200 hover:bg-white text-gray-900 text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg flex items-center gap-2 cursor-pointer hover:scale-105 transition-all"
-              >
-                <Maximize2 size={16} /> Fullscreen Mode
-              </button>
+              {currentPhoto && !heroImageError && (
+                <button
+                  onClick={() => setShowFullImage(true)}
+                  className="absolute bottom-5 right-5 px-4 py-2 bg-white/95 backdrop-blur-md border border-gray-200 hover:bg-white text-gray-900 text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg flex items-center gap-2 cursor-pointer hover:scale-105 transition-all z-10"
+                >
+                  <Maximize2 size={16} /> Fullscreen Mode
+                </button>
+              )}
 
               {/* Top Left Badges */}
               <div className="absolute top-5 left-5 flex flex-wrap gap-2.5 z-10">
@@ -570,9 +617,8 @@ export default function ListingDetails() {
                   <button
                     key={index}
                     onClick={() => setActiveImageIndex(index)}
-                    className={`w-16 h-16 rounded-2xl border-2 overflow-hidden shrink-0 cursor-pointer transition-all shadow-xs ${
-                      activeImageIndex === index ? 'border-[#1F7A4D] scale-105 shadow-md' : 'border-gray-200 opacity-65 hover:opacity-100'
-                    }`}
+                    className={`w-16 h-16 rounded-2xl border-2 overflow-hidden shrink-0 cursor-pointer transition-all shadow-xs ${activeImageIndex === index ? 'border-[#1F7A4D] scale-105 shadow-md' : 'border-gray-200 opacity-65 hover:opacity-100'
+                      }`}
                   >
                     <img src={imgUrl} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -586,10 +632,10 @@ export default function ListingDetails() {
           {/* RIGHT COLUMN: 3 SEPARATE CARDS (COL-SPAN-5) */}
           {/* ========================================================== */}
           <div className="lg:col-span-5 space-y-6">
-            
+
             {/* CARD 1: CROP INFORMATION & PURCHASE OPTIONS */}
             <div className="bg-white rounded-[20px] border border-zinc-100 p-6 sm:p-7 shadow-[0_1px_8px_rgba(0,0,0,0.03)] space-y-6 mb-4">
-              
+
               <div className="space-y-2">
                 <span className="text-xs font-black text-[#1F7A4D] uppercase tracking-widest block">
                   Direct Harvest Lot #{listingId.slice(-6)}
@@ -650,7 +696,7 @@ export default function ListingDetails() {
                       </span>
                     </div>
                     <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
-                      <button 
+                      <button
                         onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
                         disabled={quantity <= MIN_BULK_QTY}
                         className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -659,7 +705,7 @@ export default function ListingDetails() {
                         <Minus size={16} />
                       </button>
                       <span className="w-14 text-center text-sm font-black text-gray-900">{quantity}</span>
-                      <button 
+                      <button
                         onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
                         className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
                       >
@@ -742,7 +788,7 @@ export default function ListingDetails() {
 
               {/* Contact Buttons */}
               <div className="flex gap-3 pt-1">
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowContactModal(true)}
                   className="flex-1 min-h-[44px] py-2.5 px-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs md:text-sm rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
@@ -750,7 +796,7 @@ export default function ListingDetails() {
                   <span>Contact Farmer</span>
                   <ChevronRight size={16} className="shrink-0" />
                 </button>
-                <a 
+                <a
                   href={`tel:${farmerPhone || '+919876543210'}`}
                   className="min-h-[44px] px-4 py-2.5 bg-white text-[#1F7A4D] border border-[#1F7A4D]/30 hover:bg-[#E8F7EE] font-bold text-xs md:text-sm rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
@@ -762,7 +808,7 @@ export default function ListingDetails() {
             {/* CARD 3: DELIVERY INFORMATION & GUARANTEE */}
             <div className="bg-white rounded-[20px] border border-zinc-100 p-6 sm:p-7 shadow-[0_1px_8px_rgba(0,0,0,0.03)] space-y-4 mb-4">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Delivery & Fulfilment Terms</h3>
-              
+
               <div className="space-y-3 text-xs font-semibold text-gray-700">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-[#E8F7EE] text-[#1F7A4D] flex items-center justify-center shrink-0">
@@ -794,7 +840,7 @@ export default function ListingDetails() {
         {/* QUALITY INSPECTION REPORT SECTION (INDIVIDUAL CARDS GRID) */}
         {/* ========================================================== */}
         <div className="bg-white/95 backdrop-blur-xl rounded-3xl border-2 border-[#E8F7EE] p-8 md:p-10 shadow-lg space-y-8">
-          
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-gray-100">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[#E8F7EE] text-[#1F7A4D] flex items-center justify-center">
@@ -810,8 +856,8 @@ export default function ListingDetails() {
               <span className="px-4 py-2 bg-[#E8F7EE] text-[#1F7A4D] text-xs font-black rounded-full border border-[#1F7A4D]/25 uppercase tracking-wider shadow-xs">
                 ISO Certified
               </span>
-              <button 
-                onClick={downloadInspectionReport} 
+              <button
+                onClick={downloadInspectionReport}
                 className="px-5 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md border-b-4 border-black active:border-b-0 active:translate-y-1 transition-all cursor-pointer flex items-center gap-2 print:hidden"
               >
                 <Download size={15} /> Download Report PDF
@@ -821,7 +867,7 @@ export default function ListingDetails() {
 
           {/* INDIVIDUAL DIAGNOSTIC CARDS RESPONSIVE GRID */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6">
-            
+
             {/* Card 1: Moisture Level */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">💧 Moisture Level</span>
@@ -877,7 +923,7 @@ export default function ListingDetails() {
                 <span className="text-[10px] font-black text-[#1F7A4D] uppercase tracking-widest block">📄 Official Certificate</span>
                 <span className="text-xs font-black text-gray-900 block mt-1">Verified Inspection ID</span>
               </div>
-              <button 
+              <button
                 onClick={downloadInspectionReport}
                 className="w-full py-2.5 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-sm border-b-2 border-emerald-950 cursor-pointer flex items-center justify-center gap-1.5"
               >
@@ -906,9 +952,17 @@ export default function ListingDetails() {
                 <TrendingUp size={24} className="text-[#FF8C42]" />
                 <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">APMC Mandi Rate Comparison</h3>
               </div>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                Live Feed
-              </span>
+              {apmcPriceData._stale ? (
+                <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 px-3 py-1 rounded-full">
+                  {apmcPriceData._source === 'sample'
+                    ? 'Sample data - live prices unavailable'
+                    : `Last updated ${apmcPriceData._updatedAt ? new Date(apmcPriceData._updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'recently'}`}
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                  Live Feed
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-xs">
@@ -941,7 +995,7 @@ export default function ListingDetails() {
             {showFullDesc ? description : shortDesc}
           </p>
           {description.length > 200 && (
-            <button 
+            <button
               onClick={() => setShowFullDesc(!showFullDesc)}
               className="text-xs font-bold text-orange-600 hover:underline cursor-pointer"
             >
@@ -962,7 +1016,7 @@ export default function ListingDetails() {
                   Min Bulk: {MIN_BULK_QTY} {listing?.unit || 'kg'}
                 </span>
                 <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
-                  <button 
+                  <button
                     onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
                     disabled={quantity <= MIN_BULK_QTY}
                     className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -971,7 +1025,7 @@ export default function ListingDetails() {
                     <Minus size={16} />
                   </button>
                   <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
-                  <button 
+                  <button
                     onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
                     className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
                   >
@@ -1009,15 +1063,15 @@ export default function ListingDetails() {
 
       {/* FARMER CONTACT DETAILS MODAL */}
       {showContactModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
           onClick={() => setShowContactModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-3xl border-2 border-[#E8F7EE] max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-6 relative animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <button 
+            <button
               onClick={() => setShowContactModal(false)}
               className="absolute top-5 right-5 p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full cursor-pointer"
             >
@@ -1042,7 +1096,7 @@ export default function ListingDetails() {
                   <span className="text-[9px] font-black text-gray-400 uppercase block">Phone Number</span>
                   <span className="text-sm font-black text-gray-900 mt-0.5 block">{farmerPhone || '+91 98765 43210'}</span>
                 </div>
-                <a 
+                <a
                   href={`tel:${farmerPhone || '+919876543210'}`}
                   className="px-4 py-2 bg-[#1F7A4D] text-white text-xs font-black rounded-xl hover:bg-[#165b38] flex items-center gap-1.5"
                 >
@@ -1055,8 +1109,8 @@ export default function ListingDetails() {
                   <span className="text-[9px] font-black text-gray-400 uppercase block">WhatsApp Contact</span>
                   <span className="text-xs font-extrabold text-emerald-700 mt-0.5 block">Direct WhatsApp Message</span>
                 </div>
-                <a 
-                  href={`https://wa.me/${(farmerPhone || '919876543210').replace(/\D/g,'')}?text=Hi%20${encodeURIComponent(farmerName)},%20I%20am%20interested%20in%20your%20harvest%20lot%20of%20${encodeURIComponent(listing.cropName)}`}
+                <a
+                  href={`https://wa.me/${(farmerPhone || '919876543210').replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(farmerName)},%20I%20am%20interested%20in%20your%20harvest%20lot%20of%20${encodeURIComponent(listing.cropName)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-4 py-2 bg-emerald-600 text-white text-xs font-black rounded-xl hover:bg-emerald-700 flex items-center gap-1.5"
@@ -1088,35 +1142,23 @@ export default function ListingDetails() {
 
       {/* FULLSCREEN LIGHTBOX MODAL */}
       {showFullImage && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
           onClick={() => setShowFullImage(false)}
         >
-          <button 
+          <button
             onClick={() => setShowFullImage(false)}
             className="absolute top-6 right-6 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full cursor-pointer"
           >
             <X size={28} />
           </button>
-          <img 
-            src={currentPhoto} 
-            alt={listing.cropName} 
+          <img
+            src={currentPhoto}
+            alt={listing.cropName}
             className="max-w-full max-h-[85vh] object-contain rounded-3xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
-      )}
-
-      {/* CHECKOUT MODAL FOR DIRECT BUY REQUEST */}
-      {showCheckoutModal && (
-        <CheckoutModal 
-          listing={{
-            ...listing,
-            quantityNeeded: quantity,
-            totalPrice: (price * quantity)
-          }} 
-          onClose={() => setShowCheckoutModal(false)} 
-        />
       )}
 
     </div>

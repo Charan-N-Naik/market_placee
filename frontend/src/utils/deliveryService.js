@@ -111,53 +111,37 @@ export function calculateTransportExpenditure(distanceKm, ratePerKm = 18, baseFe
   };
 }
 
+let cachedAgents = [];
+
 /**
  * Get real rating statistics and reviews for a delivery agent
  */
 export function getAgentRatingStats(agentId) {
-  try {
-    const allReviews = JSON.parse(localStorage.getItem('kb_agent_reviews') || '{}');
-    const agentReviews = allReviews[agentId] || [];
-    
-    if (agentReviews.length === 0) {
-      return { averageRating: null, totalReviews: 0, reviews: [] };
-    }
-
-    const sum = agentReviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
-    const averageRating = (sum / agentReviews.length).toFixed(1);
-    
+  const agent = cachedAgents.find(a => (a.id === agentId || a._id === agentId));
+  if (agent) {
     return {
-      averageRating: parseFloat(averageRating),
-      totalReviews: agentReviews.length,
-      reviews: agentReviews
+      averageRating: agent.rating || 4.8,
+      totalReviews: agent.totalReviews || agent.reviews?.length || 0,
+      reviews: agent.reviews || []
     };
-  } catch (_) {
-    return { averageRating: null, totalReviews: 0, reviews: [] };
   }
+  return { averageRating: 4.8, totalReviews: 0, reviews: [] };
 }
 
 /**
- * Submit a new review & star rating for a delivery agent
+ * Submit a new review & star rating for a delivery agent to MongoDB
  */
-export function addAgentReview(agentId, { rating, reviewText, reviewerName, orderId }) {
+export async function addAgentReview(agentId, { rating, reviewText, reviewerName, orderId }) {
   try {
-    const allReviews = JSON.parse(localStorage.getItem('kb_agent_reviews') || '{}');
-    if (!allReviews[agentId]) allReviews[agentId] = [];
-
-    const newReview = {
-      id: `rev_${Date.now()}`,
-      orderId,
-      reviewerName: reviewerName || 'Verified Buyer/Farmer',
-      rating: Math.min(5, Math.max(1, Number(rating) || 5)),
-      reviewText: reviewText || '',
-      createdAt: new Date().toISOString()
-    };
-
-    allReviews[agentId].unshift(newReview);
-    localStorage.setItem('kb_agent_reviews', JSON.stringify(allReviews));
-    return newReview;
+    const res = await api.post(`/auth/delivery-agents/${agentId}/reviews`, {
+      rating,
+      reviewText,
+      reviewerName,
+      orderId
+    });
+    return res.data?.review || { rating, reviewText, reviewerName, orderId };
   } catch (err) {
-    console.error('Failed to save review:', err);
+    console.error('Failed to save review to MongoDB:', err);
     return null;
   }
 }
@@ -169,74 +153,35 @@ export async function fetchRealDeliveryAgents() {
   try {
     const response = await api.get('/auth/delivery-agents');
     if (response.data && response.data.success && Array.isArray(response.data.agents)) {
-      const realAgents = response.data.agents.map(agent => {
-        const stats = getAgentRatingStats(agent.id);
-        return {
-          ...agent,
-          rating: stats.averageRating,
-          totalReviews: stats.totalReviews,
-          reviews: stats.reviews
-        };
-      });
-
-      // Combine with local custom registered agents if available
-      const saved = localStorage.getItem('kb_registered_delivery_agents');
-      const custom = saved ? JSON.parse(saved) : [];
-      
-      if (realAgents.length > 0) {
-        return [...realAgents, ...custom];
-      }
+      cachedAgents = response.data.agents;
+      return cachedAgents;
     }
   } catch (error) {
-    console.warn('Backend delivery-agents fetch failed, falling back to local registry:', error?.message);
+    console.warn('Backend delivery-agents fetch failed, using fallback:', error?.message);
   }
 
-  return getAvailableDeliveryAgents();
+  return cachedAgents.length > 0 ? cachedAgents : DEFAULT_AGENTS;
 }
 
 /**
- * Get all available delivery agents (registered + storage)
+ * Get all available delivery agents (from memory cache or defaults)
  */
 export function getAvailableDeliveryAgents() {
-  try {
-    const saved = localStorage.getItem('kb_registered_delivery_agents');
-    let agentsList = DEFAULT_AGENTS;
-    if (saved) {
-      const custom = JSON.parse(saved);
-      agentsList = [...custom, ...DEFAULT_AGENTS];
-    }
-    return agentsList.map(agent => {
-      const stats = getAgentRatingStats(agent.id);
-      return {
-        ...agent,
-        rating: stats.averageRating,
-        totalReviews: stats.totalReviews,
-        reviews: stats.reviews
-      };
-    });
-  } catch (_) {}
-  return DEFAULT_AGENTS;
+  return cachedAgents.length > 0 ? cachedAgents : DEFAULT_AGENTS;
 }
 
 /**
- * Register a new delivery agent profile
+ * Register a new delivery agent profile in local session
  */
 export function registerDeliveryAgent(agentData) {
-  const agents = getAvailableDeliveryAgents();
   const newAgent = {
-    id: `agent_${Date.now()}`,
+    id: agentData._id || agentData.id || `agent_${Date.now()}`,
     rating: 5.0,
     tripsCompleted: 0,
     isAvailable: true,
     ...agentData,
   };
-  
-  try {
-    const custom = JSON.parse(localStorage.getItem('kb_registered_delivery_agents') || '[]');
-    custom.unshift(newAgent);
-    localStorage.setItem('kb_registered_delivery_agents', JSON.stringify(custom));
-  } catch (_) {}
-
+  cachedAgents = [newAgent, ...cachedAgents];
   return newAgent;
 }
 

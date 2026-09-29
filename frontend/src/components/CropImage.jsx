@@ -57,6 +57,9 @@ export default function CropImage({ cropName, photo, size = 'md', className = ''
       <img
         src={resolvedPhoto}
         alt={cropName || 'Crop'}
+        loading="lazy"
+        width="600"
+        height="400"
         className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
         onError={(e) => {
           e.target.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=80';

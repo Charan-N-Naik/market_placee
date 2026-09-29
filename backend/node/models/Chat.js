@@ -5,7 +5,8 @@ const messageSchema = new mongoose.Schema({
   type: { type: String, enum: ['text', 'image', 'voice'], default: 'text' },
   content: { type: String, required: true }, // for image/voice store URL
   timestamp: { type: Date, default: Date.now },
-  read: { type: Boolean, default: false }
+  read: { type: Boolean, default: false },
+  readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
 
 const chatSchema = new mongoose.Schema({
