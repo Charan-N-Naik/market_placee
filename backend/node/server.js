@@ -15,13 +15,6 @@ if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
-// Fallback to Google and Cloudflare DNS to ensure reliable resolution of MongoDB Atlas SRV records
-try {
-  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
-} catch (dnsErr) {
-  console.warn('⚠️ Could not set custom DNS servers:', dnsErr.message);
-}
-
 // Load environment variables FIRST
 dotenv.config();
 
@@ -305,7 +298,7 @@ io.on('connection', (socket) => {
         calcUnreadMessageCount(pidStr).then(cnt => {
           io.to(pidStr).emit('unread_message_count_update', { unreadCount: cnt, count: cnt });
           io.to(`user:${pidStr}`).emit('unread_message_count_update', { unreadCount: cnt, count: cnt });
-        }).catch(() => {});
+        }).catch(() => { });
       }
     } catch (err) {
       console.error('[Socket] Error in send_order_message:', err);
@@ -403,7 +396,7 @@ process.on('unhandledRejection', (reason) => {
     type: 'uncaughtRejection',
     message: reason?.message || String(reason),
     stack: reason?.stack,
-  }).catch(() => {});
+  }).catch(() => { });
 });
 
 process.on('uncaughtException', (err) => {
@@ -412,7 +405,7 @@ process.on('uncaughtException', (err) => {
     type: 'uncaughtException',
     message: err?.message || String(err),
     stack: err?.stack,
-  }).catch(() => {});
+  }).catch(() => { });
 });
 
 // Start server

@@ -5,10 +5,35 @@ import { motion } from 'framer-motion';
 import {
   ShieldCheck, Zap, Bot, TrendingUp, ArrowRight,
   Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight,
-  ArrowDownRight, ChevronRight
+  ArrowDownRight, ChevronRight, Tractor, ShoppingCart, Truck
 } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
 import api from '../api/axios';
+
+const FALLBACK_MARKET_DATA = [
+  { commodity: 'Tomato (Hybrid)', mandi: 'Bengaluru (APMC)', modal_price: 2450, trend: '+4.2%', isUp: true },
+  { commodity: 'Onion (Red)', mandi: 'Tumkur Mandi', modal_price: 3180, trend: '+2.8%', isUp: true },
+  { commodity: 'Ragi (Finger Millet)', mandi: 'Ramanagara APMC', modal_price: 3600, trend: '-1.1%', isUp: false },
+  { commodity: 'Potato (Jyoti)', mandi: 'Hassan Mandi', modal_price: 1850, trend: '+3.5%', isUp: true }
+];
+
+const RoleButton = ({ icon: Icon, title, subtitle, bgCls, borderCls, hoverCls, iconBgCls, iconColorCls, arrowCls, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`group flex items-center justify-between p-4 ${bgCls} ${borderCls} border-2 rounded-2xl hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer w-full text-left`}
+  >
+    <div className="flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgCls} shrink-0`}>
+        <Icon className={`w-5 h-5 ${iconColorCls}`} />
+      </div>
+      <div>
+        <div className="font-bold text-[15px] text-slate-800">{title}</div>
+        <div className="text-[11px] text-slate-500 font-medium">{subtitle}</div>
+      </div>
+    </div>
+    <ArrowRight className={`w-4 h-4 ${arrowCls} group-hover:translate-x-1 transition-all duration-300`} />
+  </button>
+);
 
 export default function LandingPage() {
   const navigate = useNavigate();
