@@ -51,9 +51,13 @@ export default function ListingDetails() {
   const [showFullImage, setShowFullImage] = useState(false);
   const [isSavedLocal, setIsSavedLocal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-
   const [showContactModal, setShowContactModal] = useState(false);
   const [heroImageError, setHeroImageError] = useState(false);
+
+  // Guard: only increment view count once per page load
+  const viewIncrementedRef = useState(false);
+  const hasFiredRef = viewIncrementedRef[0] === false ? viewIncrementedRef : null;
+  const [viewFired, setViewFired] = useState(false);
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -81,32 +85,38 @@ export default function ListingDetails() {
   }, [id, contextListing]);
 
   useEffect(() => {
-    if (listing) {
-      const listingId = listing._id || listing.id;
-      setIsSavedLocal(isSaved(listingId));
-      if (incrementView) incrementView(listingId);
+    if (!listing) return;
+    const listingId = listing._id || listing.id;
+    setIsSavedLocal(isSaved(listingId));
+  }, [listing?._id || listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      // Fetch matching APMC market price from real backend endpoint
-      api.get('/market-prices')
-        .then(res => {
-          const raw = res.data;
-          const prices = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
-          const matched = prices.find(p => 
-            p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
-            p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
-          );
-          if (matched) {
-            setApmcPriceData({
-              ...matched,
-              _stale: raw?.stale ?? false,
-              _source: raw?.source ?? 'live',
-              _updatedAt: raw?.updatedAt || null
-            });
-          }
-        })
-        .catch(() => { });
-    }
-  }, [listing, isSaved, incrementView]);
+  // Increment view ONCE on mount when listing is available
+  useEffect(() => {
+    if (!listing || viewFired) return;
+    const listingId = listing._id || listing.id;
+    setViewFired(true);
+    if (incrementView) incrementView(listingId);
+
+    // Fetch matching APMC market price from real backend endpoint
+    api.get('/market-prices')
+      .then(res => {
+        const raw = res.data;
+        const prices = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+        const matched = prices.find(p =>
+          p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
+          p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
+        );
+        if (matched) {
+          setApmcPriceData({
+            ...matched,
+            _stale: raw?.stale ?? false,
+            _source: raw?.source ?? 'live',
+            _updatedAt: raw?.updatedAt || null
+          });
+        }
+      })
+      .catch(() => {});
+  }, [listing?._id || listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!listing) {
     return (
