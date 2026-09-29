@@ -262,7 +262,7 @@ def generate_realtime_ai_response(message, lang='en'):
     if not GEMINI_API_KEY:
         return None
     
-    model_name = 'gemini-1.5-flash'
+    model_name = 'gemini-3.1-flash-lite'
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
     
     lang_instruction = "You MUST reply in Kannada." if lang == 'kn' else "You MUST reply in English."
@@ -487,7 +487,7 @@ def verify_crop():
             else:
                 mime_type = 'image/jpeg'
             
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={GEMINI_API_KEY}"
             
             prompt = """You are an expert agricultural crop quality inspector. Analyze this image and respond ONLY with valid JSON (no markdown, no code blocks, just raw JSON).
 

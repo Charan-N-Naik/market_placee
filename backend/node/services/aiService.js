@@ -228,9 +228,10 @@ function _stripFences(text) {
  */
 async function _callGeminiWithFallback(contents, config = {}) {
   const candidateModels = [
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
+    'gemini-flash-latest',
     'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash',
   ];
 
   let lastError = null;

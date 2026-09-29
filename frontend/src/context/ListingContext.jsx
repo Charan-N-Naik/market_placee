@@ -81,7 +81,9 @@ export function ListingProvider({ children }) {
             ? (listingData[key].address || listingData[key].district || listingData[key].state || '')
             : listingData[key];
           formData.append('location[address]', locVal);
-        } else if (key !== 'photo' && listingData[key] !== undefined) {
+        } else if (key === 'photo' || key === 'imageUrl') {
+          if (listingData[key]) formData.append('imageUrl', listingData[key]);
+        } else if (listingData[key] !== undefined) {
           formData.append(key, listingData[key]);
         }
       });

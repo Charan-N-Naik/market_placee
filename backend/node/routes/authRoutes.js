@@ -11,16 +11,18 @@ import {
   forgotPassword, 
   resetPassword,
   getDeliveryAgents,
-  addDeliveryAgentReview
+  addDeliveryAgentReview,
+  updateDeviceToken
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
+import { loginLimiter } from '../middleware/rateLimiters.js';
 import multer from 'multer';
 
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
 router.post('/register', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), registerUser);
-router.post('/login', loginUser);
+router.post('/login', loginLimiter, loginUser);
 router.get('/refresh', refreshToken);
 router.post('/logout', logoutUser);
 router.post('/google', googleAuth);
@@ -32,5 +34,10 @@ router.get('/delivery-agents', getDeliveryAgents);
 router.post('/delivery-agents/:agentId/reviews', protect, addDeliveryAgentReview);
 router.get('/me', protect, getUserProfile);
 router.put('/me', protect, upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), updateUserProfile);
+
+// Device token registration for push notifications (supports both POST and PUT)
+router.route('/device-token')
+  .post(protect, updateDeviceToken)
+  .put(protect, updateDeviceToken);
 
 export default router;

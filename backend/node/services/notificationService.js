@@ -1,4 +1,5 @@
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 
 let _io = null;
 
@@ -68,6 +69,16 @@ export const sendNotification = async ({
       activeIo.to(`user:${recipientStr}`).emit('unread_count_update', { unreadCount, count: unreadCount });
     }
 
+    // Trigger push notification non-blockingly (never blocks main operation)
+    if (recipientId) {
+      sendPushNotification(recipientId, title, message, {
+        orderId: relatedOrder ? relatedOrder.toString() : undefined,
+        relatedChat: relatedChat ? relatedChat.toString() : undefined,
+        type,
+        orderNumber,
+      }).catch(err => console.warn('[Push Notification Warning]:', err.message));
+    }
+
     return populated || notification;
   } catch (error) {
     console.error('Error sending notification:', error);
@@ -106,3 +117,57 @@ export const markNotificationAsRead = async (notificationId) => {
     throw error;
   }
 };
+
+/**
+ * Send push notification to user's registered device via FCM API.
+ * Wrapped in try/catch so push failure never blocks the main action.
+ *
+ * @param {string|mongoose.Types.ObjectId} userId
+ * @param {string} title
+ * @param {string} body
+ * @param {object} [data]
+ */
+export const sendPushNotification = async (userId, title, body, data = {}) => {
+  try {
+    if (!userId) return null;
+    const user = await User.findById(userId).select('fcmToken name email');
+    if (!user || !user.fcmToken) {
+      return null;
+    }
+
+    const serverKey = process.env.FCM_SERVER_KEY;
+    if (!serverKey) {
+      // Graceful local/simulated push log when FCM server key is not in .env
+      console.log(`[Push Notification (FCM Simulated)] To: ${user.name} (${user.email}) | Title: "${title}" | Body: "${body}"`);
+      return { simulated: true, success: true, fcmToken: user.fcmToken };
+    }
+
+    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `key=${serverKey}`,
+      },
+      body: JSON.stringify({
+        to: user.fcmToken,
+        notification: {
+          title,
+          body,
+          sound: 'default',
+        },
+        data: {
+          ...data,
+          orderId: data?.orderId ? String(data.orderId) : undefined,
+          click_action: data?.orderId ? `kisanbazaar://order/${data.orderId}` : 'FLUTTER_NOTIFICATION_CLICK',
+        },
+      }),
+    });
+
+    const resData = await response.json();
+    return resData;
+  } catch (pushErr) {
+    console.error(`[Push Notification Warning] Non-blocking push error for user ${userId}:`, pushErr.message);
+    return null;
+  }
+};
+

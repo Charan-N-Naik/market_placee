@@ -213,9 +213,9 @@ For example, if asked to open cart, reply "Sure, opening your cart..." followed 
 
     const candidateModels = [
       'gemini-3.1-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3-flash-preview',
+      'gemini-flash-latest',
     ];
 
     let response = null;

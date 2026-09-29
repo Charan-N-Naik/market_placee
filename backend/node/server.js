@@ -7,6 +7,8 @@ import { Server } from 'socket.io';
 import cookieParser from 'cookie-parser';
 import dns from 'dns';
 import mongoose from 'mongoose';
+import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
 
 // Prefer IPv4 for DNS resolution to avoid MongoDB connection timeouts on IPv6
 if (dns.setDefaultResultOrder) {
@@ -42,6 +44,8 @@ import chatRoutes from './routes/chatRoutes.js';
 import marketRoutes from './routes/marketRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import schemeRoutes from './routes/schemeRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import errorRoutes from './routes/errorRoutes.js';
 
 import agriChatRoutes from './routes/agriChatRoutes.js';
 import assistantRoutes from './routes/assistantRoutes.js';
@@ -49,7 +53,9 @@ import agriChatOrchestrator from './services/agriChat/agriChatOrchestrator.js';
 import productVerificationRoutes from './routes/productVerificationRoutes.js';
 import cropVerificationRoutes from './routes/cropVerificationRoutes.js';
 import { seedAgriData } from './utils/seedAgriData.js';
-import { initDeliveryScheduler } from './services/deliverySchedulerService.js';
+import { initDeliveryScheduler, stopDeliveryScheduler } from './services/deliverySchedulerService.js';
+import { ordersLimiter } from './middleware/rateLimiters.js';
+import { logError } from './services/errorLoggerService.js';
 import Order from './models/Order.js';
 import User from './models/User.js';
 import jwt from 'jsonwebtoken';
@@ -136,6 +142,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Security Headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// Sanitize inputs to prevent MongoDB NoSQL operator injection
+app.use(mongoSanitize());
+
 // Middleware
 app.use(compression());
 app.use(cors({
@@ -155,7 +169,7 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/verify', verificationRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/orders', ordersLimiter, orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/chat', chatRoutes);
@@ -165,6 +179,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/product', productVerificationRoutes); // CropVerify AI — report proxy
 app.use('/api/crop-verification', cropVerificationRoutes); // Real 3-photo AI verification
 app.use('/api/schemes', schemeRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/errors', errorRoutes);
 app.use('/api', marketRoutes);
 
 // Socket.io handlers
@@ -373,10 +389,77 @@ app.get('/', (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
+// Uncaught exception and unhandled promise rejection recording
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]:', reason);
+  logError({
+    type: 'uncaughtRejection',
+    message: reason?.message || String(reason),
+    stack: reason?.stack,
+  }).catch(() => {});
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]:', err);
+  logError({
+    type: 'uncaughtException',
+    message: err?.message || String(err),
+    stack: err?.stack,
+  }).catch(() => {});
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`CORS origins: ${CLIENT_URLS.join(',')}`);
 });
+
+// Graceful shutdown handling on SIGTERM / SIGINT
+const gracefulShutdown = async (signal) => {
+  console.log(`\n🛑 [Shutdown] ${signal} signal received: closing HTTP server, Socket.IO, and MongoDB connection...`);
+
+  // Stop background cron jobs
+  try {
+    stopDeliveryScheduler();
+  } catch (err) {
+    console.error('Error stopping cron scheduler:', err);
+  }
+
+  // Close Socket.IO
+  if (io) {
+    try {
+      io.close();
+      console.log('[Shutdown] Socket.IO server closed.');
+    } catch (err) {
+      console.error('Error closing Socket.IO:', err);
+    }
+  }
+
+  // Stop accepting new HTTP requests and drain active connections
+  httpServer.close(async () => {
+    console.log('[Shutdown] HTTP server closed. Drained existing connections.');
+
+    // Close Mongoose connection
+    try {
+      await mongoose.connection.close(false);
+      console.log('[Shutdown] MongoDB connection closed safely.');
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err);
+    }
+
+    console.log('✅ [Shutdown] Clean shutdown completed.');
+    process.exit(0);
+  });
+
+  // Force exit after 10s if graceful shutdown hangs
+  setTimeout(() => {
+    console.error('⚠️ [Shutdown] Forced shutdown timed out (10s limit exceeded).');
+    process.exit(1);
+  }, 10000).unref();
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 

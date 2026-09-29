@@ -30,6 +30,15 @@ import {
 
 const AICropAnalyzer = lazy(() => import('../components/AICropAnalyzer'));
 
+function getPaymentLabel(order) {
+  if (!order) return 'Payment Pending';
+  if (order.paymentId?.startsWith('pay_sim_')) return 'Paid (Simulated)';
+  if (order.paymentId) return `Paid · ${order.paymentId.slice(-6)}`;
+  if (order.paymentMethod === 'cod') return 'Cash on Delivery';
+  if (order.status === 'paid') return 'Paid';
+  return 'Payment Pending';
+}
+
 export default function FarmerDashboard() {
   // Format a raw DB name into a clean, readable display name (e.g. former1 -> Former 1)
   const formatDisplayName = (rawName) => {
@@ -1081,7 +1090,7 @@ export default function FarmerDashboard() {
                               <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Payment Status</p>
                               <p className="text-base font-black text-[#166534]">₹{order.totalAmount || 0}</p>
                               <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                {order.paymentId ? `Paid via Razorpay (${order.paymentId.slice(-6)})` : (order.status === 'paid' ? 'Paid via Razorpay' : 'Razorpay Pending')}
+                                {getPaymentLabel(order)}
                               </span>
                             </div>
 
@@ -1170,7 +1179,7 @@ export default function FarmerDashboard() {
                                   <div>
                                     <span className="text-[10px] text-zinc-400 block font-medium">Payment Mode</span>
                                     <span className="font-bold text-zinc-700 capitalize">
-                                      {order.paymentId ? `Razorpay Online` : (order.paymentMethod === 'online' ? 'Online Gateway' : (order.paymentMethod || 'Razorpay Online'))}
+                                      {getPaymentLabel(order)}
                                     </span>
                                   </div>
                                   <div className="col-span-2 text-[10px] text-zinc-600 font-mono bg-zinc-50 px-2.5 py-1.5 rounded-lg border border-zinc-100 flex items-center justify-between">
@@ -1520,7 +1529,13 @@ export default function FarmerDashboard() {
                             coverPreview: previewUrl
                           }));
                           try {
-                            await updateProfile({ coverImageFile: file });
+                            const uploadData = new FormData();
+                            uploadData.append('file', file);
+                            uploadData.append('folder', 'kisanbazaar/covers');
+                            const { data } = await api.post('/upload', uploadData, {
+                              headers: { 'Content-Type': 'multipart/form-data' }
+                            });
+                            await updateProfile({ coverImage: data.url });
                             setSaveSuccess(true);
                             setTimeout(() => setSaveSuccess(false), 3000);
                           } catch (err) {
@@ -1576,7 +1591,13 @@ export default function FarmerDashboard() {
                                   avatarFile: file,
                                   avatarPreview: previewUrl
                                 }));
-                                await updateProfile({ avatarFile: file });
+                                const uploadData = new FormData();
+                                uploadData.append('file', file);
+                                uploadData.append('folder', 'kisanbazaar/avatars');
+                                const { data } = await api.post('/upload', uploadData, {
+                                  headers: { 'Content-Type': 'multipart/form-data' }
+                                });
+                                await updateProfile({ avatar: data.url });
                                 setSaveSuccess(true);
                                 setTimeout(() => setSaveSuccess(false), 4000);
                               } catch (err) {

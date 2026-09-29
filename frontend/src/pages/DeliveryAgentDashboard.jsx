@@ -12,6 +12,7 @@ import api from '../api/axios';
 import { getAgentDeliveryRequests, getAllDeliveryBookings, updateDeliveryBookingStatus } from '../utils/deliveryService';
 import { getSocket } from '../utils/socket';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
+import EmptyState from '../components/ui/EmptyState';
 
 const OrderTrackingMap = lazy(() => import('../components/OrderTrackingMap'));
 
@@ -983,6 +984,35 @@ function ProfileSection({ user, profile, fetchData }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [agentData, setAgentData] = useState(null);
+  const [loadingAgentData, setLoadingAgentData] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAgentInfo = async () => {
+      try {
+        setLoadingAgentData(true);
+        const res = await api.get('/auth/delivery-agents');
+        if (res.data?.success && Array.isArray(res.data.agents)) {
+          const found = res.data.agents.find(a =>
+            (user?._id && (String(a._id) === String(user._id) || String(a.id) === String(user._id))) ||
+            (user?.id && (String(a._id) === String(user.id) || String(a.id) === String(user.id))) ||
+            (user?.email && a.email?.toLowerCase() === user.email?.toLowerCase())
+          );
+          if (isMounted && found) {
+            setAgentData(found);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load agent profile data:', err);
+      } finally {
+        if (isMounted) setLoadingAgentData(false);
+      }
+    };
+
+    fetchAgentInfo();
+    return () => { isMounted = false; };
+  }, [user?._id, user?.id, user?.email]);
 
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -1205,16 +1235,20 @@ function ProfileSection({ user, profile, fetchData }) {
               <div>
                 <div className="flex items-center gap-1">
                   <Star size={14} className="fill-amber-400 text-amber-400" />
-                  <span className="text-base sm:text-lg font-black text-gray-900">4.9</span>
+                  <span className="text-base sm:text-lg font-black text-gray-900">
+                    {agentData?.rating != null ? agentData.rating : 4.8}
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Driver Rating</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Driver Rating {agentData?.totalReviews > 0 ? `(${agentData.totalReviews})` : ''}
+                </span>
               </div>
 
               <div className="h-7 w-px bg-gray-200" />
 
               <div>
                 <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
-                  14
+                  {agentData?.tripsCompleted != null ? agentData.tripsCompleted : (profile?.tripsCompleted || 0)}
                 </span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed Trips</span>
               </div>
@@ -1372,6 +1406,74 @@ function ProfileSection({ user, profile, fetchData }) {
           </div>
         </div>
       )}
+
+      {/* Customer & Farmer Reviews Section */}
+      <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+          <div>
+            <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">
+              Customer &amp; Farmer Reviews
+            </h3>
+            <p className="text-[11px] text-stone-500 font-medium mt-0.5">
+              Verified ratings and comments from recent delivery shipments
+            </p>
+          </div>
+          {agentData && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-amber-800 text-xs font-bold">
+              <Star size={12} className="fill-amber-400 text-amber-400" />
+              <span>{agentData.rating}</span>
+              <span className="text-amber-600 font-normal">({agentData.totalReviews || 0} reviews)</span>
+            </div>
+          )}
+        </div>
+
+        {loadingAgentData ? (
+          <div className="py-8 text-center text-stone-400 text-xs animate-pulse">
+            Loading reviews and driver ratings...
+          </div>
+        ) : agentData?.reviews && agentData.reviews.length > 0 ? (
+          <div className="space-y-3">
+            {agentData.reviews.slice(0, 3).map((rev, idx) => (
+              <div
+                key={rev.id || idx}
+                className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-900 text-xs sm:text-sm">
+                      {rev.reviewerName || 'Verified User'}
+                    </span>
+                    {rev.createdAt && (
+                      <span className="text-[10px] text-stone-400">
+                        • {new Date(rev.createdAt).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed italic">
+                    "{rev.reviewText || 'Completed delivery successfully.'}"
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0 bg-white px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs self-start sm:self-center">
+                  <Star size={12} className="fill-amber-400 text-amber-400" />
+                  <span className="text-xs font-black text-stone-800">{rev.rating}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={<Star size={24} className="text-amber-400" />}
+            title="No reviews yet"
+            description="Complete delivery trips to receive ratings and reviews from verified farmers and buyers."
+            border="subtle"
+            className="py-8"
+          />
+        )}
+      </div>
     </div>
   );
 }

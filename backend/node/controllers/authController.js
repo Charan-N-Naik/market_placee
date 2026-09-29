@@ -552,10 +552,18 @@ export const updateUserProfile = async (req, res, next) => {
         if (!user.deliveryAgentProfile) user.deliveryAgentProfile = {};
         user.deliveryAgentProfile.vehiclePhoto = uploaded.secure_url;
       }
-    } else if (req.body.avatar) {
+    }
+    
+    // Also accept pre-uploaded CDN URLs from URL-based uploaders
+    if (req.body.avatar) {
       user.avatar = req.body.avatar;
-    } else if (req.body.coverImage) {
+    }
+    if (req.body.coverImage) {
       user.coverImage = req.body.coverImage;
+    }
+    if (req.body.vehiclePhoto) {
+      if (!user.deliveryAgentProfile) user.deliveryAgentProfile = {};
+      user.deliveryAgentProfile.vehiclePhoto = req.body.vehiclePhoto;
     }
 
     if (name) user.name = name;
@@ -768,4 +776,35 @@ export const addDeliveryAgentReview = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Update FCM device token for push notifications
+// @route   POST /api/auth/device-token, PUT /api/auth/device-token
+// @access  Private (Authenticated)
+export const updateDeviceToken = async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) {
+      return res.status(400).json({ success: false, message: 'fcmToken is required' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { fcmToken },
+      { new: true }
+    ).select('-passwordHash');
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Device token registered successfully',
+      fcmToken: user.fcmToken,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
