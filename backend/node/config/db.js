@@ -7,6 +7,13 @@ if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
+// Fallback to Google and Cloudflare DNS to ensure reliable resolution of MongoDB Atlas SRV records
+try {
+  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+} catch (dnsErr) {
+  console.warn('⚠️ Could not set custom DNS servers:', dnsErr.message);
+}
+
 dotenv.config();
 
 const connectDB = async () => {
