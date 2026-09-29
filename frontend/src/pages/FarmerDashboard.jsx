@@ -15,6 +15,7 @@ import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import GmailNotificationInbox from '../components/GmailNotificationInbox';
 import api from '../api/axios';
+import ConfirmModal from '../components/common/ConfirmModal';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
   BarChart, Bar, Legend, ComposedChart, Line
@@ -104,6 +105,9 @@ export default function FarmerDashboard() {
 
   // Inventory sub-tab: 'current' | 'low' | 'out' | 'expired' | 'upcoming'
   const [inventorySubTab, setInventorySubTab] = useState('current');
+
+  // ConfirmModal / AlertModal state
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', variant: 'default', isAlert: false, onConfirm: null });
 
   useEffect(() => {
     if (!user || user.role !== 'farmer') {
@@ -249,10 +253,10 @@ export default function FarmerDashboard() {
       const listingId = listing._id || listing.id;
       const newStatus = listing.status === 'active' ? 'expired' : 'active';
       await updateListing(listingId, { ...listing, status: newStatus });
-      alert(`Listing status updated to ${newStatus === 'active' ? 'Active' : 'Paused'}`);
+      setConfirmModal({ isOpen: true, isAlert: true, variant: 'success', title: 'Status Updated', message: `Listing status updated to ${newStatus === 'active' ? 'Active' : 'Paused'}.`, confirmText: 'OK', onConfirm: null });
     } catch (err) {
       console.error(err);
-      alert('Failed to update listing status');
+      setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Update Failed', message: 'Failed to update listing status.', confirmText: 'OK', onConfirm: null });
     }
   };
 
@@ -276,10 +280,10 @@ export default function FarmerDashboard() {
         photo: listing.images?.[0]?.url || listing.photo || null,
       };
       await addListing(duplicateData);
-      alert('Listing duplicated successfully!');
+      setConfirmModal({ isOpen: true, isAlert: true, variant: 'success', title: 'Duplicated!', message: 'Listing duplicated successfully.', confirmText: 'OK', onConfirm: null });
     } catch (err) {
       console.error(err);
-      alert('Failed to duplicate listing');
+      setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Duplicate Failed', message: 'Failed to duplicate listing.', confirmText: 'OK', onConfirm: null });
     }
   };
 
@@ -449,7 +453,7 @@ export default function FarmerDashboard() {
 
   const handleExportCSV = () => {
     if (revenueChartData.length === 0) {
-      alert('No sales data available to export.');
+      setConfirmModal({ isOpen: true, isAlert: true, variant: 'info', title: 'No Data', message: 'No sales data available to export.', confirmText: 'OK', onConfirm: null });
       return;
     }
     let csvContent = "data:text/csv;charset=utf-8,";
@@ -485,14 +489,14 @@ export default function FarmerDashboard() {
             {/* Header Title section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-100">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-                <p className="text-xs text-gray-500 font-medium">Real-time business performance and stock metrics</p>
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t('farmerDashboard.dashboard')}</h1>
+                <p className="text-xs text-gray-500 font-medium">{t('farmerDashboard.realTimeMetrics')}</p>
               </div>
               <button
                 onClick={() => setActiveTab('add')}
                 className="bg-[#166534] hover:bg-[#14532d] text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
               >
-                <Plus size={14} /> Add Crop
+                <Plus size={14} /> {t('farmerDashboard.addCrop')}
               </button>
             </div>
 
@@ -501,16 +505,16 @@ export default function FarmerDashboard() {
 
               {/* Earnings / Monthly Revenue */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-between min-h-[120px]">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Monthly Earnings</span>
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('farmerDashboard.monthlyEarnings')}</span>
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">₹{dashboardStats.monthlyRevenue}</span>
-                  <span className="text-xs text-[#22C55E] font-medium">Active</span>
+                  <span className="text-xs text-[#22C55E] font-medium">{t('farmerDashboard.active')}</span>
                 </div>
               </div>
 
               {/* Today's Revenue */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-between min-h-[120px]">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Today's Revenue</span>
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('farmerDashboard.todaysRevenue')}</span>
                 <div className="mt-2">
                   <span className="text-3xl font-bold text-gray-900">₹{dashboardStats.todayRevenue}</span>
                 </div>
@@ -518,19 +522,19 @@ export default function FarmerDashboard() {
 
               {/* Listings */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-between min-h-[120px]">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Crops Listed</span>
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('farmerDashboard.cropsListed')}</span>
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">{myListings.length}</span>
-                  <span className="text-xs text-gray-400 font-medium">Items</span>
+                  <span className="text-xs text-gray-400 font-medium">{t('farmerDashboard.items')}</span>
                 </div>
               </div>
 
               {/* Orders */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-between min-h-[120px]">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Pending Orders</span>
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('farmerDashboard.pendingOrders')}</span>
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-orange-600">{dashboardStats.pendingOrdersCount}</span>
-                  <span className="text-xs text-gray-400 font-medium">/{dashboardStats.completedOrdersCount} completed</span>
+                  <span className="text-xs text-gray-400 font-medium">/{dashboardStats.completedOrdersCount} {t('farmerDashboard.completed')}</span>
                 </div>
               </div>
 
@@ -543,8 +547,8 @@ export default function FarmerDashboard() {
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Revenue Analytics</h3>
-                    <p className="text-[11px] text-gray-400 font-medium">Sales value from completed orders</p>
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">{t('farmerDashboard.revenueAnalytics')}</h3>
+                    <p className="text-[11px] text-gray-400 font-medium">{t('farmerDashboard.salesValueFrom')}</p>
                   </div>
                 </div>
 
@@ -568,8 +572,8 @@ export default function FarmerDashboard() {
                 ) : (
                   <div className="h-[180px] flex flex-col items-center justify-center text-center">
                     <TrendingUp size={28} className="text-gray-200 mb-3" />
-                    <p className="text-xs font-bold text-gray-400">No revenue data yet</p>
-                    <p className="text-[10px] text-gray-300 mt-1 max-w-xs">Revenue analytics will appear here once buyers complete orders for your listed crops.</p>
+                    <p className="text-xs font-bold text-gray-400">{t('farmerDashboard.noRevenueData')}</p>
+                    <p className="text-[10px] text-gray-300 mt-1 max-w-xs">{t('farmerDashboard.revenueAppearDesc')}</p>
                   </div>
                 )}
               </div>
@@ -577,12 +581,12 @@ export default function FarmerDashboard() {
               {/* Recent Orders Table */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Recent Orders</h3>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">{t('farmerDashboard.recentOrders')}</h3>
                   <button
                     onClick={() => setActiveTab('orders')}
                     className="text-xs font-bold text-[#166534] hover:underline"
                   >
-                    View All Orders
+                    {t('farmerDashboard.viewAllOrders')}
                   </button>
                 </div>
 
@@ -590,11 +594,11 @@ export default function FarmerDashboard() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-gray-100 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                        <th className="pb-3">Order ID</th>
-                        <th className="pb-3">Crop</th>
-                        <th className="pb-3">Amount</th>
-                        <th className="pb-3">Status</th>
-                        <th className="pb-3 text-right">Date</th>
+                        <th className="pb-3">{t('farmerDashboard.orderId')}</th>
+                        <th className="pb-3">{t('farmerDashboard.crop')}</th>
+                        <th className="pb-3">{t('farmerDashboard.amount')}</th>
+                        <th className="pb-3">{t('farmerDashboard.status')}</th>
+                        <th className="pb-3 text-right">{t('farmerDashboard.date')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-xs text-gray-600">
@@ -619,7 +623,7 @@ export default function FarmerDashboard() {
                       ))}
                       {sellerOrders.length === 0 && (
                         <tr>
-                          <td colSpan="5" className="text-center py-6 text-gray-400 italic">No purchase orders found</td>
+                          <td colSpan="5" className="text-center py-6 text-gray-400 italic">{t('farmerDashboard.noPurchaseOrders')}</td>
                         </tr>
                       )}
                     </tbody>
@@ -642,14 +646,14 @@ export default function FarmerDashboard() {
             <div className="bg-white rounded-[24px] border border-[#e5e7d0] p-6 shadow-sm space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h2 className="text-2xl font-black text-[#166534]">Crop Listings Catalogue</h2>
-                  <p className="text-xs text-gray-500 font-semibold mt-1">Manage and update active farm stock available for buyers</p>
+                  <h2 className="text-2xl font-black text-[#166534]">{t('farmerDashboard.myListings')}</h2>
+                  <p className="text-xs text-gray-500 font-semibold mt-1">{t('farmerDashboard.manageActiveStock', 'Manage and update active farm stock available for buyers')}</p>
                 </div>
                 <button
                   onClick={() => setActiveTab('add')}
                   className="ds-btn-primary bg-[#22C55E] hover:bg-[#166534] text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer text-xs"
                 >
-                  <Plus size={16} /> Add Listing
+                  <Plus size={16} /> {t('farmerDashboard.addNewCrop')}
                 </button>
               </div>
 
@@ -660,7 +664,7 @@ export default function FarmerDashboard() {
                   <Search size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search crop stocks..."
+                    placeholder={t('farmerDashboard.searchCrops')}
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 hover:bg-white focus:bg-white text-sm font-semibold rounded-xl border border-gray-200 outline-none transition-all farmer-search"
@@ -674,9 +678,9 @@ export default function FarmerDashboard() {
                     onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                     className="w-full appearance-none pl-3.5 pr-8 py-3 bg-gray-50 hover:bg-white text-sm font-bold rounded-xl border border-gray-200 outline-none transition-all cursor-pointer"
                   >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="expired">Paused/Expired</option>
+                    <option value="all">{t('farmerDashboard.allStatuses')}</option>
+                    <option value="active">{t('farmerDashboard.active')}</option>
+                    <option value="expired">{t('farmerDashboard.expired')}</option>
                   </select>
                 </div>
 
@@ -700,10 +704,10 @@ export default function FarmerDashboard() {
                     onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
                     className="w-full appearance-none pl-3.5 pr-8 py-3 bg-gray-50 hover:bg-white text-sm font-bold rounded-xl border border-gray-200 outline-none transition-all cursor-pointer"
                   >
-                    <option value="newest">Newest First</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="views">Most Popular</option>
+                    <option value="newest">{t('farmerDashboard.sortNewest')}</option>
+                    <option value="price_asc">{t('farmerDashboard.sortPriceLow')}</option>
+                    <option value="price_desc">{t('farmerDashboard.sortPriceHigh')}</option>
+                    <option value="views">{t('farmerDashboard.sortViews')}</option>
                   </select>
                 </div>
               </div>
@@ -715,8 +719,8 @@ export default function FarmerDashboard() {
             ) : paginatedListings.length === 0 ? (
               <div className="bg-white rounded-[24px] border border-dashed border-[#e5e7d0] py-16 px-6 text-center space-y-4 shadow-sm">
                 <div className="text-5xl">🌾</div>
-                <h3 className="text-lg font-black text-gray-900">No matching crop listings</h3>
-                <p className="text-xs text-gray-500 font-semibold max-w-sm mx-auto">Try updating your filters or search terms above to find active stocks.</p>
+                <h3 className="text-lg font-black text-gray-900">{t('farmerDashboard.noMatchingListings')}</h3>
+                <p className="text-xs text-gray-500 font-semibold max-w-sm mx-auto">{t('farmerDashboard.adjustFilters')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -741,18 +745,18 @@ export default function FarmerDashboard() {
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
                           {listing.isOrganic && (
                             <span className="bg-[#84CC16] text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md">
-                              Organic 🌿
+                              {t('farmerDashboard.organicLabel')}
                             </span>
                           )}
                           {isVerified && (
                             <span className="bg-blue-600 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md flex items-center gap-0.5">
-                              <ShieldCheck size={10} /> AI Verified
+                              <ShieldCheck size={10} /> {t('farmerDashboard.aiVerifiedLabel', 'AI Verified')}
                             </span>
                           )}
                           <span className={`text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md
                             ${listing.status === 'active' ? 'bg-[#22C55E]' : 'bg-gray-500'}
                           `}>
-                            {listing.status === 'active' ? 'Active' : 'Paused'}
+                            {listing.status === 'active' ? t('farmerDashboard.active') : t('farmerDashboard.expired', 'Paused')}
                           </span>
                         </div>
 
@@ -773,29 +777,29 @@ export default function FarmerDashboard() {
                               : 'bg-gray-50 text-gray-500 border-gray-200'
                               }`}>
                               {listing.aiVerified || listing.isVerified ? (
-                                <><BadgeCheck size={12} className="text-emerald-600" /> AI Verified ✓</>
+                                <><BadgeCheck size={12} className="text-emerald-600" /> {t('farmerDashboard.aiVerifiedCheck')}</>
                               ) : (
-                                <>Grade {listing.verificationReport?.qualityGrade || 'B'}</>
+                                <>{t('farmerDashboard.grade')} {listing.verificationReport?.qualityGrade || 'B'}</>
                               )}
                             </span>
                           </div>
                           <p className="text-xs text-gray-500 font-medium line-clamp-2">
-                            {listing.description || 'Premium harvest stock available for bulk transport.'}
+                            {listing.description || t('farmerDashboard.premiumHarvestDesc')}
                           </p>
 
                           {/* Attribute details */}
                           <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] font-bold text-gray-500">
-                            <div>Stock: <span className="text-gray-900 font-black">{listing.quantity} {listing.unit}</span></div>
-                            <div>Region: <span className="text-gray-900 font-black">{locationStr || 'Karnataka'}</span></div>
-                            <div>Shelf Life: <span className="text-gray-900 font-black">{getShelfLife(listing.cropName)}</span></div>
-                            <div>Harvested: <span className="text-gray-900 font-black">{listing.harvestDate ? new Date(listing.harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Recent'}</span></div>
+                            <div>{t('farmerDashboard.stock')} <span className="text-gray-900 font-black">{listing.quantity} {listing.unit}</span></div>
+                            <div>{t('farmerDashboard.region')} <span className="text-gray-900 font-black">{locationStr || 'Karnataka'}</span></div>
+                            <div>{t('farmerDashboard.shelfLife')} <span className="text-gray-900 font-black">{getShelfLife(listing.cropName)}</span></div>
+                            <div>{t('farmerDashboard.harvested')} <span className="text-gray-900 font-black">{listing.harvestDate ? new Date(listing.harvestDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : t('common.recent', 'Recent')}</span></div>
                           </div>
                         </div>
 
                         {/* Views / Saved statistics row */}
                         <div className="pt-3 border-t border-gray-50 flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                          <span className="flex items-center gap-1"><Eye size={12} /> {listing.views || 0} views</span>
-                          <span className="flex items-center gap-1"><Star size={12} /> {listing.savedBy?.length || 0} wishlists</span>
+                          <span className="flex items-center gap-1"><Eye size={12} /> {listing.views || 0} {t('farmerDashboard.viewsCount')}</span>
+                          <span className="flex items-center gap-1"><Star size={12} /> {listing.savedBy?.length || 0} {t('farmerDashboard.wishlistsCount')}</span>
                         </div>
 
                         {/* Action buttons */}
@@ -804,13 +808,13 @@ export default function FarmerDashboard() {
                             onClick={() => navigate(`/listing/${listing._id || listing.id}`, { state: { from: '/farmer/dashboard' } })}
                             className="py-2.5 bg-gray-50 hover:bg-[#FFFDF5] border border-gray-200 text-[#166534] rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
                           >
-                            View
+                            {t('farmerDashboard.viewAction')}
                           </button>
                           <button
                             onClick={() => setEditingListing(listing)}
                             className="py-2.5 bg-gray-50 hover:bg-[#FFFDF5] border border-gray-200 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
                           >
-                            Edit
+                            {t('farmerDashboard.editAction')}
                           </button>
                           <button
                             onClick={() => handlePauseToggle(listing)}
@@ -822,29 +826,38 @@ export default function FarmerDashboard() {
                             `}
                           >
                             {listing.status === 'active' ? <Pause size={10} /> : <Play size={10} />}
-                            {listing.status === 'active' ? 'Pause' : 'Resume'}
+                            {listing.status === 'active' ? t('farmerDashboard.pauseAction') : t('farmerDashboard.resumeAction')}
                           </button>
                           <button
                             onClick={() => handleDuplicateListing(listing)}
                             className="py-2.5 bg-gray-50 hover:bg-[#FFFDF5] border border-gray-200 text-[#84CC16] rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1 col-span-2"
                           >
-                            <Copy size={10} /> Duplicate Listing
+                            <Copy size={10} /> {t('farmerDashboard.duplicateAction')}
                           </button>
                           <button
-                            onClick={async () => {
-                              if (window.confirm("Are you sure you want to delete this listing?")) {
-                                try {
-                                  await deleteListing(listing._id || listing.id);
-                                  alert("Listing deleted successfully!");
-                                } catch (err) {
-                                  console.error(err);
-                                  alert("Failed to delete listing.");
-                                }
-                              }
+                          onClick={() => {
+                              setConfirmModal({
+                                isOpen: true,
+                                variant: 'danger',
+                                title: 'Delete Listing',
+                                message: 'Are you sure you want to delete this listing? This action cannot be undone.',
+                                confirmText: 'Delete Listing',
+                                cancelText: 'Cancel',
+                                isAlert: false,
+                                onConfirm: async () => {
+                                  try {
+                                    await deleteListing(listing._id || listing.id);
+                                    setConfirmModal({ isOpen: true, isAlert: true, variant: 'success', title: 'Deleted', message: 'Listing deleted successfully.', confirmText: 'OK', onConfirm: null });
+                                  } catch (err) {
+                                    console.error(err);
+                                    setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Delete Failed', message: 'Failed to delete listing.', confirmText: 'OK', onConfirm: null });
+                                  }
+                                },
+                              });
                             }}
                             className="py-2.5 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer col-span-2 flex items-center justify-center gap-1"
                           >
-                            <Trash2 size={12} /> Delete Catalogue Item
+                            <Trash2 size={12} /> {t('farmerDashboard.deleteAction')}
                           </button>
                         </div>
                       </div>
@@ -893,14 +906,14 @@ export default function FarmerDashboard() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 pb-4">
               <div>
-                <h2 className="text-xl font-black text-zinc-900 tracking-tight">Sales Orders</h2>
-                <p className="text-xs text-zinc-400 font-medium mt-1">Manage and track all incoming orders.</p>
+                <h2 className="text-xl font-black text-zinc-900 tracking-tight">{t('farmerDashboard.salesOrders')}</h2>
+                <p className="text-xs text-zinc-400 font-medium mt-1">{t('farmerDashboard.salesOrdersDesc')}</p>
               </div>
               <button
                 onClick={() => fetchDashboardData()}
                 className="flex items-center gap-2 px-4 py-2 bg-[#166534] hover:bg-[#14532d] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
               >
-                <RefreshCw size={14} /> Refresh Orders
+                <RefreshCw size={14} /> {t('farmerDashboard.refreshOrders')}
               </button>
             </div>
 
@@ -1012,7 +1025,7 @@ export default function FarmerDashboard() {
                       onClick={() => fetchDashboardData()}
                       className="mt-2 flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
                     >
-                      <RefreshCw size={13} /> Refresh Now
+                      <RefreshCw size={13} /> {t('farmerDashboard.refreshNow')}
                     </button>
                   </div>
                 );
@@ -1279,33 +1292,33 @@ export default function FarmerDashboard() {
             {/* Header info */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-200">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">Interactive Analytics Dashboard</h2>
-                <p className="text-xs text-gray-500 font-medium mt-1">Review revenue curves, top crop categories, and monthly sales logs.</p>
+                <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">{t('farmerDashboard.analyticsDashboard')}</h2>
+                <p className="text-xs text-gray-500 font-medium mt-1">{t('farmerDashboard.analyticsDesc')}</p>
               </div>
               <button
                 onClick={handleExportCSV}
                 className="px-4 py-2 border border-gray-200 hover:bg-gray-50 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
               >
-                <Download size={14} /> Export CSV Report
+                <Download size={14} /> {t('farmerDashboard.exportCSV')}
               </button>
             </div>
 
             {/* Stats block */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Today's Earnings</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{t('farmerDashboard.todaysEarnings')}</span>
                 <span className="text-2xl font-black mt-2 text-gray-900">₹{dashboardStats.todayRevenue}</span>
               </div>
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Weekly Earnings</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{t('farmerDashboard.weeklyEarnings')}</span>
                 <span className="text-2xl font-black mt-2 text-gray-900">₹{dashboardStats.weeklyRevenue}</span>
               </div>
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Monthly Earnings</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{t('farmerDashboard.monthlyEarningsVal', 'Monthly Earnings')}</span>
                 <span className="text-2xl font-black mt-2 text-gray-900">₹{dashboardStats.monthlyRevenue}</span>
               </div>
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Yearly Earnings</span>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{t('farmerDashboard.yearlyEarnings')}</span>
                 <span className="text-2xl font-black mt-2 text-gray-900">₹{dashboardStats.yearlyRevenue}</span>
               </div>
             </div>
@@ -1315,7 +1328,7 @@ export default function FarmerDashboard() {
 
               {/* Revenue Curve */}
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Monthly Revenue Curve</h3>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{t('farmerDashboard.monthlyRevenueCurve')}</h3>
                 <div className="h-[260px] w-full">
                   {revenueChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={220}>
@@ -1335,8 +1348,8 @@ export default function FarmerDashboard() {
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center py-10">
                       <TrendingUp size={28} className="text-gray-200 mb-3" />
-                      <p className="text-xs font-bold text-gray-400">No revenue data yet</p>
-                      <p className="text-[10px] text-gray-300 mt-1 max-w-xs">Revenue will populate as buyers complete orders.</p>
+                      <p className="text-xs font-bold text-gray-400">{t('farmerDashboard.noRevenueData')}</p>
+                      <p className="text-[10px] text-gray-300 mt-1 max-w-xs">{t('farmerDashboard.revenueAppearDesc')}</p>
                     </div>
                   )}
                 </div>
@@ -1344,7 +1357,7 @@ export default function FarmerDashboard() {
 
               {/* Crop views / sales */}
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Listed Crop Performance</h3>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{t('farmerDashboard.listedCropPerformance')}</h3>
                 <div className="h-[260px] w-full">
                   {cropPerformanceData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={220}>
@@ -1360,8 +1373,8 @@ export default function FarmerDashboard() {
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center py-10">
                       <Package size={28} className="text-gray-200 mb-3" />
-                      <p className="text-xs font-bold text-gray-400">No crop performance data</p>
-                      <p className="text-[10px] text-gray-300 mt-1 max-w-xs">Add crop listings to see views and sales metrics here.</p>
+                      <p className="text-xs font-bold text-gray-400">{t('farmerDashboard.noCropPerformanceData')}</p>
+                      <p className="text-[10px] text-gray-300 mt-1 max-w-xs">{t('farmerDashboard.addCropListingsDesc')}</p>
                     </div>
                   )}
                 </div>
@@ -1369,17 +1382,17 @@ export default function FarmerDashboard() {
 
               {/* Customer Ratings Distribution — empty state until backend provides review data */}
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Customer Ratings Distribution</h3>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{t('farmerDashboard.customerRatingsDistribution')}</h3>
                 <div className="h-[220px] w-full flex flex-col items-center justify-center text-center">
                   <Star size={28} className="text-gray-200 mb-3" />
-                  <p className="text-xs font-bold text-gray-400">No ratings data available</p>
-                  <p className="text-[10px] text-gray-300 mt-1 max-w-xs">Customer ratings will appear here once buyers submit reviews on delivered orders.</p>
+                  <p className="text-xs font-bold text-gray-400">{t('farmerDashboard.noRatings')}</p>
+                  <p className="text-[10px] text-gray-300 mt-1 max-w-xs">{t('farmerDashboard.customerRatingsDesc')}</p>
                 </div>
               </div>
 
               {/* Demand Trend Tracker */}
               <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Demand Trend Tracker</h3>
+                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{t('farmerDashboard.demandTrendTracker')}</h3>
                 <div className="h-[220px] w-full">
                   {revenueChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={180}>
@@ -1393,8 +1406,8 @@ export default function FarmerDashboard() {
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center py-10">
                       <BarChart3 size={28} className="text-gray-200 mb-3" />
-                      <p className="text-xs font-bold text-gray-400">No demand data yet</p>
-                      <p className="text-[10px] text-gray-300 mt-1 max-w-xs">Order volume trends will populate here as sales activity grows.</p>
+                      <p className="text-xs font-bold text-gray-400">{t('farmerDashboard.noDemandData')}</p>
+                      <p className="text-[10px] text-gray-300 mt-1 max-w-xs">{t('farmerDashboard.orderVolumeTrendsDesc')}</p>
                     </div>
                   )}
                 </div>
@@ -1431,13 +1444,13 @@ export default function FarmerDashboard() {
         {activeTab === 'settings' && (
           <div className="bg-white rounded-[24px] border border-[#e5e7d0] p-6 shadow-sm space-y-6">
             <div>
-              <h2 className="text-2xl font-black text-[#166534]">Portal Settings</h2>
-              <p className="text-xs text-gray-500 font-semibold mt-1">Configure language preference, location defaults, and notifications.</p>
+              <h2 className="text-2xl font-black text-[#166534]">{t('farmerDashboard.portalSettings')}</h2>
+              <p className="text-xs text-gray-500 font-semibold mt-1">{t('farmerDashboard.portalSettingsDesc')}</p>
             </div>
 
             <div className="space-y-4 max-w-md">
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Language Preferences</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{t('farmerDashboard.languagePreferences')}</label>
                 <div className="flex gap-2">
                   <button className="flex-1 py-2.5 border rounded-xl text-xs font-black uppercase tracking-wider bg-[#FFFDF5] border-[#166534] text-[#166534]">English</button>
                   <button className="flex-1 py-2.5 border rounded-xl text-xs font-black uppercase tracking-wider bg-white border-gray-200 text-gray-500">ಕನ್ನಡ (Kannada)</button>
@@ -1446,10 +1459,10 @@ export default function FarmerDashboard() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">SMS Notification Alerts</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{t('farmerDashboard.smsNotificationAlerts')}</label>
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-bold text-gray-700">
                   <CheckSquare size={16} className="text-[#166534]" />
-                  <span>Receive SMS notifications for new buyer order requests</span>
+                  <span>{t('farmerDashboard.receiveSmsNotifications')}</span>
                 </div>
               </div>
             </div>
@@ -1484,7 +1497,7 @@ export default function FarmerDashboard() {
                 <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center shrink-0">
                   <Check size={18} />
                 </div>
-                <span className="text-sm font-black text-emerald-800">Profile updated successfully!</span>
+                <span className="text-sm font-black text-emerald-800">{t('farmerDashboard.profileUpdated')}</span>
               </div>
             )}
 
@@ -1514,7 +1527,7 @@ export default function FarmerDashboard() {
                   {/* Change Cover Floating Pill */}
                   <label className="flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white/90 hover:bg-white text-gray-800 text-xs font-bold rounded-full border border-white/60 shadow-md backdrop-blur-md cursor-pointer transition-all hover:scale-105 active:scale-95">
                     <Camera size={14} className="text-[#166534]" />
-                    <span>{editForm.coverPreview || user?.coverImage ? 'Change Cover' : 'Upload Cover'}</span>
+                    <span>{editForm.coverPreview || user?.coverImage ? t('farmerDashboard.changeCover') : t('farmerDashboard.uploadCover')}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1539,7 +1552,7 @@ export default function FarmerDashboard() {
                             setSaveSuccess(true);
                             setTimeout(() => setSaveSuccess(false), 3000);
                           } catch (err) {
-                            alert(err.message || 'Failed to update cover image.');
+                            setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Upload Failed', message: err.message || 'Failed to update cover image.', confirmText: 'OK', onConfirm: null });
                           }
                         }
                       }}
@@ -1567,12 +1580,12 @@ export default function FarmerDashboard() {
                         {uploadingAvatar ? (
                           <div className="flex flex-col items-center justify-center">
                             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mb-1" />
-                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300">Saving...</span>
+                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300">{t('farmerDashboard.saving')}</span>
                           </div>
                         ) : (
                           <>
                             <Camera size={20} className="text-emerald-400 mb-0.5" />
-                            <span className="text-[9px] font-black uppercase tracking-wider">Change Pic</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider">{t('farmerDashboard.changePic')}</span>
                           </>
                         )}
                         <input
@@ -1601,7 +1614,7 @@ export default function FarmerDashboard() {
                                 setSaveSuccess(true);
                                 setTimeout(() => setSaveSuccess(false), 4000);
                               } catch (err) {
-                                alert(err.message || 'Failed to update profile picture.');
+                                setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Upload Failed', message: err.message || 'Failed to update profile picture.', confirmText: 'OK', onConfirm: null });
                               } finally {
                                 setUploadingAvatar(false);
                               }
@@ -1624,7 +1637,7 @@ export default function FarmerDashboard() {
                         {formatDisplayName(user?.name) || user?.name || 'Farmer'}
                       </h2>
                       <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
-                        <Check size={11} className="text-emerald-600 stroke-[3]" /> Verified Farmer
+                        <Check size={11} className="text-emerald-600 stroke-[3]" /> {t('farmerDashboard.verifiedFarmer')}
                       </span>
                     </div>
 
@@ -1636,7 +1649,7 @@ export default function FarmerDashboard() {
                     {/* Metadata tags */}
                     <div className="flex items-center gap-3 pt-1 flex-wrap text-xs font-semibold text-gray-500">
                       <span className="flex items-center gap-1.5 text-gray-600">
-                        🌾 <span className="font-bold text-gray-700">Primary:</span> {user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || 'Organic Crops'}
+                        🌾 <span className="font-bold text-gray-700">{t('farmerDashboard.primaryLabel')}</span> {user?.farmerProfile?.primaryCrops?.join(', ') || user?.primaryCrops || 'Organic Crops'}
                       </span>
                       <span className="text-gray-300">•</span>
                       <span className="flex items-center gap-1 text-gray-600">
@@ -1657,15 +1670,15 @@ export default function FarmerDashboard() {
 
                   {/* Badges / Tools row like in reference */}
                   <div className="flex items-center gap-2 self-start md:self-end">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Accredited</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">{t('farmerDashboard.accredited')}</span>
                     <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
-                      🌱 Organic
+                      🌱 {t('farmerDashboard.organic')}
                     </span>
                     <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
-                      📦 Bulk Seller
+                      📦 {t('farmerDashboard.bulkSeller')}
                     </span>
                     <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
-                      🏛 APMC
+                      🏛 {t('farmerDashboard.apmc')}
                     </span>
                   </div>
                 </div>
@@ -1698,7 +1711,7 @@ export default function FarmerDashboard() {
                             <Star size={14} className="fill-amber-400 text-amber-400" />
                             <span className="text-base sm:text-lg font-black text-gray-900">{calculatedRating}</span>
                           </div>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rating</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('farmerDashboard.rating')}</span>
                         </div>
 
                         <div className="h-7 w-px bg-gray-200" />
@@ -1707,7 +1720,7 @@ export default function FarmerDashboard() {
                           <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
                             {myListings?.length || 0}
                           </span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Listings</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('farmerDashboard.listingsLabel')}</span>
                         </div>
 
                         <div className="h-7 w-px bg-gray-200" />
@@ -1716,7 +1729,7 @@ export default function FarmerDashboard() {
                           <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
                             {calculatedExperience}
                           </span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Experience</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('farmerDashboard.experience')}</span>
                         </div>
 
                         <div className="h-7 w-px bg-gray-200 hidden sm:block" />
@@ -1725,7 +1738,7 @@ export default function FarmerDashboard() {
                           <span className="text-base sm:text-lg font-black text-[#166534] block leading-tight">
                             {sellerOrders?.filter(o => ['delivered', 'received'].includes(o.status))?.length || 0}
                           </span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('farmerDashboard.completedLabel')}</span>
                         </div>
                       </div>
 
@@ -1749,7 +1762,7 @@ export default function FarmerDashboard() {
                           }}
                           className="px-6 py-2.5 sm:px-7 sm:py-3 bg-[#111827] hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-full transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 self-start sm:self-auto"
                         >
-                          <Edit size={14} /> Edit Profile
+                          <Edit size={14} /> {t('farmerDashboard.editProfile')}
                         </button>
                       )}
                     </div>
@@ -1777,10 +1790,10 @@ export default function FarmerDashboard() {
 
                     {/* Personal Info Section */}
                     <div className="space-y-2">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Personal Information</h4>
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('farmerDashboard.personalInfo')}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-black text-gray-600">Full Name</label>
+                          <label className="block text-xs font-black text-gray-600">{t('farmerDashboard.name')}</label>
                           <input
                             type="text"
                             value={editForm.name || ''}
@@ -1790,7 +1803,7 @@ export default function FarmerDashboard() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-black text-gray-600">Phone Number</label>
+                          <label className="block text-xs font-black text-gray-600">{t('farmerDashboard.phone')}</label>
                           <input
                             type="tel"
                             value={editForm.phone || ''}
@@ -1800,7 +1813,7 @@ export default function FarmerDashboard() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-black text-gray-600">Email Address</label>
+                          <label className="block text-xs font-black text-gray-600">{t('farmerDashboard.email')}</label>
                           <input
                             type="email"
                             value={editForm.email || ''}
@@ -1825,7 +1838,7 @@ export default function FarmerDashboard() {
 
                     {/* Location Section */}
                     <div className="space-y-2">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</h4>
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('farmerDashboard.location')}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <label className="block text-xs font-black text-gray-600">District</label>
@@ -1852,10 +1865,10 @@ export default function FarmerDashboard() {
 
                     {/* Farm Details Section */}
                     <div className="space-y-2">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Farm Details</h4>
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t('farmerDashboard.farmDetails')}</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-black text-gray-600">Farm Size (acres)</label>
+                          <label className="block text-xs font-black text-gray-600">{t('farmerDashboard.farmSize')}</label>
                           <input
                             type="text"
                             value={editForm.farmSize || ''}
@@ -1865,7 +1878,7 @@ export default function FarmerDashboard() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="block text-xs font-black text-gray-600">Primary Crops (comma-separated)</label>
+                          <label className="block text-xs font-black text-gray-600">{t('farmerDashboard.primaryCrops')}</label>
                           <input
                             type="text"
                             value={editForm.primaryCrops || ''}
@@ -1913,7 +1926,7 @@ export default function FarmerDashboard() {
                             setIsEditing(false);
                             setTimeout(() => setSaveSuccess(false), 4000);
                           } catch (err) {
-                            alert(err.message || 'Failed to save profile. Please try again.');
+                            setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Save Failed', message: err.message || 'Failed to save profile. Please try again.', confirmText: 'OK', onConfirm: null });
                           } finally {
                             setSaving(false);
                           }
@@ -1931,7 +1944,7 @@ export default function FarmerDashboard() {
                         onClick={() => setIsEditing(false)}
                         className="px-8 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl text-xs font-black tracking-widest uppercase transition-all cursor-pointer border-2 border-gray-200"
                       >
-                        Cancel
+                        {t('farmerDashboard.cancel')}
                       </button>
                     </div>
                   </div>
@@ -2218,5 +2231,6 @@ export default function FarmerDashboard() {
         />
       )}
     </DashboardLayout>
+
   );
 }

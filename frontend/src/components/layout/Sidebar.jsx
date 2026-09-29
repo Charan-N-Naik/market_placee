@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Package, Plus, ShoppingCart, Warehouse, BarChart3,
   Bot, ScanEye, CloudSun, TrendingUp, Landmark,
   Bell, User, Settings,
-  Leaf, BookmarkCheck, Bookmark, ShoppingBag, Heart
+  Leaf, BookmarkCheck, Bookmark, ShoppingBag, Heart, Sprout
 } from 'lucide-react';
 
 // Format raw DB username into clean display name (e.g. former1 -> Former 1)
@@ -174,15 +174,9 @@ export default function Sidebar({
                 width: 38, height: 38, borderRadius: 10,
                 background: 'var(--color-primary-light, #E8F7EE)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '1px solid rgba(31,122,77,0.15)'
               }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* Basket base in Orange */}
-                  <path d="M4 10h16l-1.5 8.5c-.2 1.1-1.1 1.5-2.2 1.5H7.7c-1.1 0-2-.4-2.2-1.5L4 10z" fill="#FF8C42" stroke="#FF8C42" strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M9 10v6M15 10v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                  {/* Leaves growing up from basket in Green */}
-                  <path d="M12 3c-1.5 2-2 4.5-2 6.5h4c0-2-.5-4.5-2-6.5z" fill="#1F7A4D" />
-                  <path d="M12 3c1.5 1.5 3 3 3 5h-3V3z" fill="#22C55E" />
-                </svg>
+                <Sprout size={22} style={{ color: 'var(--color-primary, #1F7A4D)' }} />
               </div>
               <div>
                 <h1 style={{
@@ -206,25 +200,32 @@ export default function Sidebar({
           </div>
 
           {/* User Profile Card */}
-          <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border-subtle)', boxShadow: 'inset 0 0 6px rgba(0,0,0,0.2)' }}>
             <div style={{
               background: 'var(--color-primary-light, #E8F7EE)', borderRadius: 14, padding: '0.75rem 0.875rem',
               display: 'flex', alignItems: 'center', gap: '0.75rem'
             }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'var(--color-primary, #1F7A4D)', color: 'white',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
-                flexShrink: 0, border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-              }}>
+              <div 
+                onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
+                title={t('navbar.viewProfile', 'View Profile')}
+                style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'var(--color-primary, #1F7A4D)', color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
+                  flexShrink: 0, border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  cursor: 'pointer', transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(31,122,77,0.3)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; }}
+              >
                 {user?.avatar ? (
                   <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (user?.name?.charAt(0)?.toUpperCase() || 'U')}
               </div>
               <div style={{ minWidth: 0 }}>
                 <p style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
-                <p style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-primary)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#a3e635', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   📍 {typeof user?.location === 'object'
                     ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
                     : (user?.location || 'Karnataka')}
@@ -251,14 +252,14 @@ export default function Sidebar({
                     fontWeight: isActive ? 800 : 600, fontSize: '0.85rem',
                     transition: 'all 0.2s ease', position: 'relative'
                   }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--border-subtle, #E8F7EE)'; }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(34,197,94,0.2)'; e.currentTarget.style.color = '#fff'; } }}
+                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3bfa8'; } }}
                 >
                   {isActive && <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 4, background: 'var(--color-primary, #1F7A4D)' }} />}
                   {Icon && <Icon size={18} style={{ color: isActive ? 'var(--color-primary, #1F7A4D)' : 'var(--text-muted, #78716c)', flexShrink: 0 }} />}
                   <span style={{ flex: 1 }}>{item.label}</span>
                   {item.badge && (
-                    <span style={{ fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', background: isActive ? 'var(--color-primary, #1F7A4D)' : 'var(--color-primary-light, #E8F7EE)', color: isActive ? 'white' : 'var(--color-primary, #1F7A4D)' }}>{item.badge}</span>
+                    <span style={{ fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', background: 'linear-gradient(to right, #7c3aed, #3b82f6)', color: '#fff', boxShadow: '0 0 4px rgba(124,58,237,0.5)' }}>{item.badge}</span>
                   )}
                   {((item.count > 0) || (item.id === 'notifications' && unreadCount > 0)) && (
                     <span style={{
@@ -278,9 +279,11 @@ export default function Sidebar({
 
           {/* Footer Controls */}
           <div style={{ padding: '0.875rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <LanguageToggle className="w-full justify-center" />
+            <div style={{ background: '#1F7A4D', borderRadius: '9999px', border: '1px solid #2d6a4f', padding: '0.25rem 0.5rem', display: 'flex', justifyContent: 'center', transition: 'background 0.2s' }}>
+  <LanguageToggle className="w-full justify-center" />
+</div>
             <button id="btn-logout" onClick={onLogout}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.65rem', background: 'none', border: '1.5px solid #fee2e2', borderRadius: 12, color: '#ef4444', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s ease' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.65rem', background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '9999px', color: '#ef4444', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s ease' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
             >
@@ -292,11 +295,11 @@ export default function Sidebar({
     );
   }
 
-  // ====== FARMER DARK GREEN SIDEBAR ======
+  // ====== FARMER LIGHT GREEN SIDEBAR ======
   return (
     <>
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setSidebarOpen(false)} />
       )}
 
@@ -309,14 +312,14 @@ export default function Sidebar({
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           ${collapsed ? 'w-[72px]' : 'w-[272px]'}`}
         style={{
-          background: 'var(--sidebar-bg, linear-gradient(180deg, #14532d, #166534, #15803d))',
-          boxShadow: '4px 0 30px rgba(0,0,0,0.15)',
+          background: 'linear-gradient(to bottom, #e8f5e9, #dcedc8)',
+          boxShadow: '4px 0 24px rgba(0,0,0,0.06)',
         }}
       >
         {/* Logo Header */}
         <div style={{
           padding: collapsed ? '1.25rem 0.75rem' : '1.25rem 1.5rem',
-          borderBottom: '1px solid var(--sidebar-divider)',
+          borderBottom: '1px solid rgba(21,128,61,0.12)',
           display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
           minHeight: 68,
         }}>
@@ -324,28 +327,21 @@ export default function Sidebar({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{
                 width: 38, height: 38, borderRadius: 10,
-                background: 'rgba(34,197,94,0.2)',
+                background: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1px solid rgba(34,197,94,0.3)'
+                border: '1px solid rgba(21,128,61,0.15)'
               }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* Basket base in Orange */}
-                  <path d="M4 10h16l-1.5 8.5c-.2 1.1-1.1 1.5-2.2 1.5H7.7c-1.1 0-2-.4-2.2-1.5L4 10z" fill="#FF8C42" stroke="#FF8C42" strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M9 10v6M15 10v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                  {/* Leaves growing up from basket in Green */}
-                  <path d="M12 3c-1.5 2-2 4.5-2 6.5h4c0-2-.5-4.5-2-6.5z" fill="#1F7A4D" />
-                  <path d="M12 3c1.5 1.5 3 3 3 5h-3V3z" fill="#22C55E" />
-                </svg>
+                <Sprout size={22} style={{ color: '#2e7d32' }} />
               </div>
               <div>
                 <h1 style={{
-                  fontWeight: 900, fontSize: '1.2rem', color: '#fff',
+                  fontWeight: 900, fontSize: '1.2rem', color: '#1b5e20',
                   margin: 0, lineHeight: 1, letterSpacing: '-0.02em'
                 }}>
-                  Kisan<span style={{ color: '#22C55E' }}>Bazaar</span>
+                  Kisan<span style={{ color: '#2e7d32' }}>Bazaar</span>
                 </h1>
                 <p style={{
-                  fontSize: '0.55rem', fontWeight: 700, color: 'rgba(132,204,22,0.8)',
+                  fontSize: '0.55rem', fontWeight: 700, color: '#558b2f',
                   textTransform: 'uppercase', letterSpacing: '0.15em', margin: '3px 0 0'
                 }}>{t('sidebar.farmerPortal')}</p>
               </div>
@@ -354,29 +350,22 @@ export default function Sidebar({
           {collapsed && (
             <div style={{
               width: 38, height: 38, borderRadius: 10,
-              background: 'rgba(34,197,94,0.2)',
+              background: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid rgba(34,197,94,0.3)'
+              border: '1px solid rgba(21,128,61,0.15)'
             }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Basket base in Orange */}
-                <path d="M4 10h16l-1.5 8.5c-.2 1.1-1.1 1.5-2.2 1.5H7.7c-1.1 0-2-.4-2.2-1.5L4 10z" fill="#FF8C42" stroke="#FF8C42" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M9 10v6M15 10v6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                {/* Leaves growing up from basket in Green */}
-                <path d="M12 3c-1.5 2-2 4.5-2 6.5h4c0-2-.5-4.5-2-6.5z" fill="#1F7A4D" />
-                <path d="M12 3c1.5 1.5 3 3 3 5h-3V3z" fill="#22C55E" />
-              </svg>
+              <Sprout size={22} style={{ color: '#2e7d32' }} />
             </div>
           )}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button onClick={() => setSidebarOpen(false)} className="md:hidden"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b8e6b' }}>
               <X size={18} />
             </button>
             <button onClick={() => setCollapsed(!collapsed)} className="hidden md:flex"
               style={{
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                cursor: 'pointer', color: 'rgba(255,255,255,0.5)',
+                background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(21,128,61,0.12)',
+                cursor: 'pointer', color: '#4a7c59',
                 borderRadius: 8, padding: '0.35rem', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
               }}>
@@ -387,27 +376,35 @@ export default function Sidebar({
 
         {/* User Card */}
         {!collapsed && (
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--sidebar-divider)' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(21,128,61,0.12)' }}>
             <div style={{
-              background: 'rgba(255,255,255,0.06)', borderRadius: 14, padding: '0.875rem 1rem',
+              background: 'rgba(255,255,255,0.7)', borderRadius: 14, padding: '0.875rem 1rem',
               display: 'flex', alignItems: 'center', gap: '0.75rem',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid rgba(21,128,61,0.1)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
             }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #22C55E, #16a34a)', color: 'white',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
-                flexShrink: 0, border: '2px solid rgba(255,255,255,0.2)',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
-              }}>
+              <div 
+                onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
+                title={t('navbar.viewProfile', 'View Profile')}
+                style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #22C55E, #16a34a)', color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
+                  flexShrink: 0, border: '2px solid #fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  cursor: 'pointer', transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.4)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; }}
+              >
                 {user?.avatar ? (
                   <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (user?.name?.charAt(0)?.toUpperCase() || 'F')}
               </div>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'Farmer'}</p>
-                <p style={{ fontSize: '0.65rem', fontWeight: 600, color: 'rgba(132,204,22,0.8)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1b5e20', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'Farmer'}</p>
+                <p style={{ fontSize: '0.65rem', fontWeight: 600, color: '#558b2f', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   📍 {typeof user?.location === 'object'
                     ? `${user?.location?.district || user?.location?.address || 'India'}, ${user?.location?.state || 'KA'}`
                     : (user?.location || 'India')}
@@ -426,14 +423,14 @@ export default function Sidebar({
             <div key={section.label}>
               {!collapsed && (
                 <p style={{
-                  fontSize: '0.6rem', fontWeight: 800, color: 'var(--sidebar-section-label)',
-                  textTransform: 'uppercase', letterSpacing: '0.14em',
+                  fontSize: '0.55rem', fontWeight: 800, color: '#4a7c59',
+                  textTransform: 'uppercase', letterSpacing: '0.2em',
                   padding: si === 0 ? '0.5rem 0.875rem 0.4rem' : '1rem 0.875rem 0.4rem',
                   margin: 0,
                 }}>{section.label}</p>
               )}
               {collapsed && si > 0 && (
-                <div style={{ height: 1, background: 'var(--sidebar-divider)', margin: '0.5rem 0.25rem' }} />
+                <div style={{ height: 1, background: 'rgba(21,128,61,0.1)', margin: '0.5rem 0.25rem' }} />
               )}
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -447,17 +444,18 @@ export default function Sidebar({
                       gap: collapsed ? 0 : '0.75rem',
                       justifyContent: collapsed ? 'center' : 'flex-start',
                       padding: collapsed ? '0.75rem' : '0.7rem 0.875rem',
-                      borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'left',
-                      background: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
-                      color: isActive ? 'var(--sidebar-text-active)' : 'var(--sidebar-text)',
-                      fontWeight: isActive ? 700 : 500, fontSize: '0.85rem',
+                      borderRadius: 10, border: 'none', cursor: 'pointer', textAlign: 'left',
+                      background: isActive ? 'rgba(255,255,255,0.85)' : 'transparent',
+                      color: isActive ? '#1b5e20' : '#2e5a3a',
+                      fontWeight: isActive ? 800 : 600, fontSize: '0.85rem',
+                      boxShadow: isActive ? '0 2px 12px rgba(34,197,94,0.35), 0 0 0 1px rgba(255,255,255,0.5)' : 'none',
                       transition: 'all 0.2s ease', position: 'relative', margin: '1px 0',
                     }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.45)'; e.currentTarget.style.color = '#1b5e20'; } }}
+                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#2e5a3a'; } }}
                   >
-                    {isActive && <div style={{ position: 'absolute', left: 0, top: '22%', bottom: '22%', width: 3, borderRadius: 4, background: '#22C55E' }} />}
-                    <Icon size={18} style={{ color: isActive ? '#22C55E' : 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
+                    {isActive && <div style={{ position: 'absolute', left: 0, top: '18%', bottom: '18%', width: 4, borderRadius: 99, background: '#1b5e20', boxShadow: '0 0 8px rgba(27,94,32,0.5)' }} />}
+                    <Icon size={18} style={{ color: isActive ? '#1b5e20' : '#4a7c59', flexShrink: 0 }} />
                     {!collapsed && (
                       <>
                         <span style={{ flex: 1 }}>{item.label}</span>
@@ -465,8 +463,9 @@ export default function Sidebar({
                           <span style={{
                             fontSize: '0.55rem', padding: '0.1rem 0.45rem', borderRadius: 99,
                             fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
-                            background: isActive ? 'rgba(34,197,94,0.3)' : 'rgba(99,102,241,0.2)',
-                            color: isActive ? '#22C55E' : '#a78bfa',
+                            background: 'linear-gradient(to right, #7c3aed, #3b82f6)',
+                            color: '#fff',
+                            boxShadow: '0 0 6px rgba(124,58,237,0.5)',
                           }}>{item.badge}</span>
                         )}
                         {item.count > 0 && (
@@ -476,13 +475,13 @@ export default function Sidebar({
                             borderRadius: 99, fontWeight: 800, background: '#ef4444', color: '#fff',
                           }}>{item.count > 99 ? '99+' : item.count}</span>
                         )}
-                        {isActive && <ChevronRight size={14} style={{ color: '#22C55E', flexShrink: 0 }} />}
+                        {isActive && <ChevronRight size={14} style={{ color: '#2e7d32', flexShrink: 0 }} />}
                       </>
                     )}
                     {collapsed && item.count > 0 && (
                       <div style={{
                         position: 'absolute', top: 6, right: 6, width: 8, height: 8,
-                        borderRadius: '50%', background: '#ef4444', border: '2px solid #0F3D2E',
+                        borderRadius: '50%', background: '#ef4444', border: '2px solid #a5d6a7',
                       }} />
                     )}
                   </button>
@@ -495,21 +494,25 @@ export default function Sidebar({
         {/* Footer */}
         <div style={{
           padding: collapsed ? '0.75rem' : '1rem 1.25rem',
-          borderTop: '1px solid var(--sidebar-divider)',
+          borderTop: '1px solid rgba(21,128,61,0.12)',
           display: 'flex', flexDirection: 'column', gap: '0.5rem',
         }}>
-          {!collapsed && <LanguageToggle className="w-full justify-center" />}
+          {!collapsed && (
+            <div style={{ background: '#fff', borderRadius: 99, border: '1px solid rgba(21,128,61,0.12)', padding: '0.25rem 0.5rem', display: 'flex', justifyContent: 'center', transition: 'background 0.2s' }}>
+              <LanguageToggle className="w-full justify-center" />
+            </div>
+          )}
           <button id="btn-logout" onClick={onLogout} title={collapsed ? 'Logout' : undefined}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: collapsed ? 0 : '0.5rem', padding: '0.7rem',
-              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: 12, color: '#fca5a5', fontWeight: 800,
+              background: '#fff0f0', border: '1px solid #fecaca',
+              borderRadius: 99, color: '#dc2626', fontWeight: 800,
               fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase',
               cursor: 'pointer', transition: 'all 0.2s ease',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff0f0'; }}
           >
             <LogOut size={15} />{!collapsed && t('common.logout')}
           </button>
