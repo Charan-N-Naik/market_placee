@@ -65,19 +65,9 @@ export const ROLE_TOGGLE_THEMES = {
 
 export default function LanguageToggle({ role: propRole, className = '' }) {
   const { i18n } = useTranslation();
-
-  // Safely resolve auth context
-  let authUser = null;
-  try {
-    const auth = useAuth?.();
-    authUser = auth?.user || null;
-  } catch (_) {}
-
-  // Safely resolve location
-  let location = null;
-  try {
-    location = useLocation?.();
-  } catch (_) {}
+  const auth = useAuth();
+  const authUser = auth?.user || null;
+  const location = useLocation();
 
   // Determine effective role:
   // 1. Explicit prop passed in
