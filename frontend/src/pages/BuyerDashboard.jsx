@@ -83,6 +83,21 @@ export default function BuyerDashboard() {
     }
   }, [searchParams, location.state]);
 
+  useEffect(() => {
+    const handleAppNavigate = (e) => {
+      const path = e.detail || '';
+      if (path.includes('tab=')) {
+        const targetTab = new URLSearchParams(path.split('?')[1]).get('tab');
+        if (targetTab) setActiveTab(targetTab);
+      } else if (path.includes('/buyer/dashboard')) {
+        setActiveTab('dashboard');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('app:navigate', handleAppNavigate);
+    return () => window.removeEventListener('app:navigate', handleAppNavigate);
+  }, []);
+
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -406,7 +421,6 @@ export default function BuyerDashboard() {
     { id: 'orders', icon: ShoppingCart, label: t('sidebar.orders'), external: '/buyer/pending-orders' },
     { id: 'wishlist', icon: Heart, label: t('sidebar.wishlist') },
     { id: 'cart', icon: ShoppingCart, label: `${t('sidebar.cart')}${cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}`, external: '/cart' },
-    { id: 'assistant', icon: Bot, label: t('sidebar.aiAssistant'), badge: 'AI' },
     { id: 'analyzer', icon: Eye, label: t('sidebar.cropVerification'), badge: 'AI' },
     { id: 'weather', icon: CloudSun, label: t('sidebar.weather'), external: '/weather' },
     { id: 'market', icon: TrendingUp, label: t('sidebar.marketPrices'), external: '/market-prices' },

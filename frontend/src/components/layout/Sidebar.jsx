@@ -122,7 +122,6 @@ export default function Sidebar({
     {
       label: t('sidebar.aiTools'),
       items: [
-        { id: 'assistant', icon: Bot, label: t('sidebar.aiAssistant'), badge: 'AI' },
         { id: 'analyzer', icon: ScanEye, label: t('sidebar.cropVerification'), badge: 'AI' },
         { id: 'weather', icon: CloudSun, label: t('sidebar.weather'), external: '/weather' },
         { id: 'market', icon: TrendingUp, label: t('sidebar.marketPrices'), external: '/market-prices' },
@@ -147,8 +146,22 @@ export default function Sidebar({
     setSidebarOpen(false);
   };
 
-  // Non-farmer: previous clean buyer sidebar layout
+  // Non-farmer: buyer (orange) or delivery agent (teal) sidebar
   if (!isFarmer) {
+    const isDeliveryAgent = role === 'delivery_agent' || role === 'delivery';
+    // Teal palette for delivery agent, orange palette for buyer
+    const accent     = isDeliveryAgent ? '#0D9488' : '#EA580C';
+    const accentLight= isDeliveryAgent ? '#F0FDFA' : '#FFF7ED';
+    const accentBorder= isDeliveryAgent ? '#99F6E4' : '#FED7AA';
+    const accentShadow= isDeliveryAgent ? 'rgba(13,148,136,0.08)' : 'rgba(234,88,12,0.08)';
+    const gradStart  = isDeliveryAgent ? '#F0FDFA' : '#FFF7ED';
+    const gradEnd    = isDeliveryAgent ? '#CCFBF1' : '#FFEDD5';
+    const activeGrad = isDeliveryAgent
+      ? 'linear-gradient(to bottom, #0D9488, #0F766E)'
+      : 'linear-gradient(to bottom, #F97316, #EA580C)';
+    const badgeGrad  = isDeliveryAgent
+      ? 'linear-gradient(to right, #0D9488, #0891B2)'
+      : 'linear-gradient(to right, #EA580C, #F59E0B)';
     return (
       <>
         {sidebarOpen && (
@@ -171,7 +184,7 @@ export default function Sidebar({
           {/* Logo Header */}
           <div style={{
             padding: collapsed ? '1.25rem 0.75rem' : '1.25rem 1.25rem 1rem',
-            borderBottom: '1px solid #FED7AA40',
+            borderBottom: `1px solid ${accentBorder}40`,
             display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
             minHeight: 68
           }}>
@@ -179,37 +192,37 @@ export default function Sidebar({
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div style={{
                   width: 38, height: 38, borderRadius: 12,
-                  background: '#FFF7ED',
+                  background: accentLight,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1.5px solid #FED7AA',
-                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.08)'
+                  border: `1.5px solid ${accentBorder}`,
+                  boxShadow: `0 2px 6px ${accentShadow}`
                 }}>
-                  <Sprout size={22} style={{ color: '#EA580C' }} />
+                  <Sprout size={22} style={{ color: accent }} />
                 </div>
                 <div>
                   <h1 style={{
                     fontWeight: 900, fontSize: '1.2rem', color: '#1c1917',
                     margin: 0, lineHeight: 1, letterSpacing: '-0.03em'
                   }}>
-                    Kisan<span style={{ color: '#EA580C' }}>Bazaar</span>
+                    Kisan<span style={{ color: accent }}>Bazaar</span>
                   </h1>
                   <p style={{
-                    fontSize: '0.58rem', fontWeight: 800, color: '#EA580C',
+                    fontSize: '0.58rem', fontWeight: 800, color: accent,
                     textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
                   }}>
-                    🚚 {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : `🛒 ${t('sidebar.buyerHub', 'Buyer Hub')}`}
+                    {isDeliveryAgent ? `🚚 ${t('sidebar.deliveryAgentHub', 'Delivery Agent Hub')}` : `🛒 ${t('sidebar.buyerHub', 'Buyer Hub')}`}
                   </p>
                 </div>
               </div>
             ) : (
               <div style={{
                 width: 38, height: 38, borderRadius: 12,
-                background: '#FFF7ED',
+                background: accentLight,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1.5px solid #FED7AA',
-                boxShadow: '0 2px 6px rgba(234, 88, 12, 0.08)'
+                border: `1.5px solid ${accentBorder}`,
+                boxShadow: `0 2px 6px ${accentShadow}`
               }}>
-                <Sprout size={22} style={{ color: '#EA580C' }} />
+                <Sprout size={22} style={{ color: accent }} />
               </div>
             )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -219,8 +232,8 @@ export default function Sidebar({
               </button>
               <button onClick={() => setCollapsed(!collapsed)} className="hidden md:flex"
                 style={{
-                  background: '#FFF7ED', border: '1px solid #FED7AA',
-                  cursor: 'pointer', color: '#EA580C',
+                  background: accentLight, border: `1px solid ${accentBorder}`,
+                  cursor: 'pointer', color: accent,
                   borderRadius: 8, padding: '0.35rem', display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -231,38 +244,38 @@ export default function Sidebar({
 
           {/* User Profile Card */}
           {!collapsed && (
-            <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid #FED7AA33' }}>
+            <div style={{ padding: '0.875rem 1rem', borderBottom: `1px solid ${accentBorder}33` }}>
               <div style={{
-                background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+                background: `linear-gradient(135deg, ${gradStart} 0%, ${gradEnd} 100%)`,
                 borderRadius: 16, padding: '0.75rem 0.875rem',
-                border: '1.5px solid #FED7AA',
+                border: `1.5px solid ${accentBorder}`,
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
-                boxShadow: '0 2px 8px rgba(234, 88, 12, 0.06)'
+                boxShadow: `0 2px 8px ${accentShadow}`
               }}>
                 <div 
                   onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
                   title={t('navbar.viewProfile', 'View Profile')}
                   style={{
                     width: 42, height: 42, borderRadius: 14,
-                    background: '#FFF7ED', color: '#EA580C',
+                    background: accentLight, color: accent,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
-                    flexShrink: 0, border: '1.5px solid #FDBA74',
-                    boxShadow: '0 2px 6px rgba(234, 88, 12, 0.12)',
+                    flexShrink: 0, border: `1.5px solid ${accentBorder}`,
+                    boxShadow: `0 2px 6px ${accentShadow}`,
                     cursor: 'pointer', transition: 'all 0.2s ease',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.borderColor = '#EA580C'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = '#FDBA74'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.borderColor = accent; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = accentBorder; }}
                 >
                   {user?.avatar ? (
                     <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <User size={22} style={{ color: '#EA580C' }} />
+                    <User size={22} style={{ color: accent }} />
                   )}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1c1917', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
-                  <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EA580C', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <p style={{ fontSize: '0.65rem', fontWeight: 700, color: accent, margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     📍 {typeof user?.location === 'object'
                       ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
                       : (user?.location || 'Karnataka')}
@@ -287,19 +300,19 @@ export default function Sidebar({
                     gap: collapsed ? 0 : '0.75rem',
                     justifyContent: collapsed ? 'center' : 'flex-start',
                     padding: collapsed ? '0.75rem' : '0.75rem 0.875rem', borderRadius: 14,
-                    border: isActive ? '1.5px solid #FED7AA' : '1.5px solid transparent',
+                    border: isActive ? `1.5px solid ${accentBorder}` : '1.5px solid transparent',
                     cursor: 'pointer', textAlign: 'left',
-                    background: isActive ? '#FFF7ED' : 'transparent',
-                    color: isActive ? '#EA580C' : '#44403c',
+                    background: isActive ? accentLight : 'transparent',
+                    color: isActive ? accent : '#44403c',
                     fontWeight: isActive ? 800 : 600, fontSize: '0.85rem',
-                    boxShadow: isActive ? '0 2px 8px rgba(234, 88, 12, 0.08)' : 'none',
+                    boxShadow: isActive ? `0 2px 8px ${accentShadow}` : 'none',
                     transition: 'all 0.2s ease', position: 'relative'
                   }}
                   onMouseEnter={e => {
                     if (!isActive) {
-                      e.currentTarget.style.background = '#FFF7ED80';
-                      e.currentTarget.style.color = '#EA580C';
-                      e.currentTarget.style.borderColor = '#FED7AA40';
+                      e.currentTarget.style.background = `${accentLight}80`;
+                      e.currentTarget.style.color = accent;
+                      e.currentTarget.style.borderColor = `${accentBorder}40`;
                     }
                   }}
                   onMouseLeave={e => {
@@ -314,10 +327,10 @@ export default function Sidebar({
                     <div style={{
                       position: 'absolute', left: 0, top: '15%', bottom: '15%',
                       width: 3.5, borderRadius: '0 4px 4px 0',
-                      background: 'linear-gradient(to bottom, #F97316, #EA580C)'
+                      background: activeGrad
                     }} />
                   )}
-                  {Icon && <Icon size={18} style={{ color: isActive ? '#EA580C' : '#78716c', flexShrink: 0 }} />}
+                  {Icon && <Icon size={18} style={{ color: isActive ? accent : '#78716c', flexShrink: 0 }} />}
                   {!collapsed && (
                     <>
                       <span style={{ flex: 1 }}>{item.label}</span>
@@ -325,8 +338,8 @@ export default function Sidebar({
                         <span style={{
                           fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99,
                           fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
-                          background: 'linear-gradient(to right, #EA580C, #F59E0B)', color: '#fff',
-                          boxShadow: '0 0 6px rgba(234,88,12,0.3)'
+                          background: badgeGrad, color: '#fff',
+                          boxShadow: `0 0 6px ${accentShadow}`
                         }}>
                           {item.badge}
                         </span>
@@ -341,7 +354,7 @@ export default function Sidebar({
                           {notifCount > 99 ? '99+' : notifCount}
                         </span>
                       )}
-                      {isActive && <ChevronRight size={14} style={{ color: '#EA580C', flexShrink: 0 }} />}
+                      {isActive && <ChevronRight size={14} style={{ color: accent, flexShrink: 0 }} />}
                     </>
                   )}
                   {collapsed && notifCount > 0 && (
@@ -356,18 +369,18 @@ export default function Sidebar({
           </nav>
 
           {/* Footer Controls */}
-          <div style={{ padding: collapsed ? '0.75rem 0.5rem' : '0.875rem 1rem', borderTop: '1px solid #FED7AA40', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ padding: collapsed ? '0.75rem 0.5rem' : '0.875rem 1rem', borderTop: `1px solid ${accentBorder}40`, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {!collapsed && (
               <div style={{
-                background: '#FFF7ED',
+                background: accentLight,
                 borderRadius: '9999px',
-                border: '1.5px solid #FED7AA',
+                border: `1.5px solid ${accentBorder}`,
                 padding: '0.25rem 0.5rem',
                 display: 'flex', justifyContent: 'center',
-                boxShadow: '0 2px 4px rgba(234, 88, 12, 0.04)',
+                boxShadow: `0 2px 4px ${accentShadow}`,
                 transition: 'background 0.2s'
               }}>
-                <LanguageToggle className="w-full justify-center !text-orange-900 hover:!bg-orange-100/60" />
+                <LanguageToggle className="w-full justify-center" />
               </div>
             )}
             <button id="btn-logout" onClick={onLogout} title={collapsed ? t('common.logout') : undefined}

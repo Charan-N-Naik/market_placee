@@ -11,6 +11,7 @@ export default function AIChatbot() {
     setInput,
     isLoading,
     isListening,
+    isTranscribing,
     isSpeechEnabled,
     setIsSpeechEnabled,
     activeSpeakingId,
@@ -88,6 +89,7 @@ export default function AIChatbot() {
           input={input}
           setInput={setInput}
           isListening={isListening}
+          isTranscribing={isTranscribing}
           isLoading={isLoading}
           onVoiceInput={handleVoiceInput}
           onSend={handleSend}

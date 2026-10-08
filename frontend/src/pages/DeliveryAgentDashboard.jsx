@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
 import {
@@ -27,6 +28,7 @@ function formatDisplayName(rawName) {
 }
 
 export default function DeliveryAgentDashboard() {
+  const { t } = useTranslation();
   const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
 
@@ -47,16 +49,23 @@ export default function DeliveryAgentDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [activeAgentNotificationId, setActiveAgentNotificationId] = useState(null);
 
+  // Top Flash / Toast Notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  };
+
   const profile = user?.deliveryAgentProfile || {};
 
   // Navigation items for the KisanBazaar Sidebar
   const navItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'requests', icon: Bell, label: 'Book Requests', badge: requests.length > 0 ? `${requests.length}` : null },
-    { id: 'active', icon: Truck, label: 'Active Jobs', badge: stats.activeOrders > 0 ? `${stats.activeOrders}` : null },
-    { id: 'completed', icon: PackageCheck, label: 'Completed Deliveries' },
-    { id: 'notifications', icon: Bell, label: 'Notifications' },
-    { id: 'profile', icon: User, label: 'Vehicle & Profile' },
+    { id: 'dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard', 'Dashboard') },
+    { id: 'requests', icon: Bell, label: t('sidebar.bookRequests', 'Book Requests'), badge: requests.length > 0 ? `${requests.length}` : null },
+    { id: 'active', icon: Truck, label: t('sidebar.activeJobs', 'Active Jobs'), badge: stats.activeOrders > 0 ? `${stats.activeOrders}` : null },
+    { id: 'completed', icon: PackageCheck, label: t('sidebar.completedDeliveries', 'Completed Deliveries') },
+    { id: 'notifications', icon: Bell, label: t('sidebar.notifications', 'Notifications') },
+    { id: 'profile', icon: User, label: t('sidebar.vehicleProfile', 'Vehicle & Profile') },
   ];
 
   const fetchData = useCallback(async () => {
@@ -244,7 +253,7 @@ export default function DeliveryAgentDashboard() {
     } catch (e) {
       console.error('Error updating job status:', e);
       const errMsg = e.response?.data?.message || 'Could not update delivery status.';
-      alert(errMsg);
+      showToast(errMsg, 'error');
     }
   };
 
@@ -314,25 +323,25 @@ export default function DeliveryAgentDashboard() {
   const getStatusBadge = (s) => {
     switch (s) {
       case 'pending_driver_approval':
-        return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1 rounded-full">Awaiting Response</span>;
+        return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2.5 py-1 rounded-full">{t('agentDashboard.statusAwaitingResponse', 'Awaiting Response')}</span>;
       case 'driver_accepted':
-        return <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full">Accepted — Pickup Ready</span>;
+        return <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2.5 py-1 rounded-full">{t('agentDashboard.statusAcceptedPickupReady', 'Accepted — Pickup Ready')}</span>;
       case 'collected':
-        return <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"><Truck size={10} /> In Transit</span>;
+        return <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"><Truck size={10} /> {t('agentDashboard.statusInTransit', 'In Transit')}</span>;
       case 'delivered':
-        return <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2.5 py-1 rounded-full">Delivered ✓</span>;
+        return <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold px-2.5 py-1 rounded-full">{t('agentDashboard.statusDelivered', 'Delivered ✓')}</span>;
       default:
-        return <span className="bg-gray-50 text-gray-600 border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded-full">{s || 'Assigned'}</span>;
+        return <span className="bg-gray-50 text-gray-600 border border-gray-200 text-[10px] font-bold px-2.5 py-1 rounded-full">{s || t('agentDashboard.statusAssigned', 'Assigned')}</span>;
     }
   };
 
-  const getCropTitle = (order) => order.items?.[0]?.listing?.cropName || 'Farm Crop Stock';
+  const getCropTitle = (order) => order.items?.[0]?.listing?.cropName || t('agentDashboard.farmCropStock', 'Farm Crop Stock');
   const getQtyText = (order) => {
     const item = order.items?.[0];
     if (item?.listing?.unit && item?.quantity) {
       return `${item.quantity} ${item.listing.unit}`;
     }
-    return item?.quantity ? `${item.quantity} units` : '';
+    return item?.quantity ? `${item.quantity} ${t('agentDashboard.units', 'units')}` : '';
   };
 
   return (
@@ -352,14 +361,14 @@ export default function DeliveryAgentDashboard() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight text-gray-900" style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif" }}>
-                Delivery Dashboard
+                {t('agentDashboard.title', 'Delivery Dashboard')}
               </h1>
-              <span className="bg-[#E8F7EE] text-[#1F7A4D] font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-md border border-emerald-200">
-                Agent Portal
+              <span className="bg-teal-50 text-teal-700 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-md border border-teal-200">
+                {t('agentDashboard.agentPortal', 'Agent Portal')}
               </span>
             </div>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              {profile.vehicleType || 'Vehicle Registered'} • License: {profile.vehicleNumber || profile.drivingLicense || 'KA-XX-XXXX'} • ₹{profile.perKmCharge || 18}/km
+              {profile.vehicleType || t('agentDashboard.vehicleRegistered', 'Vehicle Registered')} • {t('agentDashboard.license', 'License')}: {profile.vehicleNumber || profile.drivingLicense || 'KA-XX-XXXX'} • ₹{profile.perKmCharge || 18}/km
             </p>
           </div>
 
@@ -367,8 +376,8 @@ export default function DeliveryAgentDashboard() {
             onClick={fetchData}
             className="bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold px-3.5 py-2 rounded-xl border border-gray-200 shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin text-[#1F7A4D]' : ''} />
-            <span>Refresh</span>
+            <RefreshCw size={14} className={loading ? 'animate-spin text-teal-600' : ''} />
+            <span>{t('agentDashboard.refresh', 'Refresh')}</span>
           </button>
         </div>
 
@@ -378,8 +387,8 @@ export default function DeliveryAgentDashboard() {
           {/* Total Earnings */}
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total Earnings</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#1F7A4D] flex items-center justify-center font-bold">₹</div>
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('agentDashboard.totalEarnings', 'Total Earnings')}</span>
+              <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold">₹</div>
             </div>
             <div className="mt-3">
               <span className="text-2xl font-extrabold text-gray-900">₹{stats.totalEarnings.toLocaleString('en-IN')}</span>
@@ -389,33 +398,33 @@ export default function DeliveryAgentDashboard() {
           {/* Active Jobs */}
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Active Jobs</span>
-              <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('agentDashboard.activeJobs', 'Active Jobs')}</span>
+              <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
                 <Truck size={16} />
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-extrabold text-orange-600">{stats.activeOrders}</span>
+              <span className="text-2xl font-extrabold text-teal-700">{stats.activeOrders}</span>
             </div>
           </div>
 
           {/* Pending Requests */}
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Book Requests</span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('agentDashboard.bookRequests', 'Book Requests')}</span>
+              <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
                 <Bell size={16} />
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-extrabold text-amber-600">{requests.length}</span>
+              <span className="text-2xl font-extrabold text-teal-700">{requests.length}</span>
             </div>
           </div>
 
           {/* Trips Completed */}
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Completed</span>
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('agentDashboard.completed', 'Completed')}</span>
               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                 <PackageCheck size={16} />
               </div>
@@ -428,7 +437,7 @@ export default function DeliveryAgentDashboard() {
           {/* Agent Rating */}
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Agent Rating</span>
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{t('agentDashboard.agentRating', 'Agent Rating')}</span>
               <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center font-bold">★</div>
             </div>
             <div className="mt-3">
@@ -452,46 +461,46 @@ export default function DeliveryAgentDashboard() {
                 <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     <Bell size={18} className="text-amber-500" />
-                    <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">New Booking Requests ({requests.length})</h2>
+                    <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">{t('agentDashboard.newBookingRequests', 'New Booking Requests')} ({requests.length})</h2>
                   </div>
                   {requests.length > 0 && (
                     <button
                       onClick={() => setActiveTab('requests')}
-                      className="text-xs font-bold text-[#1F7A4D] hover:underline cursor-pointer"
+                      className="text-xs font-bold text-teal-700 hover:text-teal-800 hover:underline cursor-pointer"
                     >
-                      View All
+                      {t('agentDashboard.viewAll', 'View All')}
                     </button>
                   )}
                 </div>
 
                 {requests.length === 0 ? (
                   <div className="py-8 text-center text-gray-400">
-                    <p className="text-xs font-medium">No pending delivery requests right now.</p>
-                    <p className="text-[11px] text-gray-400 mt-1">When buyers choose you for transport, job requests will appear here.</p>
+                    <p className="text-xs font-medium">{t('agentDashboard.noPendingRequests', 'No pending delivery requests right now.')}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">{t('agentDashboard.noPendingRequestsSub', 'When buyers choose you for transport, job requests will appear here.')}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {requests.slice(0, 3).map(order => (
-                      <div key={order._id || order.id} className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/60 flex flex-wrap justify-between items-center gap-3">
+                      <div key={order._id || order.id} className="p-4 bg-teal-50/40 rounded-xl border border-teal-200/60 flex flex-wrap justify-between items-center gap-3">
                         <div>
                           <p className="font-bold text-sm text-gray-900">{getCropTitle(order)} {getQtyText(order) && `(${getQtyText(order)})`}</p>
                           <p className="text-xs text-gray-500 font-medium mt-0.5">
-                            From: <span className="font-semibold text-gray-700">{order.farmerDetails?.farmerName || order.farmer?.name || 'Farmer'}</span> → To: <span className="font-semibold text-gray-700">{order.buyerDropDetails?.buyerName || order.buyer?.name || 'Buyer'}</span>
+                            {t('agentDashboard.from', 'From')}: <span className="font-semibold text-gray-700">{order.farmerDetails?.farmerName || order.farmer?.name || 'Farmer'}</span> → {t('agentDashboard.to', 'To')}: <span className="font-semibold text-gray-700">{order.buyerDropDetails?.buyerName || order.buyer?.name || 'Buyer'}</span>
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-extrabold text-sm text-emerald-700 bg-white px-3 py-1 rounded-lg border border-emerald-200">₹{order.deliveryFare ?? 150}</span>
+                          <span className="font-extrabold text-sm text-teal-700 bg-white px-3 py-1 rounded-lg border border-teal-200">₹{order.deliveryFare ?? 150}</span>
                           <button
                             onClick={() => setSelectedFullDetailOrder(order)}
                             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1"
                           >
-                            <Eye size={14} /> Full View
+                            <Eye size={14} /> {t('agentDashboard.fullView', 'Full View')}
                           </button>
                           <button
                             onClick={() => handleRespond(order._id || order.id, 'accept')}
-                            className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs cursor-pointer"
+                            className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs cursor-pointer"
                           >
-                            Accept
+                            {t('agentDashboard.accept', 'Accept')}
                           </button>
                         </div>
                       </div>
@@ -500,30 +509,30 @@ export default function DeliveryAgentDashboard() {
                 )}
               </div>
 
-              {/* Vehicle Profile Summary Box */}
+              {/* Vehicle Profile Summary Box (Right Side) */}
               <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-[#1F7A4D] flex items-center justify-center font-bold text-xl border border-emerald-100">
+                    <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-xl border border-teal-200">
                       🚚
                     </div>
                     <div>
-                      <h3 className="font-bold text-sm text-gray-900">{formatDisplayName(user?.name) || 'Delivery Agent'}</h3>
-                      <p className="text-xs text-emerald-700 font-semibold">{profile.vehicleType || 'Commercial Pickup'}</p>
+                      <h3 className="font-bold text-sm text-gray-900">{formatDisplayName(user?.name) || t('agentDashboard.deliveryAgent', 'Delivery Agent')}</h3>
+                      <p className="text-xs text-teal-700 font-semibold">{profile.vehicleType || t('agentDashboard.commercialPickup', 'Commercial Pickup')}</p>
                     </div>
                   </div>
 
                   <div className="mt-4 space-y-2 text-xs">
                     <div className="flex justify-between text-gray-600">
-                      <span className="font-medium">Number Plate:</span>
+                      <span className="font-medium">{t('agentDashboard.numberPlate', 'Number Plate')}:</span>
                       <span className="font-bold text-gray-900">{profile.vehicleNumber || 'KA-06-EA-4821'}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
-                      <span className="font-medium">Rate / KM:</span>
-                      <span className="font-bold text-emerald-700">₹{profile.perKmCharge || 18}/km</span>
+                      <span className="font-medium">{t('agentDashboard.ratePerKm', 'Rate / KM')}:</span>
+                      <span className="font-bold text-teal-700">₹{profile.perKmCharge || 18}/km</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
-                      <span className="font-medium">License No:</span>
+                      <span className="font-medium">{t('agentDashboard.licenseNo', 'License No')}:</span>
                       <span className="font-bold text-gray-900">{profile.drivingLicense || 'DL-KA-04-2018'}</span>
                     </div>
                   </div>
@@ -531,9 +540,9 @@ export default function DeliveryAgentDashboard() {
 
                 <button
                   onClick={() => setActiveTab('profile')}
-                  className="mt-6 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-bold border border-gray-200 transition-colors cursor-pointer"
+                  className="mt-6 w-full py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-bold border border-teal-200 transition-colors cursor-pointer"
                 >
-                  Manage Profile
+                  {t('agentDashboard.manageProfile', 'Manage Profile')}
                 </button>
               </div>
 
@@ -543,14 +552,14 @@ export default function DeliveryAgentDashboard() {
             <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
               <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <Truck size={18} className="text-emerald-700" />
-                  <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Active Deliveries ({activeJobs.length})</h2>
+                  <Truck size={18} className="text-teal-700" />
+                  <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">{t('agentDashboard.activeDeliveries', 'Active Deliveries')} ({activeJobs.length})</h2>
                 </div>
               </div>
 
               {activeJobs.length === 0 ? (
                 <div className="py-8 text-center text-gray-400">
-                  <p className="text-xs font-medium">No active delivery assignments right now.</p>
+                  <p className="text-xs font-medium">{t('agentDashboard.noActiveDeliveries', 'No active delivery assignments right now.')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -559,21 +568,21 @@ export default function DeliveryAgentDashboard() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-bold text-sm text-gray-900">📦 {getCropTitle(order)} {getQtyText(order) && `(${getQtyText(order)})`}</h4>
-                          <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare ?? 150}</p>
+                          <p className="text-xs text-gray-500 font-medium">{t('agentDashboard.orderNum', 'Order')} #{(order._id || order.id).slice(-6).toUpperCase()} • {t('agentDashboard.fare', 'Fare')}: ₹{order.deliveryFare ?? 150}</p>
                         </div>
                         {getStatusBadge(order.deliveryRequestStatus || order.status)}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white p-3 rounded-lg border border-gray-100">
                         <div>
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Farm Pickup</span>
+                          <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">{t('agentDashboard.farmPickup', 'Farm Pickup')}</span>
                           <p className="font-bold text-gray-800">{order.farmerDetails?.farmerName || order.farmer?.name}</p>
-                          <p className="text-gray-500">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || 'Farmer Address'}</p>
+                          <p className="text-gray-500">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || t('agentDashboard.farmerAddress', 'Farmer Address')}</p>
                         </div>
                         <div>
-                          <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider block">Buyer Dropoff</span>
+                          <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider block">{t('agentDashboard.buyerDropoff', 'Buyer Dropoff')}</span>
                           <p className="font-bold text-gray-800">{order.buyerDropDetails?.buyerName || order.buyer?.name}</p>
-                          <p className="text-gray-500">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || 'Buyer Address'}</p>
+                          <p className="text-gray-500">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || t('agentDashboard.buyerAddress', 'Buyer Address')}</p>
                         </div>
                       </div>
 
@@ -582,14 +591,14 @@ export default function DeliveryAgentDashboard() {
                           onClick={() => setSelectedFullDetailOrder(order)}
                           className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center gap-1"
                         >
-                          <Eye size={14} /> Full View Details
+                          <Eye size={14} /> {t('agentDashboard.fullViewDetails', 'Full View Details')}
                         </button>
 
                         <button
                           onClick={() => setActiveChatOrder(order)}
-                          className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center gap-1"
+                          className="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer flex items-center gap-1"
                         >
-                          <MessageSquare size={14} /> Live Chat 💬
+                          <MessageSquare size={14} /> {t('agentDashboard.liveChat', 'Live Chat 💬')}
                         </button>
 
                         {(order.deliveryRequestStatus === 'driver_accepted' || order.status === 'driver_accepted') && (
@@ -597,15 +606,15 @@ export default function DeliveryAgentDashboard() {
                             onClick={() => handleStatusUpdate(order._id || order.id, 'collected')}
                             className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer"
                           >
-                            Mark Collected from Farmer
+                            {t('agentDashboard.markCollected', 'Mark Collected from Farmer')}
                           </button>
                         )}
                         {(order.deliveryRequestStatus === 'collected' || order.status === 'collected') && (
                           <button
                             onClick={() => handleStatusUpdate(order._id || order.id, 'delivered')}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer"
+                            className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer"
                           >
-                            Confirm Delivered to Buyer
+                            {t('agentDashboard.confirmDelivered', 'Confirm Delivered to Buyer')}
                           </button>
                         )}
                       </div>
@@ -622,13 +631,13 @@ export default function DeliveryAgentDashboard() {
         {activeTab === 'requests' && (
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-3">
-              Incoming Delivery Requests ({requests.length})
+              {t('agentDashboard.incomingDeliveryRequests', 'Incoming Delivery Requests')} ({requests.length})
             </h2>
 
             {requests.length === 0 ? (
               <div className="py-12 text-center text-gray-400">
                 <Bell size={32} className="mx-auto mb-2 text-gray-300" />
-                <p className="text-xs font-medium">No pending delivery requests.</p>
+                <p className="text-xs font-medium">{t('agentDashboard.noPendingRequestsSimple', 'No pending delivery requests.')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -637,42 +646,42 @@ export default function DeliveryAgentDashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-bold text-base text-gray-900">📦 {getCropTitle(order)}</h3>
-                        <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare ?? 150}</p>
+                        <p className="text-xs text-gray-500 font-medium">{t('agentDashboard.orderNum', 'Order')} #{(order._id || order.id).slice(-6).toUpperCase()} • {t('agentDashboard.fare', 'Fare')}: ₹{order.deliveryFare ?? 150}</p>
                       </div>
-                      <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">Action Required</span>
+                      <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">{t('agentDashboard.actionRequired', 'Action Required')}</span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-amber-100 text-xs">
                       <div>
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Pickup from Farmer</span>
+                        <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">{t('agentDashboard.pickupFromFarmer', 'Pickup from Farmer')}</span>
                         <p className="font-bold text-gray-900">{order.farmerDetails?.farmerName || order.farmer?.name}</p>
-                        <p className="text-gray-600">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || 'Farm'}</p>
+                        <p className="text-gray-600">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || t('agentDashboard.farmerAddress', 'Farm')}</p>
                       </div>
                       <div className="md:border-l md:border-amber-100 md:pl-4">
-                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider block">Deliver to Buyer</span>
+                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider block">{t('agentDashboard.deliverToBuyer', 'Deliver to Buyer')}</span>
                         <p className="font-bold text-gray-900">{order.buyerDropDetails?.buyerName || order.buyer?.name}</p>
-                        <p className="text-gray-600">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || 'Buyer Address'}</p>
+                        <p className="text-gray-600">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || t('agentDashboard.buyerAddress', 'Buyer Address')}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => handleRespond(order._id || order.id, 'accept')}
-                        className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                        className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
                       >
-                        <Check size={14} /> Accept Request
+                        <Check size={14} /> {t('agentDashboard.acceptRequest', 'Accept Request')}
                       </button>
                       <button
                         onClick={() => handleRespond(order._id || order.id, 'reject')}
                         className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer flex items-center gap-1.5"
                       >
-                        <X size={14} /> Decline
+                        <X size={14} /> {t('agentDashboard.decline', 'Decline')}
                       </button>
                       <button
                         onClick={() => setSelectedFullDetailOrder(order)}
                         className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer"
                       >
-                        View Full Details
+                        {t('agentDashboard.viewFullDetails', 'View Full Details')}
                       </button>
                     </div>
                   </div>
@@ -686,13 +695,13 @@ export default function DeliveryAgentDashboard() {
         {activeTab === 'active' && (
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-3">
-              Ongoing Active Deliveries ({activeJobs.length})
+              {t('agentDashboard.ongoingActiveDeliveries', 'Ongoing Active Deliveries')} ({activeJobs.length})
             </h2>
 
             {activeJobs.length === 0 ? (
               <div className="py-12 text-center text-gray-400">
                 <Truck size={32} className="mx-auto mb-2 text-gray-300" />
-                <p className="text-xs font-medium">No active deliveries currently in progress.</p>
+                <p className="text-xs font-medium">{t('agentDashboard.noActiveDeliveriesInProgress', 'No active deliveries currently in progress.')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -701,26 +710,26 @@ export default function DeliveryAgentDashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-bold text-base text-gray-900">📦 {getCropTitle(order)}</h3>
-                        <p className="text-xs text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()} • Fare: ₹{order.deliveryFare ?? 150}</p>
+                        <p className="text-xs text-gray-500 font-medium">{t('agentDashboard.orderNum', 'Order')} #{(order._id || order.id).slice(-6).toUpperCase()} • {t('agentDashboard.fare', 'Fare')}: ₹{order.deliveryFare ?? 150}</p>
                       </div>
                       {getStatusBadge(order.deliveryRequestStatus || order.status)}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200 text-xs">
                       <div>
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Pickup</span>
+                        <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">{t('agentDashboard.farmPickup', 'Pickup')}</span>
                         <p className="font-bold text-gray-900">{order.farmerDetails?.farmerName || order.farmer?.name}</p>
-                        <p className="text-gray-600">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || 'Farm'}</p>
+                        <p className="text-gray-600">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || t('agentDashboard.farmerAddress', 'Farm')}</p>
                         {(order.farmerDetails?.farmerPhone || order.farmer?.phone) && (
-                          <a href={`tel:${order.farmerDetails?.farmerPhone || order.farmer?.phone}`} className="text-blue-600 font-bold mt-1 inline-block">📞 Call Farmer</a>
+                          <a href={`tel:${order.farmerDetails?.farmerPhone || order.farmer?.phone}`} className="text-blue-600 font-bold mt-1 inline-block">{t('agentDashboard.callFarmer', '📞 Call Farmer')}</a>
                         )}
                       </div>
                       <div className="md:border-l md:border-gray-200 md:pl-4">
-                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider block">Dropoff</span>
+                        <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider block">{t('agentDashboard.buyerDropoff', 'Dropoff')}</span>
                         <p className="font-bold text-gray-900">{order.buyerDropDetails?.buyerName || order.buyer?.name}</p>
-                        <p className="text-gray-600">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || 'Buyer Address'}</p>
+                        <p className="text-gray-600">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || t('agentDashboard.buyerAddress', 'Buyer Address')}</p>
                         {(order.buyerDropDetails?.buyerPhone || order.buyer?.phone) && (
-                          <a href={`tel:${order.buyerDropDetails?.buyerPhone || order.buyer?.phone}`} className="text-blue-600 font-bold mt-1 inline-block">📞 Call Buyer</a>
+                          <a href={`tel:${order.buyerDropDetails?.buyerPhone || order.buyer?.phone}`} className="text-blue-600 font-bold mt-1 inline-block">{t('agentDashboard.callBuyer', '📞 Call Buyer')}</a>
                         )}
                       </div>
                     </div>
@@ -731,15 +740,15 @@ export default function DeliveryAgentDashboard() {
                           onClick={() => handleStatusUpdate(order._id || order.id, 'collected')}
                           className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
                         >
-                          Mark Collected from Farmer
+                          {t('agentDashboard.markCollected', 'Mark Collected from Farmer')}
                         </button>
                       )}
                       {(order.deliveryRequestStatus === 'collected' || order.status === 'collected') && (
                         <button
                           onClick={() => handleStatusUpdate(order._id || order.id, 'delivered')}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
+                          className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
                         >
-                          Confirm Delivered to Buyer
+                          {t('agentDashboard.confirmDelivered', 'Confirm Delivered to Buyer')}
                         </button>
                       )}
                       <button
@@ -747,7 +756,7 @@ export default function DeliveryAgentDashboard() {
                         className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer flex items-center gap-1.5"
                       >
                         <Navigation size={14} className="text-blue-600" />
-                        <span>View Live Map</span>
+                        <span>{t('agentDashboard.viewLiveMap', 'View Live Map')}</span>
                       </button>
                     </div>
                   </div>
@@ -761,13 +770,13 @@ export default function DeliveryAgentDashboard() {
         {activeTab === 'completed' && (
           <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm space-y-4">
             <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b border-gray-100 pb-3">
-              Completed Deliveries History ({completedJobs.length})
+              {t('agentDashboard.completedDeliveriesHistory', 'Completed Deliveries History')} ({completedJobs.length})
             </h2>
 
             {completedJobs.length === 0 ? (
               <div className="py-12 text-center text-gray-400">
                 <PackageCheck size={32} className="mx-auto mb-2 text-gray-300" />
-                <p className="text-xs font-medium">No completed deliveries yet.</p>
+                <p className="text-xs font-medium">{t('agentDashboard.noCompletedDeliveriesYet', 'No completed deliveries yet.')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -775,11 +784,11 @@ export default function DeliveryAgentDashboard() {
                   <div key={order._id || order.id} className="p-4 rounded-xl border border-gray-200 bg-gray-50/30 flex justify-between items-center text-xs">
                     <div>
                       <p className="font-bold text-gray-900">{getCropTitle(order)}</p>
-                      <p className="text-gray-500 font-medium">Order #{(order._id || order.id).slice(-6).toUpperCase()}</p>
+                      <p className="text-gray-500 font-medium">{t('agentDashboard.orderNum', 'Order')} #{(order._id || order.id).slice(-6).toUpperCase()}</p>
                     </div>
                     <div className="text-right">
                       <span className="font-bold text-emerald-700 text-sm">₹{order.deliveryFare ?? 150}</span>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase">Delivered ✓</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">{t('agentDashboard.deliveredBadge', 'Delivered ✓')}</p>
                     </div>
                   </div>
                 ))}
@@ -797,8 +806,8 @@ export default function DeliveryAgentDashboard() {
             <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-6">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">Delivery Agent Alerts</h2>
-                  <p className="text-xs text-gray-500 font-medium mt-0.5">Pickup alerts, dispatch calls & order delivery notifications</p>
+                  <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wider">{t('agentDashboard.deliveryAgentAlerts', 'Delivery Agent Alerts')}</h2>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">{t('agentDashboard.alertsSub', 'Pickup alerts, dispatch calls & order delivery notifications')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   {unreadCount > 0 && (
@@ -807,12 +816,12 @@ export default function DeliveryAgentDashboard() {
                       className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors cursor-pointer"
                     >
                       <CheckCheck size={14} />
-                      <span>Mark all read</span>
+                      <span>{t('agentDashboard.markAllRead', 'Mark all read')}</span>
                     </button>
                   )}
                   {unreadCount > 0 && (
                     <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full">
-                      {unreadCount} New
+                      {unreadCount} {t('agentDashboard.newBadge', 'New')}
                     </span>
                   )}
                 </div>
@@ -825,14 +834,14 @@ export default function DeliveryAgentDashboard() {
                     <div className="flex items-center gap-2">
                       <span className="text-xl">🔔</span>
                       <div>
-                        <h3 className="text-sm font-bold text-gray-900">{activeNotif.title || 'Delivery Notification'}</h3>
+                        <h3 className="text-sm font-bold text-gray-900">{activeNotif.title || t('agentDashboard.deliveryNotification', 'Delivery Notification')}</h3>
                         <span className="text-[10px] text-gray-500 font-medium">
                           {new Date(activeNotif.createdAt).toLocaleString('en-IN')}
                         </span>
                       </div>
                     </div>
                     <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full uppercase">
-                      Delivery Alert
+                      {t('agentDashboard.deliveryAlert', 'Delivery Alert')}
                     </span>
                   </div>
 
@@ -845,21 +854,21 @@ export default function DeliveryAgentDashboard() {
                       onClick={() => setActiveTab('requests')}
                       className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-sm"
                     >
-                      <Truck size={15} /> View Delivery Requests
+                      <Truck size={15} /> {t('agentDashboard.viewDeliveryRequests', 'View Delivery Requests')}
                     </button>
 
                     <button
                       onClick={() => handleDeleteAgentNotification(activeNotif._id || activeNotif.id)}
                       className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      <Trash2 size={15} /> Delete Notification
+                      <Trash2 size={15} /> {t('agentDashboard.deleteNotification', 'Delete Notification')}
                     </button>
 
                     <button
                       onClick={() => setActiveAgentNotificationId(null)}
                       className="ml-auto text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-2 cursor-pointer"
                     >
-                      Done (Back to Notifications)
+                      {t('agentDashboard.doneBackToNotifications', 'Done (Back to Notifications)')}
                     </button>
                   </div>
                 </div>
@@ -918,8 +927,8 @@ export default function DeliveryAgentDashboard() {
                   {notifications.length === 0 && (
                     <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
                       <span className="text-3xl block">🔔</span>
-                      <p className="text-xs text-gray-500 font-bold">No active notifications</p>
-                      <p className="text-[11px] text-gray-400">All delivery alerts and dispatch notifications are caught up.</p>
+                      <p className="text-xs text-gray-500 font-bold">{t('agentDashboard.noActiveNotifications', 'No active notifications')}</p>
+                      <p className="text-[11px] text-gray-400">{t('agentDashboard.notificationsCaughtUp', 'All delivery alerts and dispatch notifications are caught up.')}</p>
                     </div>
                   )}
                 </div>
@@ -972,12 +981,30 @@ export default function DeliveryAgentDashboard() {
           />
         )}
 
+        {/* Top Flash / Toast Notification Banner */}
+        {toast.show && (
+          <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl transition-all duration-300 transform animate-in fade-in slide-in-from-top-4 border ${
+            toast.type === 'error'
+              ? 'bg-rose-900/95 text-white border-rose-700'
+              : toast.type === 'warning'
+              ? 'bg-amber-900/95 text-white border-amber-700'
+              : 'bg-teal-900/95 text-white border-teal-700'
+          }`}>
+            <div className={`p-1.5 rounded-xl ${
+              toast.type === 'error' ? 'bg-rose-800' : toast.type === 'warning' ? 'bg-amber-800' : 'bg-teal-800'
+            }`}>
+              {toast.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+            </div>
+            <span className="text-xs font-black tracking-wide">{toast.message}</span>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
 }
 
 function ProfileSection({ user, profile, fetchData }) {
+  const { t } = useTranslation();
   const { updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1103,7 +1130,7 @@ function ProfileSection({ user, profile, fetchData }) {
       {/* Cover Banner & Profile Head */}
       <div className="bg-white rounded-[32px] border border-gray-150 shadow-[0_20px_50px_rgba(0,0,0,0.06)] overflow-hidden relative">
         {/* Cover Banner with Mist Fog Gradient */}
-        <div className="h-60 sm:h-72 w-full relative overflow-hidden bg-gradient-to-br from-[#064e3b] via-[#047857] to-[#059669]">
+        <div className="h-60 sm:h-72 w-full relative overflow-hidden bg-gradient-to-br from-[#134e4a] via-[#0d9488] to-[#14b8a6]">
           {(coverPreview || user?.coverImage) ? (
             <img
               src={coverPreview || user?.coverImage}
@@ -1123,8 +1150,8 @@ function ProfileSection({ user, profile, fetchData }) {
           {/* Top Right Floating Action Controls */}
           <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex items-center gap-2.5 z-10">
             <label className="flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 bg-white/90 hover:bg-white text-gray-800 text-xs font-bold rounded-full border border-white/60 shadow-md backdrop-blur-md cursor-pointer transition-all hover:scale-105 active:scale-95">
-              <Camera size={14} className="text-[#047857]" />
-              <span>{coverPreview || user?.coverImage ? 'Change Cover' : 'Upload Cover'}</span>
+              <Camera size={14} className="text-teal-700" />
+              <span>{coverPreview || user?.coverImage ? t('agentDashboard.changeCover', 'Change Cover') : t('agentDashboard.uploadCover', 'Upload Cover')}</span>
               <input
                 type="file"
                 accept="image/*"
@@ -1140,7 +1167,7 @@ function ProfileSection({ user, profile, fetchData }) {
           {/* Avatar */}
           <div className="flex items-start">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white p-1 shadow-xl border-2 border-white relative group shrink-0 overflow-hidden">
-              <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-[#059669] to-[#064e3b] flex items-center justify-center text-3xl sm:text-4xl font-black text-white relative">
+              <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-[#0d9488] to-[#134e4a] flex items-center justify-center text-3xl sm:text-4xl font-black text-white relative">
                 {(avatarPreview || user?.avatar) ? (
                   <img
                     src={avatarPreview || user?.avatar}
@@ -1158,12 +1185,12 @@ function ProfileSection({ user, profile, fetchData }) {
                   {uploadingAvatar ? (
                     <div className="flex flex-col items-center justify-center">
                       <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mb-1" />
-                      <span className="text-[8px] font-black uppercase tracking-wider text-emerald-300">Saving...</span>
+                      <span className="text-[8px] font-black uppercase tracking-wider text-teal-300">{t('agentDashboard.saving', 'Saving...')}</span>
                     </div>
                   ) : (
                     <>
-                      <Camera size={20} className="text-emerald-400 mb-0.5" />
-                      <span className="text-[9px] font-black uppercase tracking-wider">Change Pic</span>
+                      <Camera size={20} className="text-teal-400 mb-0.5" />
+                      <span className="text-[9px] font-black uppercase tracking-wider">{t('agentDashboard.changePic', 'Change Pic')}</span>
                     </>
                   )}
                   <input
@@ -1186,16 +1213,16 @@ function ProfileSection({ user, profile, fetchData }) {
                   className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight"
                   style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif" }}
                 >
-                  {formatDisplayName(user?.name) || 'Delivery Agent'}
+                  {formatDisplayName(user?.name) || t('agentDashboard.deliveryAgent', 'Delivery Agent')}
                 </h2>
-                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
-                  <CheckCircle2 size={12} className="text-emerald-600 stroke-[3]" /> Verified Driver
+                <span className="inline-flex items-center gap-1 bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs">
+                  <CheckCircle2 size={12} className="text-teal-600 stroke-[3]" /> {t('agentDashboard.verifiedDriver', 'Verified Driver')}
                 </span>
               </div>
 
               {/* Subtitle / Bio */}
               <p className="text-sm font-medium text-gray-500 max-w-xl">
-                Agri-logistics & fast farm-to-table transportation specialist • Direct verified farmer pickups
+                {t('agentDashboard.profileBio', 'Agri-logistics & fast farm-to-table transportation specialist • Direct verified farmer pickups')}
               </p>
 
               {/* Meta Tags */}
@@ -1216,15 +1243,15 @@ function ProfileSection({ user, profile, fetchData }) {
 
             {/* Accreditations / Badges */}
             <div className="flex items-center gap-2 self-start md:self-end">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">Badges</span>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mr-1">{t('agentDashboard.badges', 'Badges')}</span>
               <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
-                🛡 Police Verified
+                {t('agentDashboard.badgePoliceVerified', '🛡 Police Verified')}
               </span>
               <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
-                ⚡ Fast Delivery
+                {t('agentDashboard.badgeFastDelivery', '⚡ Fast Delivery')}
               </span>
               <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 flex items-center gap-1 shadow-2xs">
-                ❄ Cold Chain
+                {t('agentDashboard.badgeColdChain', '❄ Cold Chain')}
               </span>
             </div>
           </div>
@@ -1240,7 +1267,7 @@ function ProfileSection({ user, profile, fetchData }) {
                   </span>
                 </div>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Driver Rating {agentData?.totalReviews > 0 ? `(${agentData.totalReviews})` : ''}
+                  {t('agentDashboard.driverRating', 'Driver Rating')} {agentData?.totalReviews > 0 ? `(${agentData.totalReviews})` : ''}
                 </span>
               </div>
 
@@ -1250,25 +1277,25 @@ function ProfileSection({ user, profile, fetchData }) {
                 <span className="text-base sm:text-lg font-black text-gray-900 block leading-tight">
                   {agentData?.tripsCompleted != null ? agentData.tripsCompleted : (profile?.tripsCompleted || 0)}
                 </span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Completed Trips</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('agentDashboard.completedTrips', 'Completed Trips')}</span>
               </div>
 
               <div className="h-7 w-px bg-gray-200" />
 
               <div>
-                <span className="text-base sm:text-lg font-black text-[#1F7A4D] block leading-tight">
+                <span className="text-base sm:text-lg font-black text-teal-700 block leading-tight">
                   ₹{formData.perKmCharge}/km
                 </span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Base Rate</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('agentDashboard.baseRate', 'Base Rate')}</span>
               </div>
 
               <div className="h-7 w-px bg-gray-200 hidden sm:block" />
 
               <div className="hidden sm:block">
-                <span className="text-base sm:text-lg font-black text-emerald-700 block leading-tight">
+                <span className="text-base sm:text-lg font-black text-teal-700 block leading-tight">
                   ₹18,450
                 </span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Earnings</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('agentDashboard.earnings', 'Earnings')}</span>
               </div>
             </div>
 
@@ -1277,7 +1304,7 @@ function ProfileSection({ user, profile, fetchData }) {
                 onClick={() => setIsEditing(true)}
                 className="px-6 py-2.5 sm:px-7 sm:py-3 bg-[#111827] hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-full transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 flex items-center justify-center gap-2 self-start sm:self-auto"
               >
-                <Edit size={14} /> Edit Driver Info
+                <Edit size={14} /> {t('agentDashboard.editDriverInfo', 'Edit Driver Info')}
               </button>
             )}
           </div>
@@ -1291,7 +1318,7 @@ function ProfileSection({ user, profile, fetchData }) {
       )}
 
       {success && (
-        <div className="p-3.5 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-2xl border border-emerald-200">
+        <div className="p-3.5 bg-teal-50 text-teal-800 text-xs font-bold rounded-2xl border border-teal-200">
           ✓ {success}
         </div>
       )}
@@ -1300,14 +1327,14 @@ function ProfileSection({ user, profile, fetchData }) {
       {isEditing ? (
         <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-            <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">Edit Driver Profile</h3>
+            <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">{t('agentDashboard.editDriverProfile', 'Edit Driver Profile')}</h3>
             <button type="button" onClick={() => setIsEditing(false)} className="text-stone-400 hover:text-stone-700 cursor-pointer">
               <X size={16} />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold text-stone-700">
             <div className="space-y-1">
-              <label>Driver Full Name</label>
+              <label>{t('agentDashboard.driverFullName', 'Driver Full Name')}</label>
               <input
                 type="text"
                 name="name"
@@ -1317,7 +1344,7 @@ function ProfileSection({ user, profile, fetchData }) {
               />
             </div>
             <div className="space-y-1">
-              <label>Phone Number</label>
+              <label>{t('agentDashboard.phoneNumber', 'Phone Number')}</label>
               <input
                 type="text"
                 name="phone"
@@ -1327,7 +1354,7 @@ function ProfileSection({ user, profile, fetchData }) {
               />
             </div>
             <div className="space-y-1">
-              <label>Vehicle Model / Type</label>
+              <label>{t('agentDashboard.vehicleModelType', 'Vehicle Model / Type')}</label>
               <input
                 type="text"
                 name="vehicleType"
@@ -1337,7 +1364,7 @@ function ProfileSection({ user, profile, fetchData }) {
               />
             </div>
             <div className="space-y-1">
-              <label>Vehicle Number Plate</label>
+              <label>{t('agentDashboard.vehicleNumberPlate', 'Vehicle Number Plate')}</label>
               <input
                 type="text"
                 name="vehicleNumber"
@@ -1347,7 +1374,7 @@ function ProfileSection({ user, profile, fetchData }) {
               />
             </div>
             <div className="space-y-1">
-              <label>Driving License</label>
+              <label>{t('agentDashboard.drivingLicense', 'Driving License')}</label>
               <input
                 type="text"
                 name="drivingLicense"
@@ -1357,7 +1384,7 @@ function ProfileSection({ user, profile, fetchData }) {
               />
             </div>
             <div className="space-y-1">
-              <label>Rate Per Km (₹)</label>
+              <label>{t('agentDashboard.ratePerKmInput', 'Rate Per Km (₹)')}</label>
               <input
                 type="number"
                 name="perKmCharge"
@@ -1371,37 +1398,37 @@ function ProfileSection({ user, profile, fetchData }) {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+              className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
             >
-              <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
+              <Save size={14} /> {saving ? t('agentDashboard.saving', 'Saving...') : t('agentDashboard.saveChanges', 'Save Changes')}
             </button>
             <button
               type="button"
               onClick={() => setIsEditing(false)}
               className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl cursor-pointer"
             >
-              Cancel
+              {t('agentDashboard.cancel', 'Cancel')}
             </button>
           </div>
         </form>
       ) : (
         <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm space-y-4">
-          <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider border-b border-stone-100 pb-3">Driver Documentation & Vehicle Specs</h3>
+          <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider border-b border-stone-100 pb-3">{t('agentDashboard.driverDocsSpecs', 'Driver Documentation & Vehicle Specs')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-              <span className="text-[10px] font-black text-stone-400 uppercase">Driving License</span>
+              <span className="text-[10px] font-black text-stone-400 uppercase">{t('agentDashboard.drivingLicense', 'Driving License')}</span>
               <p className="font-bold text-stone-800">{formData.drivingLicense || 'KA-04-2018-0091823'}</p>
-              <span className="text-[10px] text-emerald-600 font-bold">✓ Valid until 2038</span>
+              <span className="text-[10px] text-emerald-600 font-bold">{t('agentDashboard.validUntil', '✓ Valid until 2038')}</span>
             </div>
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-              <span className="text-[10px] font-black text-stone-400 uppercase">Commercial Permit</span>
-              <p className="font-bold text-stone-800">All India Agri-Freight</p>
-              <span className="text-[10px] text-emerald-600 font-bold">✓ Active & Insured</span>
+              <span className="text-[10px] font-black text-stone-400 uppercase">{t('agentDashboard.commercialPermit', 'Commercial Permit')}</span>
+              <p className="font-bold text-stone-800">{t('agentDashboard.permitDetails', 'All India Agri-Freight')}</p>
+              <span className="text-[10px] text-emerald-600 font-bold">{t('agentDashboard.permitStatus', '✓ Active & Insured')}</span>
             </div>
             <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-200 space-y-1">
-              <span className="text-[10px] font-black text-stone-400 uppercase">Cargo Capacity</span>
-              <p className="font-bold text-stone-800">1,500 kg (1.5 Tonne)</p>
-              <span className="text-[10px] text-stone-500 font-bold">Open Bed & Tarpaulin</span>
+              <span className="text-[10px] font-black text-stone-400 uppercase">{t('agentDashboard.cargoCapacity', 'Cargo Capacity')}</span>
+              <p className="font-bold text-stone-800">{t('agentDashboard.capacityDetails', '1,500 kg (1.5 Tonne)')}</p>
+              <span className="text-[10px] text-stone-500 font-bold">{t('agentDashboard.bedType', 'Open Bed & Tarpaulin')}</span>
             </div>
           </div>
         </div>
@@ -1412,24 +1439,24 @@ function ProfileSection({ user, profile, fetchData }) {
         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
           <div>
             <h3 className="text-xs font-black text-stone-800 uppercase tracking-wider">
-              Customer &amp; Farmer Reviews
+              {t('agentDashboard.reviewsTitle', 'Customer & Farmer Reviews')}
             </h3>
             <p className="text-[11px] text-stone-500 font-medium mt-0.5">
-              Verified ratings and comments from recent delivery shipments
+              {t('agentDashboard.reviewsSub', 'Verified ratings and comments from recent delivery shipments')}
             </p>
           </div>
           {agentData && (
             <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-amber-800 text-xs font-bold">
               <Star size={12} className="fill-amber-400 text-amber-400" />
               <span>{agentData.rating}</span>
-              <span className="text-amber-600 font-normal">({agentData.totalReviews || 0} reviews)</span>
+              <span className="text-amber-600 font-normal">({agentData.totalReviews || 0} {t('agentDashboard.reviewsCount', 'reviews')})</span>
             </div>
           )}
         </div>
 
         {loadingAgentData ? (
           <div className="py-8 text-center text-stone-400 text-xs animate-pulse">
-            Loading reviews and driver ratings...
+            {t('agentDashboard.loadingReviews', 'Loading reviews and driver ratings...')}
           </div>
         ) : agentData?.reviews && agentData.reviews.length > 0 ? (
           <div className="space-y-3">
@@ -1441,7 +1468,7 @@ function ProfileSection({ user, profile, fetchData }) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-900 text-xs sm:text-sm">
-                      {rev.reviewerName || 'Verified User'}
+                      {rev.reviewerName || t('agentDashboard.verifiedUser', 'Verified User')}
                     </span>
                     {rev.createdAt && (
                       <span className="text-[10px] text-stone-400">
@@ -1467,8 +1494,8 @@ function ProfileSection({ user, profile, fetchData }) {
         ) : (
           <EmptyState
             icon={<Star size={24} className="text-amber-400" />}
-            title="No reviews yet"
-            description="Complete delivery trips to receive ratings and reviews from verified farmers and buyers."
+            title={t('agentDashboard.noReviewsYet', 'No reviews yet')}
+            description={t('agentDashboard.noReviewsDesc', 'Complete delivery trips to receive ratings and reviews from verified farmers and buyers.')}
             border="subtle"
             className="py-8"
           />
@@ -1479,6 +1506,7 @@ function ProfileSection({ user, profile, fetchData }) {
 }
 
 function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUpdate, getCropTitle, getQtyText }) {
+  const { t } = useTranslation();
   if (!order) return null;
 
   const orderId = (order._id || order.id || '').slice(-6).toUpperCase();
@@ -1515,8 +1543,8 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
               <Truck size={20} />
             </div>
             <div>
-              <h3 className="font-black text-base leading-tight">Delivery Job #{orderId}</h3>
-              <p className="text-xs text-emerald-100 font-medium">Full Farm Pickup & Buyer Dropoff Route</p>
+              <h3 className="font-black text-base leading-tight">{t('agentDashboard.deliveryJob', 'Delivery Job')} #{orderId}</h3>
+              <p className="text-xs text-emerald-100 font-medium">{t('agentDashboard.fullRouteSub', 'Full Farm Pickup & Buyer Dropoff Route')}</p>
             </div>
           </div>
           <button
@@ -1533,11 +1561,11 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
           {/* PRODUCE ITEM SUMMARY */}
           <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between">
             <div>
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Produce Cargo</span>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{t('agentDashboard.produceCargo', 'Produce Cargo')}</span>
               <p className="font-black text-stone-900 text-sm">🌾 {cropTitle} {qtyText && `(${qtyText})`}</p>
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Total Fare</span>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{t('agentDashboard.totalFare', 'Total Fare')}</span>
               <p className="font-black text-emerald-700 text-base">₹{fare}</p>
             </div>
           </div>
@@ -1546,37 +1574,37 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
           <div className="bg-orange-50/70 border border-orange-200 rounded-2xl p-5 space-y-3">
             <div className="flex items-center justify-between border-b border-orange-200/80 pb-2">
               <div className="flex items-center gap-2 text-orange-900 font-black text-xs uppercase tracking-wider">
-                <MapPin size={16} className="text-orange-600" /> Farm Pickup Location
+                <MapPin size={16} className="text-orange-600" /> {t('agentDashboard.farmPickupLocation', 'Farm Pickup Location')}
               </div>
               {farmerPhone !== 'N/A' && (
                 <a
                   href={`tel:${farmerPhone}`}
                   className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs"
                 >
-                  <Phone size={12} /> Call Farmer
+                  <Phone size={12} /> {t('agentDashboard.callFarmer', '📞 Call Farmer')}
                 </a>
               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">Farmer Name</span>
+                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">{t('agentDashboard.farmerName', 'Farmer Name')}</span>
                 <p className="font-black text-stone-900 text-sm">{farmerName}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">Farmer Phone</span>
+                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">{t('agentDashboard.farmerPhone', 'Farmer Phone')}</span>
                 <p className="font-extrabold text-stone-800">{farmerPhone}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">Pickup District</span>
+                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">{t('agentDashboard.pickupDistrict', 'Pickup District')}</span>
                 <p className="font-extrabold text-stone-800">{pickupDistrict}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">Pickup Time Window</span>
+                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">{t('agentDashboard.pickupTimeWindow', 'Pickup Time Window')}</span>
                 <p className="font-extrabold text-stone-800">{pickupTimeSlot}</p>
               </div>
               <div className="sm:col-span-2">
-                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">Full Farm Pickup Address & Pincode</span>
+                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">{t('agentDashboard.fullFarmAddress', 'Full Farm Pickup Address & Pincode')}</span>
                 <p className="font-bold text-stone-900">{pickupAddress} {pickupPincode && `(PIN: ${pickupPincode})`}</p>
               </div>
             </div>
@@ -1586,37 +1614,37 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
           <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 space-y-3">
             <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
               <div className="flex items-center gap-2 text-emerald-800 font-black text-xs uppercase tracking-wider">
-                <User size={16} className="text-emerald-600" /> Buyer Dropoff Destination
+                <User size={16} className="text-emerald-600" /> {t('agentDashboard.buyerDropoffDestination', 'Buyer Dropoff Destination')}
               </div>
               {buyerPhone !== 'N/A' && (
                 <a
                   href={`tel:${buyerPhone}`}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs"
                 >
-                  <Phone size={12} /> Call Buyer
+                  <Phone size={12} /> {t('agentDashboard.callBuyer', '📞 Call Buyer')}
                 </a>
               )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Buyer Name</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">{t('agentDashboard.buyerName', 'Buyer Name')}</span>
                 <p className="font-black text-stone-900 text-sm">{buyerName}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Buyer Phone</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">{t('agentDashboard.buyerPhone', 'Buyer Phone')}</span>
                 <p className="font-extrabold text-stone-800">{buyerPhone}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Drop District</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">{t('agentDashboard.dropDistrict', 'Drop District')}</span>
                 <p className="font-extrabold text-stone-800">{dropDistrict}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Transport Fare</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">{t('agentDashboard.transportFare', 'Transport Fare')}</span>
                 <p className="font-black text-emerald-700 text-sm">₹{fare}</p>
               </div>
               <div className="sm:col-span-2">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Full Buyer Address</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">{t('agentDashboard.fullBuyerAddress', 'Full Buyer Address')}</span>
                 <p className="font-bold text-stone-900">{dropAddress}</p>
               </div>
             </div>
@@ -1630,7 +1658,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
             onClick={onClose}
             className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl cursor-pointer"
           >
-            Close Window
+            {t('agentDashboard.closeWindow', 'Close Window')}
           </button>
 
           <div className="flex items-center gap-2">
@@ -1640,13 +1668,13 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                   onClick={() => { handleRespond(order._id || order.id, 'accept'); onClose(); }}
                   className="bg-[#1F7A4D] hover:bg-[#165b38] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
-                  <Check size={14} /> Accept Request
+                  <Check size={14} /> {t('agentDashboard.acceptRequest', 'Accept Request')}
                 </button>
                 <button
                   onClick={() => { handleRespond(order._id || order.id, 'reject'); onClose(); }}
                   className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 cursor-pointer"
                 >
-                  <X size={14} /> Decline
+                  <X size={14} /> {t('agentDashboard.decline', 'Decline')}
                 </button>
               </>
             )}
@@ -1656,7 +1684,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                 onClick={() => { handleStatusUpdate(order._id || order.id, 'collected'); onClose(); }}
                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm cursor-pointer"
               >
-                Mark Collected from Farmer
+                {t('agentDashboard.markCollected', 'Mark Collected from Farmer')}
               </button>
             )}
 
@@ -1665,7 +1693,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                 onClick={() => { handleStatusUpdate(order._id || order.id, 'delivered'); onClose(); }}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm cursor-pointer"
               >
-                Confirm Delivered to Buyer
+                {t('agentDashboard.confirmDelivered', 'Confirm Delivered to Buyer')}
               </button>
             )}
           </div>

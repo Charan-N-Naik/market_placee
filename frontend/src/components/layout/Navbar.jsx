@@ -236,7 +236,7 @@ export default function Navbar({
 
     if (notif.relatedOrder) {
       if (setActiveTab) setActiveTab('orders');
-      else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/agent/dashboard' : '/buyer/dashboard');
+      else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/delivery/dashboard' : '/buyer/dashboard');
     } else {
       if (setActiveTab) setActiveTab('notifications');
     }
@@ -438,7 +438,57 @@ export default function Navbar({
   // =========================================================================
   // DROPDOWN 1: MESSAGES (✉️ ENVELOPE) — LIVE CHATS ONLY
   // =========================================================================
-  const renderMessagesDropdown = () => (
+  // DROPDOWN 1: ORDER LIVE CHATS ONLY (✉️ TOP ENVELOPE)
+  // =========================================================================
+  const renderMessagesDropdown = (accent = isFarmer ? 'emerald' : isAgent ? 'teal' : 'orange') => {
+    const isTeal = accent === 'teal';
+    const isOrange = accent === 'orange';
+    const tTheme = isTeal
+      ? {
+          headerGrad: 'from-teal-50 via-cyan-50 to-white',
+          iconBg: 'bg-teal-600',
+          subtitle: 'text-teal-700',
+          markAllBtn: 'text-teal-800 hover:text-teal-950 border-teal-200',
+          markAllIcon: 'text-teal-600',
+          spinner: 'border-teal-600',
+          hoverBg: 'hover:bg-teal-50/50',
+          unreadBg: 'bg-teal-50/70 border-l-4 border-teal-600',
+          avatarBg: 'bg-teal-100 text-teal-800',
+          pill: 'bg-teal-100/80 text-teal-900 border-teal-200',
+          badge: 'bg-teal-600',
+          footerLink: 'text-teal-700 hover:text-teal-900',
+        }
+      : isOrange
+      ? {
+          headerGrad: 'from-orange-50 via-amber-50 to-white',
+          iconBg: 'bg-orange-600',
+          subtitle: 'text-orange-700',
+          markAllBtn: 'text-orange-800 hover:text-orange-950 border-orange-200',
+          markAllIcon: 'text-orange-600',
+          spinner: 'border-orange-600',
+          hoverBg: 'hover:bg-orange-50/50',
+          unreadBg: 'bg-orange-50/70 border-l-4 border-orange-500',
+          avatarBg: 'bg-orange-100 text-orange-800',
+          pill: 'bg-orange-100/80 text-orange-900 border-orange-200',
+          badge: 'bg-orange-600',
+          footerLink: 'text-orange-700 hover:text-orange-900',
+        }
+      : {
+          headerGrad: 'from-emerald-50 via-teal-50 to-white',
+          iconBg: 'bg-[#15803d]',
+          subtitle: 'text-emerald-700',
+          markAllBtn: 'text-emerald-800 hover:text-emerald-950 border-emerald-200',
+          markAllIcon: 'text-emerald-600',
+          spinner: 'border-emerald-600',
+          hoverBg: 'hover:bg-emerald-50/50',
+          unreadBg: 'bg-[#F0FDF4]/70 border-l-4 border-emerald-600',
+          avatarBg: 'bg-emerald-100 text-emerald-800',
+          pill: 'bg-emerald-100/80 text-emerald-900 border-emerald-200',
+          badge: 'bg-emerald-600',
+          footerLink: 'text-emerald-700 hover:text-emerald-900',
+        };
+
+    return (
     <div
       className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       style={{
@@ -446,16 +496,16 @@ export default function Navbar({
       }}
     >
       {/* Header */}
-      <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-b border-gray-100 flex items-center justify-between">
+      <div className={`px-4 py-3 bg-gradient-to-r ${tTheme.headerGrad} border-b border-gray-100 flex items-center justify-between`}>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#15803d] text-white flex items-center justify-center shadow-xs">
+          <div className={`w-7 h-7 rounded-lg ${tTheme.iconBg} text-white flex items-center justify-center shadow-xs`}>
             <Mail size={15} />
           </div>
           <div>
             <h4 className="text-xs font-black text-gray-900 leading-tight">
               Order Messages & Live Chat
             </h4>
-            <p className="text-[10px] font-bold text-emerald-700">
+            <p className={`text-[10px] font-bold ${tTheme.subtitle}`}>
               {unreadMessagesCount > 0 ? `${unreadMessagesCount} unread message${unreadMessagesCount > 1 ? 's' : ''}` : 'No unread messages'}
             </p>
           </div>
@@ -463,9 +513,9 @@ export default function Navbar({
         {unreadMessagesCount > 0 && (
           <button
             onClick={handleMarkAllMessagesRead}
-            className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-white/90 hover:bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs transition-colors cursor-pointer"
+            className={`flex items-center gap-1 text-[10px] font-bold ${tTheme.markAllBtn} bg-white/90 hover:bg-white px-2.5 py-1 rounded-lg border shadow-2xs transition-colors cursor-pointer`}
           >
-            <CheckCheck size={12} className="text-emerald-600" />
+            <CheckCheck size={12} className={tTheme.markAllIcon} />
             <span>Mark all read</span>
           </button>
         )}
@@ -475,7 +525,7 @@ export default function Navbar({
       <div className="max-h-[380px] overflow-y-auto divide-y divide-gray-50">
         {loadingMessages ? (
           <div className="p-8 text-center space-y-2">
-            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className={`w-6 h-6 border-2 ${tTheme.spinner} border-t-transparent rounded-full animate-spin mx-auto`} />
             <p className="text-xs font-bold text-gray-400">Loading order conversations...</p>
           </div>
         ) : messagesList.length === 0 ? (
@@ -497,12 +547,12 @@ export default function Navbar({
               <div
                 key={item.orderId || item.chatId}
                 onClick={() => handleMessageItemClick(item)}
-                className={`p-3.5 hover:bg-emerald-50/50 cursor-pointer transition-colors relative flex gap-3 items-start ${
-                  isUnread ? 'bg-[#F0FDF4]/70 border-l-4 border-emerald-600' : 'bg-white'
+                className={`p-3.5 ${tTheme.hoverBg} cursor-pointer transition-colors relative flex gap-3 items-start ${
+                  isUnread ? `${tTheme.unreadBg}` : 'bg-white'
                 }`}
               >
                 {/* Participant initial */}
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs mt-0.5">
+                <div className={`w-8 h-8 rounded-xl ${tTheme.avatarBg} flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs mt-0.5`}>
                   {senderName.charAt(0).toUpperCase()}
                 </div>
 
@@ -524,7 +574,7 @@ export default function Navbar({
 
                   {/* Order & Crop Pill */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-900 text-[10px] font-black border border-emerald-200">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black border ${tTheme.pill}`}>
                       🌾 {item.cropName}
                     </span>
                     {item.orderNumber && (
@@ -542,7 +592,7 @@ export default function Navbar({
 
                 {/* Unread badge count or indicator */}
                 {isUnread && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black shadow-xs flex-shrink-0 mt-1">
+                  <span className={`px-1.5 py-0.5 rounded-full ${tTheme.badge} text-white text-[9px] font-black shadow-xs flex-shrink-0 mt-1`}>
                     {item.unreadCount} new
                   </span>
                 )}
@@ -558,16 +608,17 @@ export default function Navbar({
           onClick={() => {
             setActiveDropdown(null);
             if (setActiveTab) setActiveTab('orders');
-            else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/agent/dashboard' : '/buyer/dashboard');
+            else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/delivery/dashboard' : '/buyer/dashboard');
           }}
-          className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 mx-auto py-1 cursor-pointer transition-colors"
+          className={`text-xs font-bold ${tTheme.footerLink} flex items-center gap-1 mx-auto py-1 cursor-pointer transition-colors`}
         >
           <span>View All Orders & Chats</span>
           <ArrowRight size={13} />
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   // =========================================================================
   // DROPDOWN 2: NOTIFICATIONS (🔔 BELL) — PRODUCT PURCHASES & REVIEWS ONLY
@@ -713,10 +764,11 @@ export default function Navbar({
   // DROPDOWN 3: QUICK PROFILE & SETTINGS MENU (HAMBURGER / MENU BUTTON)
   // =========================================================================
   const renderQuickMenu = (accent = 'emerald') => {
+    const isTeal = accent === 'teal';
     const isEmerald = accent === 'emerald';
-    const primaryColor = isEmerald ? '#15803d' : '#ea580c';
-    const primaryBg = isEmerald ? '#f0fdf4' : '#fff7ed';
-    const primaryBorder = isEmerald ? '#bbf7d0' : '#fed7aa';
+    const primaryColor = isTeal ? '#0d9488' : isEmerald ? '#15803d' : '#ea580c';
+    const primaryBg = isTeal ? '#f0fdfa' : isEmerald ? '#f0fdf4' : '#fff7ed';
+    const primaryBorder = isTeal ? '#99f6e4' : isEmerald ? '#bbf7d0' : '#fed7aa';
 
     const handleAction = (cb) => {
       setActiveDropdown(null);
@@ -749,7 +801,9 @@ export default function Navbar({
             title={t('navbar.viewProfile', 'View Profile')}
             className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-md flex-shrink-0 cursor-pointer transition-transform hover:scale-105 overflow-hidden"
             style={{
-              background: isEmerald
+              background: isTeal
+                ? 'linear-gradient(135deg, #0d9488, #0f766e)'
+                : isEmerald
                 ? 'linear-gradient(135deg, #22C55E, #15803d)'
                 : 'linear-gradient(135deg, #f97316, #ea580c)'
             }}
@@ -939,7 +993,22 @@ export default function Navbar({
   // =========================================================================
   // DUAL BUTTONS COMPONENT (✉️ MESSAGES & 🔔 NOTIFICATIONS)
   // =========================================================================
-  const renderDualTopButtons = (accent = 'emerald') => (
+  const renderDualTopButtons = (accent = 'emerald') => {
+    const isTeal = accent === 'teal';
+    const isOrange = accent === 'orange';
+    const activeMailClass = isTeal
+      ? 'bg-teal-50 border-teal-400 text-teal-700'
+      : isOrange
+      ? 'bg-orange-50 border-orange-400 text-orange-700'
+      : 'bg-emerald-50 border-emerald-400 text-emerald-700';
+    const hoverMailClass = isTeal
+      ? 'hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700'
+      : isOrange
+      ? 'hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700'
+      : 'hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700';
+    const badgeMailBg = isTeal ? 'bg-teal-600' : isOrange ? 'bg-orange-600' : 'bg-emerald-600';
+
+    return (
     <div style={{ position: 'relative' }} ref={containerRef}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
         {/* 1. TOP ENVELOPE: ORDER LIVE CHATS ONLY */}
@@ -954,12 +1023,12 @@ export default function Navbar({
           }}
           title="Order Chats & Direct Messages"
           className={`relative p-2 rounded-xl border border-gray-200 bg-white transition-all cursor-pointer flex items-center justify-center text-gray-600 shadow-2xs ${
-            activeDropdown === 'messages' ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700'
+            activeDropdown === 'messages' ? activeMailClass : hoverMailClass
           }`}
         >
           <Mail size={18} />
           {unreadMessagesCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
+            <span className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full ${badgeMailBg} text-white text-[10px] font-black flex items-center justify-center border-2 border-white shadow-xs animate-pulse`}>
               {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
             </span>
           )}
@@ -990,10 +1059,11 @@ export default function Navbar({
       </div>
 
       {/* Render selected popover */}
-      {activeDropdown === 'messages' && renderMessagesDropdown()}
+      {activeDropdown === 'messages' && renderMessagesDropdown(accent)}
       {activeDropdown === 'notifications' && renderNotificationsDropdown()}
     </div>
   );
+  };
 
   // ====== NON-FARMER NAVBAR (BUYER / DELIVERY AGENT) ======
   if (!isFarmer) {
@@ -1019,26 +1089,32 @@ export default function Navbar({
             aria-label="Toggle profile and quick settings menu"
             className="transition-all hover:scale-105 active:scale-95"
             style={{
-              background: activeDropdown === 'menu' ? '#fed7aa' : 'var(--color-primary-light, #fef3c7)',
-              border: activeDropdown === 'menu' ? '1.5px solid #ea580c' : '1px solid #fed7aa',
+              background: activeDropdown === 'menu'
+                ? (isAgent ? '#ccfbf1' : '#fed7aa')
+                : (isAgent ? '#f0fdfa' : '#fff7ed'),
+              border: activeDropdown === 'menu'
+                ? (isAgent ? '1.5px solid #0d9488' : '1.5px solid #ea580c')
+                : (isAgent ? '1px solid #99f6e4' : '1px solid #fed7aa'),
               borderRadius: 10,
               padding: '0.5rem',
               cursor: 'pointer',
-              color: 'var(--color-primary, #ea580c)',
+              color: isAgent ? '#0d9488' : '#ea580c',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: activeDropdown === 'menu' ? '0 0 0 3px rgba(234,88,12,0.2)' : 'none'
+              boxShadow: activeDropdown === 'menu'
+                ? (isAgent ? '0 0 0 3px rgba(13,148,136,0.2)' : '0 0 0 3px rgba(234,88,12,0.2)')
+                : 'none'
             }}
-            onMouseEnter={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = '#fde68a'; }}
-            onMouseLeave={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = 'var(--color-primary-light, #fef3c7)'; }}
+            onMouseEnter={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = isAgent ? '#ccfbf1' : '#ffedd5'; }}
+            onMouseLeave={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = isAgent ? '#f0fdfa' : '#fff7ed'; }}
           >
             <Menu size={20} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {Icon && (
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: isAgent ? '#f0fdf4' : '#fff7ed', border: `1px solid ${isAgent ? '#bbf7d0' : '#ffedd5'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={19} style={{ color: isAgent ? '#16a34a' : '#ea580c' }} />
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: isAgent ? '#f0fdfa' : '#fff7ed', border: `1px solid ${isAgent ? '#99f6e4' : '#ffedd5'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={19} style={{ color: isAgent ? '#0d9488' : '#ea580c' }} />
               </div>
             )}
             <div>
@@ -1047,7 +1123,7 @@ export default function Navbar({
                 fontSize: '1.05rem', fontWeight: 800, color: '#1c1917', margin: 0, lineHeight: 1.25,
                 letterSpacing: '-0.01em'
               }}>
-                {t('navbar.welcomeBack', 'Welcome,')} <span style={{ color: isAgent ? '#16a34a' : '#ea580c', fontWeight: 800 }}>{formatDisplayName(currentUser?.name) || (isAgent ? 'Driver' : 'Buyer')}</span> 👋
+                {t('navbar.welcomeBack', 'Welcome,')} <span style={{ color: isAgent ? '#0d9488' : '#ea580c', fontWeight: 800 }}>{formatDisplayName(currentUser?.name) || (isAgent ? 'Driver' : 'Buyer')}</span> 👋
               </h2>
               <p style={{
                 fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
@@ -1059,13 +1135,13 @@ export default function Navbar({
           </div>
 
           {/* Profile & Settings Quick Menu Dropdown */}
-          {activeDropdown === 'menu' && renderQuickMenu(isAgent ? 'emerald' : 'orange')}
+          {activeDropdown === 'menu' && renderQuickMenu(isAgent ? 'teal' : 'orange')}
         </div>
 
         {/* Right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* Dual Top Buttons: ✉️ Messages & 🔔 Notifications */}
-          {renderDualTopButtons(isAgent ? 'emerald' : 'orange')}
+          {renderDualTopButtons(isAgent ? 'teal' : 'orange')}
 
           {/* Profile Avatar */}
           <button
@@ -1073,13 +1149,13 @@ export default function Navbar({
             title="View Profile"
             style={{
               width: 40, height: 40, borderRadius: 12,
-              background: isAgent ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #ea580c, #c2410c)',
+              background: isAgent ? 'linear-gradient(135deg, #0d9488, #0f766e)' : 'linear-gradient(135deg, #ea580c, #c2410c)',
               color: 'white', fontWeight: 900, fontSize: '1.05rem',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               overflow: 'hidden', padding: 0,
               cursor: 'pointer', border: '2px solid transparent',
               transition: 'all 0.2s ease',
-              boxShadow: isAgent ? '0 2px 10px rgba(22,163,74,0.25)' : '0 2px 10px rgba(234,88,12,0.25)',
+              boxShadow: isAgent ? '0 2px 10px rgba(13,148,136,0.25)' : '0 2px 10px rgba(234,88,12,0.25)',
             }}
           >
             {currentUser?.avatar ? (

@@ -5,6 +5,7 @@ export default function ChatInput({
   input, 
   setInput, 
   isListening, 
+  isTranscribing,
   isLoading, 
   onVoiceInput, 
   onSend,
@@ -79,23 +80,30 @@ export default function ChatInput({
       {/* Main Unified Input Group */}
       <form onSubmit={onSend} className="max-w-2xl mx-auto">
         <div className={`relative flex items-center bg-slate-50 border border-slate-200 rounded-2xl p-1.5 transition-all shadow-xs ${
-          isListening 
-            ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-200' 
-            : 'focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/10'
+          isTranscribing
+            ? 'border-blue-400 bg-blue-50/40 ring-2 ring-blue-200'
+            : isListening 
+              ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-200' 
+              : 'focus-within:border-emerald-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/10'
         }`}>
           {/* Mic Button integrated into input group */}
           <button
             type="button"
             onClick={onVoiceInput}
+            disabled={isTranscribing}
             aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
             className={`p-2.5 rounded-xl transition-all flex items-center justify-center cursor-pointer ${
-              isListening 
-                ? 'bg-rose-600 text-white animate-pulse' 
-                : 'text-slate-500 hover:text-emerald-700 hover:bg-emerald-50'
+              isTranscribing
+                ? 'bg-blue-100 text-blue-700'
+                : isListening 
+                  ? 'bg-rose-600 text-white animate-pulse' 
+                  : 'text-slate-500 hover:text-emerald-700 hover:bg-emerald-50'
             }`}
-            title={isListening ? "Listening... Tap to stop" : "Tap to Speak (Kannada / English)"}
+            title={isTranscribing ? "Transcribing with AI..." : isListening ? "Listening... Tap to stop" : "Tap to Speak (Kannada / English)"}
           >
-            {isListening ? (
+            {isTranscribing ? (
+              <Sparkles size={20} className="animate-spin text-blue-600" />
+            ) : isListening ? (
               <MicOff size={20} className="animate-bounce" />
             ) : (
               <Mic size={20} />
@@ -108,10 +116,13 @@ export default function ChatInput({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            disabled={isTranscribing}
             placeholder={
-              isListening 
-                ? t('aiAssistant.listeningPlaceholder') 
-                : t('aiAssistant.typeMessage')
+              isTranscribing
+                ? (lang.startsWith('kn') ? 'ಧ್ವನಿಯನ್ನು ಪಠ್ಯವಾಗಿಸಲಾಗುತ್ತಿದೆ (AI STT)...' : 'Transcribing voice with AI...')
+                : isListening 
+                  ? t('aiAssistant.listeningPlaceholder') 
+                  : t('aiAssistant.typeMessage')
             }
             className="w-full px-3 py-2 bg-transparent outline-none text-sm font-medium text-slate-800 placeholder:text-slate-400"
           />

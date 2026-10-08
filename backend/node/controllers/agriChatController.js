@@ -107,27 +107,70 @@ export async function streamTTSAudio(req, res, next) {
       return res.status(400).json({ error: 'Text parameter is required' });
     }
 
-    // Clean text: strip markdown symbols, markdown URLs, emojis, and condense whitespace
+    // Clean text: strip markdown symbols, URLs, and condense whitespace
     const cleanText = rawText
       .replace(/[*#_`~]/g, '')
       .replace(/https?:\/\/\S+/g, '')
       .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 280); // Safe length for single TTS phrase chunk
+      .trim();
 
-    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(lang)}&client=tw-ob&q=${encodeURIComponent(cleanText)}`;
+    // Chunk text into sentence segments under 120 characters so Google TTS never exceeds query limits
+    const sentences = cleanText.split(/(?<=[.!?|।\n])/);
+    const chunks = [];
+    let current = '';
 
-    const response = await axios.get(ttsUrl, {
-      responseType: 'stream',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      timeout: 8000
-    });
+    for (const s of sentences) {
+      if ((current + ' ' + s).trim().length <= 120) {
+        current = (current + ' ' + s).trim();
+      } else {
+        if (current) chunks.push(current);
+        if (s.length > 120) {
+          const words = s.split(' ');
+          let wordChunk = '';
+          for (const w of words) {
+            if ((wordChunk + ' ' + w).trim().length <= 120) {
+              wordChunk = (wordChunk + ' ' + w).trim();
+            } else {
+              if (wordChunk) chunks.push(wordChunk);
+              wordChunk = w;
+            }
+          }
+          current = wordChunk || '';
+        } else {
+          current = s;
+        }
+      }
+    }
+    if (current) chunks.push(current);
 
+    // Limit to safe chunk length for speech duration
+    const selectedChunks = chunks.slice(0, 6);
+
+    const audioBuffers = [];
+    for (const chunk of selectedChunks) {
+      if (!chunk.trim()) continue;
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(lang)}&client=tw-ob&q=${encodeURIComponent(chunk.trim())}`;
+      const response = await axios.get(ttsUrl, {
+        responseType: 'arraybuffer',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 6000
+      });
+      if (response.data) {
+        audioBuffers.push(Buffer.from(response.data));
+      }
+    }
+
+    if (audioBuffers.length === 0) {
+      return res.status(500).json({ error: 'Failed to synthesize audio chunks' });
+    }
+
+    const combinedAudio = Buffer.concat(audioBuffers);
     res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', combinedAudio.length);
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    return response.data.pipe(res);
+    return res.end(combinedAudio);
   } catch (err) {
     console.error('[TTS] Audio streaming error:', err.message);
     return res.status(502).json({ error: 'TTS audio streaming failed' });
