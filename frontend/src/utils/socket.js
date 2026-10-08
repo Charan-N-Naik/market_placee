@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
+import { API_BASE } from '../api/axios';
 
 // Determine the WebSocket URL matching the backend server
-const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' && window.location.origin ? `${window.location.origin}/api` : 'http://localhost:5000/api');
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE.replace(/\/api\/?$/, '');
 
 let socket = null;
