@@ -75,13 +75,40 @@ connectDB().then(() => {
 import { setNotificationIO } from './services/notificationService.js';
 
 // Setup Socket.io
-// Support multiple allowed client origins via comma-separated CLIENT_URLS or single CLIENT_URL
+// Support multiple allowed client origins, any Vercel deployment, and local dev
 const rawClientUrls = process.env.CLIENT_URLS || process.env.CLIENT_URL || 'http://localhost:5175';
-const CLIENT_URLS = rawClientUrls.split(',').map(s => s.trim()).filter(Boolean);
+const configuredUrls = rawClientUrls.split(',').map(s => s.trim()).filter(Boolean);
+
+export const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Mobile apps, curl, or server-to-server
+  if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) return true;
+  if (origin.endsWith('.vercel.app')) return true; // Matches all Vercel production & git preview deployments
+  if (origin.includes('market-placee.onrender.com')) return true;
+  if (configuredUrls.includes(origin)) return true;
+  return false;
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS Blocked] Origin: ${origin}`);
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    }
+  },
+  credentials: true,
+};
 
 const io = new Server(httpServer, {
   cors: {
-    origin: CLIENT_URLS,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Socket CORS origin blocked: ${origin}`));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -152,10 +179,7 @@ app.use(mongoSanitize());
 
 // Middleware
 app.use(compression());
-app.use(cors({
-  origin: CLIENT_URLS,
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(express.json({
   limit: '50mb',
   verify: (req, res, buf) => {

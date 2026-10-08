@@ -1,9 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
-import api from '../api/axios';
+import api, { API_BASE } from '../api/axios';
 import { updateFavicon } from '../utils/favicon';
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
 
 const AuthContext = createContext();
 

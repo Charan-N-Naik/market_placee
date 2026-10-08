@@ -1,10 +1,19 @@
 import axios from 'axios';
 
 // Determine API base URL:
-// - Use Vite env `VITE_API_BASE` when set (recommended for production)
-// - Otherwise, use `window.location.origin + '/api'` in browser (for deployments where API is proxied)
-// - Fallback to localhost for local dev
-const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' && window.location.origin ? `${window.location.origin}/api` : 'http://localhost:5000/api');
+// - Use Vite env `VITE_API_BASE` when explicitly provided
+// - When running locally (localhost / 127.0.0.1), use 'http://localhost:5000/api'
+// - Otherwise (e.g. Vercel production or preview deployments), use the live Render backend
+const isLocalhost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+);
+
+export const API_BASE = import.meta.env.VITE_API_BASE || (
+  isLocalhost
+    ? 'http://localhost:5000/api'
+    : 'https://market-placee.onrender.com/api'
+);
 
 const api = axios.create({
   baseURL: API_BASE,
