@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { uploadToCloudinary } from '../services/uploadService.js';
+import serializeUser from '../utils/serializeUser.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -168,17 +169,7 @@ export const registerUser = async (req, res, next) => {
       setTokenCookie(res, refreshToken);
 
       res.status(201).json({
-        user: {
-          _id: user._id,
-          name: user.name,
-          phone: user.phone,
-          email: user.email,
-          role: user.role,
-          isVerified: user.isVerified,
-          avatar: user.avatar,
-          location: user.location,
-          deliveryAgentProfile: user.deliveryAgentProfile,
-        },
+        user: serializeUser(user),
         token: accessToken,
       });
     } else {
@@ -242,17 +233,7 @@ export const loginUser = async (req, res, next) => {
     res.cookie('refreshToken', refreshToken, cookieOptions);
 
     return res.json({
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isVerified: user.isVerified,
-        avatar: user.avatar,
-        location: user.location,
-        deliveryAgentProfile: user.deliveryAgentProfile,
-      },
+      user: serializeUser(user),
       token: accessToken,
     });
   } catch (error) {
@@ -360,15 +341,7 @@ export const googleAuth = async (req, res, next) => {
     setTokenCookie(res, refreshToken);
 
     res.json({
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-        avatar: user.avatar,
-        location: user.location,
-      },
+      user: serializeUser(user),
       token: accessToken,
     });
   } catch (error) {
@@ -620,20 +593,7 @@ export const updateUserProfile = async (req, res, next) => {
 
     const updatedUser = await user.save();
 
-    res.json({
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      phone: updatedUser.phone,
-      email: updatedUser.email,
-      role: updatedUser.role,
-      isVerified: updatedUser.isVerified,
-      avatar: updatedUser.avatar,
-      coverImage: updatedUser.coverImage,
-      location: updatedUser.location,
-      farmerProfile: updatedUser.farmerProfile,
-      buyerProfile: updatedUser.buyerProfile,
-      deliveryAgentProfile: updatedUser.deliveryAgentProfile,
-    });
+    res.json(serializeUser(updatedUser));
   } catch (error) {
     next(error);
   }

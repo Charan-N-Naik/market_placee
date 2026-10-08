@@ -6,7 +6,20 @@ const notificationSchema = new mongoose.Schema(
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     type: {
       type: String,
-      enum: ['order_placed', 'order_delivered', 'payment_received', 'message', 'rating', 'custom'],
+      enum: [
+        'order_placed',
+        'order_delivered',
+        'order_status_update',
+        'order_cancelled',
+        'order_accepted',
+        'order_packed',
+        'order_collected',
+        'delivery_confirmed',
+        'payment_received',
+        'message',
+        'rating',
+        'custom',
+      ],
       required: true,
     },
     title: { type: String, required: true },
@@ -23,6 +36,8 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ recipient: 1, createdAt: -1 });
+// Compound index for fast unread-count queries
+notificationSchema.index({ recipient: 1, read: 1, type: 1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 export default Notification;

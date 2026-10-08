@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Fragment, lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
@@ -15,6 +15,8 @@ import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import GmailNotificationInbox from '../components/GmailNotificationInbox';
 import api from '../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification } from '../api/notificationsApi';
+import { cToF } from '../utils/temperature';
 import ConfirmModal from '../components/common/ConfirmModal';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -23,7 +25,7 @@ import {
 import {
   LayoutDashboard, Plus, Bot, Eye, Brain, User, Package, BadgeCheck, Clock, Eye as EyeIcon, CloudSun,
   TrendingUp, ChevronRight, Pencil, Save, Check, ShoppingCart, Trash2, ArrowUpRight, ArrowDownRight,
-  Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, Calendar, Star, Sparkles,
+  Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, AlertCircle, Calendar, Star, Sparkles,
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
   Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark, CreditCard,
   CheckCircle, CheckCircle2, MessageSquare
@@ -53,10 +55,35 @@ export default function FarmerDashboard() {
   };
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const { user, logout, updateProfile } = useAuth();
   const { listings, getMyListings, deleteListing, updateListing, addListing } = useListings();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const initialTab = searchParams.get('tab') || location.state?.tab || 'dashboard';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') || location.state?.tab;
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, location.state]);
+
+  useEffect(() => {
+    const handleAppNavigate = (e) => {
+      const path = e.detail || '';
+      if (path.includes('tab=')) {
+        const targetTab = new URLSearchParams(path.split('?')[1]).get('tab');
+        if (targetTab) setActiveTab(targetTab);
+      } else if (path.includes('/farmer/dashboard')) {
+        setActiveTab('dashboard');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('app:navigate', handleAppNavigate);
+    return () => window.removeEventListener('app:navigate', handleAppNavigate);
+  }, []);
   const [loading, setLoading] = useState(true);
   const [editingListing, setEditingListing] = useState(null);
 
@@ -109,6 +136,13 @@ export default function FarmerDashboard() {
   // ConfirmModal / AlertModal state
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', variant: 'default', isAlert: false, onConfirm: null });
 
+  // Top Flash / Toast Notification state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  };
+
   useEffect(() => {
     if (!user || user.role !== 'farmer') {
       navigate('/login/farmer');
@@ -127,7 +161,8 @@ export default function FarmerDashboard() {
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&relative_humidity_2m=true`);
       const data = await res.json();
       if (data && data.current_weather) {
-        const temp = Math.round(data.current_weather.temperature);
+        const rawTemp = data.current_weather.temperature;
+        const temp = Math.round(rawTemp);
         const wind = Math.round(data.current_weather.windspeed);
 
         // Map weather code to description
@@ -140,7 +175,9 @@ export default function FarmerDashboard() {
         else if (code > 67) { cond = 'Thunderstorm'; forecast = 'Seek indoor storage protection'; }
 
         setWeatherData({
-          temp: temp.toString(),
+          temp: `${temp}°C / ${cToF(rawTemp)}°F`,
+          tempC: temp,
+          tempF: cToF(rawTemp),
           humidity: data.current_weather.relative_humidity_2m ? `${data.current_weather.relative_humidity_2m}%` : '62%',
           rain: code > 48 ? '85%' : '15%',
           wind: `${wind} km/h`,
@@ -293,20 +330,19 @@ export default function FarmerDashboard() {
       setSellerOrders(prev =>
         prev.map(o => (o._id === orderId || o.id === orderId || o.orderId === orderId) ? { ...o, status: newStatus } : o)
       );
-      alert(`Order status updated to ${newStatus}`);
+      showToast(`Order status updated to ${newStatus}`, 'success');
     } catch (err) {
       console.error('Failed to update order status:', err);
-      alert(err.response?.data?.message || 'Failed to update order status');
+      showToast(err.response?.data?.message || 'Failed to update order status', 'error');
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-      window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({ notifications, setNotifications });
     } catch (err) {
       console.error('Failed to mark notifications as read', err);
+      showToast('Could not mark notifications as read. Please try again.', 'error');
     }
   };
 
@@ -835,27 +871,79 @@ export default function FarmerDashboard() {
                             <Copy size={10} /> {t('farmerDashboard.duplicateAction')}
                           </button>
                           <button
-                          onClick={() => {
+                            onClick={() => {
+                              const isPaused = listing.status === 'paused';
+                              if (!isPaused) {
+                                setConfirmModal({
+                                  isOpen: true,
+                                  variant: 'warning',
+                                  title: 'Pause Listing First',
+                                  message: `Active listings cannot be removed directly. Only paused vegetables/crops can be removed. Would you like to pause "${listing.cropName}" now?`,
+                                  confirmText: 'Pause Listing',
+                                  cancelText: 'Cancel',
+                                  isAlert: false,
+                                  onConfirm: async () => {
+                                    await handlePauseToggle(listing);
+                                    setConfirmModal({
+                                      isOpen: true,
+                                      isAlert: true,
+                                      variant: 'info',
+                                      title: 'Listing Paused',
+                                      message: `"${listing.cropName}" is now paused. You can now click Delete to permanently remove it from your catalogue and buyer search.`,
+                                      confirmText: 'OK',
+                                      onConfirm: null
+                                    });
+                                  }
+                                });
+                                return;
+                              }
+
+                              // Item is paused — allow permanent removal
                               setConfirmModal({
                                 isOpen: true,
                                 variant: 'danger',
-                                title: 'Delete Listing',
-                                message: 'Are you sure you want to delete this listing? This action cannot be undone.',
-                                confirmText: 'Delete Listing',
+                                title: 'Delete Catalogue Item',
+                                message: `Are you sure you want to permanently delete "${listing.cropName}"? Once removed, it will be completely deleted and will not appear on the buyer side.`,
+                                confirmText: 'Delete Permanently',
                                 cancelText: 'Cancel',
                                 isAlert: false,
                                 onConfirm: async () => {
                                   try {
                                     await deleteListing(listing._id || listing.id);
-                                    setConfirmModal({ isOpen: true, isAlert: true, variant: 'success', title: 'Deleted', message: 'Listing deleted successfully.', confirmText: 'OK', onConfirm: null });
+                                    if (typeof fetchDashboardData === 'function') {
+                                      fetchDashboardData();
+                                    }
+                                    setConfirmModal({
+                                      isOpen: true,
+                                      isAlert: true,
+                                      variant: 'success',
+                                      title: 'Removed from Catalogue',
+                                      message: `"${listing.cropName}" was successfully removed and will no longer show on the buyer marketplace.`,
+                                      confirmText: 'OK',
+                                      onConfirm: null
+                                    });
                                   } catch (err) {
-                                    console.error(err);
-                                    setConfirmModal({ isOpen: true, isAlert: true, variant: 'danger', title: 'Delete Failed', message: 'Failed to delete listing.', confirmText: 'OK', onConfirm: null });
+                                    console.error('Delete listing error:', err);
+                                    setConfirmModal({
+                                      isOpen: true,
+                                      isAlert: true,
+                                      variant: 'danger',
+                                      title: 'Delete Failed',
+                                      message: 'Failed to delete listing. Please try again.',
+                                      confirmText: 'OK',
+                                      onConfirm: null
+                                    });
                                   }
                                 },
                               });
                             }}
-                            className="py-2.5 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer col-span-2 flex items-center justify-center gap-1"
+                            className={`py-2.5 border rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer col-span-2 flex items-center justify-center gap-1
+                              ${listing.status === 'paused'
+                                ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600 shadow-xs'
+                                : 'bg-gray-50 hover:bg-red-50 border-gray-200 text-gray-500 hover:text-red-600'
+                              }
+                            `}
+                            title={listing.status === 'paused' ? 'Permanently delete this paused crop' : 'Pause this crop before deleting'}
                           >
                             <Trash2 size={12} /> {t('farmerDashboard.deleteAction')}
                           </button>
@@ -1427,12 +1515,15 @@ export default function FarmerDashboard() {
             sellerOrders={sellerOrders}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onMarkAsRead={markAllAsRead}
-            onDeleteNotification={(id) => {
+            onDeleteNotification={async (id) => {
               const target = notifications.find(n => (n._id || n.id) === id);
               const wasUnread = target ? !target.read : true;
-              setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
-              window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id, wasUnread } }));
-              api.delete(`/notifications/${id}`).catch(() => { });
+              try {
+                await apiDeleteNotification({ notifId: id, wasUnread, notifications, setNotifications });
+              } catch (err) {
+                console.error('Failed to delete notification:', err);
+                showToast('Could not delete notification. Please try again.', 'error');
+              }
             }}
             onRefresh={fetchDashboardData}
           />
@@ -2229,6 +2320,43 @@ export default function FarmerDashboard() {
           order={activeChatOrder}
           onClose={() => setActiveChatOrder(null)}
         />
+      )}
+
+      {/* Global Confirm / Alert Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        isAlert={confirmModal.isAlert}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={async () => {
+          if (typeof confirmModal.onConfirm === 'function') {
+            await confirmModal.onConfirm();
+          } else {
+            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          }
+        }}
+      />
+
+      {/* Top Flash / Toast Notification Banner */}
+      {toast.show && (
+        <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl transition-all duration-300 transform animate-in fade-in slide-in-from-top-4 border ${
+          toast.type === 'error'
+            ? 'bg-rose-900/95 text-white border-rose-700'
+            : toast.type === 'warning'
+            ? 'bg-amber-900/95 text-white border-amber-700'
+            : 'bg-emerald-900/95 text-white border-emerald-700'
+        }`}>
+          <div className={`p-1.5 rounded-xl ${
+            toast.type === 'error' ? 'bg-rose-800' : toast.type === 'warning' ? 'bg-amber-800' : 'bg-emerald-800'
+          }`}>
+            {toast.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          </div>
+          <span className="text-xs font-black tracking-wide">{toast.message}</span>
+        </div>
       )}
     </DashboardLayout>
 

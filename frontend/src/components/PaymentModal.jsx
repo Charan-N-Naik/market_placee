@@ -65,7 +65,7 @@ export default function PaymentModal({ order, onClose, onPaymentSuccess }) {
           currency: 'INR',
           name: 'KisanBazaar Marketplace',
           description: `Direct Farm Payment - Order #${displayId}`,
-          image: 'https://cdn-icons-png.flaticon.com/512/1046/1046784.png',
+          image: 'https://cdn-icons-png.flaticon.com/512/2909/2909769.png',
           ...(isRealOrder ? { order_id: razorpayOrderData.id } : {}),
           handler: async function (response) {
             try {

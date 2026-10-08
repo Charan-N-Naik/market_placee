@@ -1,10 +1,11 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification, apiMarkNotificationRead } from '../api/notificationsApi';
 import CropCard from '../components/CropCard';
 import CropImage from '../components/CropImage';
 import LoadingSkeleton from '../components/LoadingSkeleton';
@@ -60,6 +61,8 @@ function getPaymentLabel(order) {
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'en';
   const toggleLanguage = () => {
@@ -70,8 +73,31 @@ export default function BuyerDashboard() {
   const { listings, loading: listingsLoading, toggleSaved, isSaved, savedListings, fetchListings } = useListings();
   const { cartItemsCount, addToCart } = useCart();
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const initialTab = searchParams.get('tab') || location.state?.tab || 'dashboard';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') || location.state?.tab;
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, location.state]);
+
+  useEffect(() => {
+    const handleAppNavigate = (e) => {
+      const path = e.detail || '';
+      if (path.includes('tab=')) {
+        const targetTab = new URLSearchParams(path.split('?')[1]).get('tab');
+        if (targetTab) setActiveTab(targetTab);
+      } else if (path.includes('/buyer/dashboard')) {
+        setActiveTab('dashboard');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('app:navigate', handleAppNavigate);
+    return () => window.removeEventListener('app:navigate', handleAppNavigate);
+  }, []);
 
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,10 +105,16 @@ export default function BuyerDashboard() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterOrganic, setFilterOrganic] = useState(false);
   const [filterVerified, setFilterVerified] = useState(false);
+  const [includeOutOfStock, setIncludeOutOfStock] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
 
   const handleCardBuyNow = async (item) => {
-    const minQty = item.minQuantity || item.minOrder || Math.min(50, item.quantity || 50);
+    const stock = item?.quantity !== undefined && item?.quantity !== null ? Number(item.quantity) : 0;
+    if (stock <= 0) {
+      showToast('This crop is currently out of stock', 'error');
+      return;
+    }
+    const minQty = item.minQuantity || item.minOrder || Math.min(50, stock);
     try {
       await addToCart(item, minQty, { mode: 'set' });
       navigate('/checkout');
@@ -149,7 +181,7 @@ export default function BuyerDashboard() {
   const startVoiceSearch = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setConfirmModal({ isOpen: true, isAlert: true, variant: 'info', title: 'Not Supported', message: 'Voice search is not supported in this browser.', confirmText: 'OK', onConfirm: null });
+      showToast('Voice search is not supported in this browser.', 'info');
       return;
     }
     if (isListening) return; // prevent double-start
@@ -318,12 +350,11 @@ export default function BuyerDashboard() {
   }, []);
 
   const handleMarkAllBuyerNotificationsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
     try {
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({ notifications, setNotifications });
     } catch (err) {
       console.warn('Failed to mark all as read:', err);
+      showToast('Could not mark notifications as read. Please try again.', 'error');
     }
   };
 
@@ -331,17 +362,12 @@ export default function BuyerDashboard() {
     if (e) e.stopPropagation();
     const target = notifications.find(n => (n._id || n.id) === notifId);
     const wasUnread = target ? !target.read : true;
-
-    setNotifications(prev => prev.filter(n => (n._id || n.id) !== notifId));
-    if (activeBuyerNotificationId === notifId) {
-      setActiveBuyerNotificationId(null);
-    }
-    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
-
+    if (activeBuyerNotificationId === notifId) setActiveBuyerNotificationId(null);
     try {
-      await api.delete(`/notifications/${notifId}`);
+      await apiDeleteNotification({ notifId, wasUnread, notifications, setNotifications });
     } catch (err) {
       console.warn('Failed to delete notification:', err);
+      showToast('Could not delete notification. Please try again.', 'error');
     }
   };
 
@@ -349,11 +375,12 @@ export default function BuyerDashboard() {
     const notifId = n._id || n.id;
     setActiveBuyerNotificationId(notifId);
     if (!n.read) {
-      setNotifications(prev => prev.map(item => ((item._id || item.id) === notifId ? { ...item, read: true, isRead: true } : item)));
-      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
       try {
-        await api.put(`/notifications/${notifId}/read`);
-      } catch (_) {}
+        await apiMarkNotificationRead({ notifId, notifications, setNotifications });
+      } catch (err) {
+        console.warn('Failed to mark notification as read:', err);
+        showToast('Could not mark notification as read. Please try again.', 'error');
+      }
     }
   };
 
@@ -390,7 +417,6 @@ export default function BuyerDashboard() {
     { id: 'orders', icon: ShoppingCart, label: t('sidebar.orders'), external: '/buyer/pending-orders' },
     { id: 'wishlist', icon: Heart, label: t('sidebar.wishlist') },
     { id: 'cart', icon: ShoppingCart, label: `${t('sidebar.cart')}${cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}`, external: '/cart' },
-    { id: 'assistant', icon: Bot, label: t('sidebar.aiAssistant'), badge: 'AI' },
     { id: 'analyzer', icon: Eye, label: t('sidebar.cropVerification'), badge: 'AI' },
     { id: 'weather', icon: CloudSun, label: t('sidebar.weather'), external: '/weather' },
     { id: 'market', icon: TrendingUp, label: t('sidebar.marketPrices'), external: '/market-prices' },
@@ -407,6 +433,14 @@ export default function BuyerDashboard() {
       if (!isVerified) return false;
       return true;
     });
+
+    // Zero-stock handling: by default, remove sold out crops from the buyer feed
+    if (!includeOutOfStock) {
+      result = result.filter(l => {
+        const stock = l.quantity !== undefined && l.quantity !== null ? Number(l.quantity) : 0;
+        return stock > 0;
+      });
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -744,6 +778,15 @@ export default function BuyerDashboard() {
                       className="accent-[#166534] rounded"
                     />
                     <span>{t('buyerDashboard.aiVerifiedOnly')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeOutOfStock}
+                      onChange={(e) => setIncludeOutOfStock(e.target.checked)}
+                      className="accent-rose-600 rounded"
+                    />
+                    <span className={includeOutOfStock ? 'text-rose-600 font-extrabold' : ''}>Include Out of Stock</span>
                   </label>
                 </div>
               </div>

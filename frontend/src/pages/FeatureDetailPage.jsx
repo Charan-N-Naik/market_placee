@@ -1,13 +1,15 @@
 import React, { useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, ShieldCheck, Zap, Bot, Smartphone, CheckCircle2, 
-  Sparkles, Layers, Cpu, Users, Eye, HelpCircle, ArrowRight, 
-  ChevronRight, Scale, Clock, ShieldAlert, Award
+  Sparkles, Cpu, Users, Eye, HelpCircle, 
+  Scale, Clock, Award
 } from 'lucide-react';
+import LanguageToggle from '../components/LanguageToggle';
 
-const FEATURE_DATA = {
+const FEATURE_DATA_EN = {
   'ai-verification': {
     id: 'ai-verification',
     icon: <ShieldCheck className="w-10 h-10 text-emerald-600" />,
@@ -98,33 +100,33 @@ const FEATURE_DATA = {
         description: 'AI pulls latest mandi rates to suggest optimal bulk wholesale pricing that guarantees quick sales.'
       },
       {
-        icon: <Layers className="w-5 h-5 text-amber-600" />,
-        title: 'One-Click Duplicate & Re-list',
-        description: 'Farmers harvesting recurring crops can duplicate previous listings in a single tap.'
+        icon: <Award className="w-5 h-5 text-amber-600" />,
+        title: '1-Click Auto Social Sharing',
+        description: 'Instantly broadcasts verified wholesale listings to local buyer Telegram, WhatsApp, and APMC trader groups.'
       }
     ],
     howItWorks: [
       {
         step: '01',
-        title: 'Speak or Snap',
-        description: 'Use voice typing or snapshot detection to auto-fill crop name, variety, and harvest details.'
+        title: 'Voice-Type or Quick Tap',
+        description: 'Farmer enters crop details in seconds using native audio dictation or rapid dropdowns.'
       },
       {
         step: '02',
-        title: 'Set Wholesale Volume & Price',
-        description: 'Enter bulk quantity (minimum 50 kg or quintals) and consult live regional mandi price benchmarks.'
+        title: 'AI Price Recommendation',
+        description: 'System suggests fair market pricing based on current APMC rates in adjacent districts.'
       },
       {
         step: '03',
-        title: 'Instant Distribution',
-        description: 'Listing broadcasts instantly to thousands of verified food processors, retailers, and wholesalers.'
+        title: 'Instant Commercial Publish',
+        description: 'Listing goes live instantly and notifies verified bulk buyers in the distribution radius.'
       }
     ],
     stats: [
-      { label: 'Avg Listing Time', value: '45 sec' },
-      { label: 'Wholesale Reach', value: '10,000+' },
-      { label: 'Mandi Price Sync', value: 'Real-time' },
-      { label: 'Languages Supported', value: '8 Languages' }
+      { label: 'Listing Time', value: '58 sec' },
+      { label: 'Direct Inquiries', value: '3.4x Faster' },
+      { label: 'APMC Markets Synced', value: '1,200+' },
+      { label: 'Voice Accuracy', value: '96.2%' }
     ],
     faq: [
       {
@@ -158,7 +160,7 @@ const FEATURE_DATA = {
         description: 'Ask "What is the tomato price in Kolar today vs Azadpur?" and get instant comparisons.'
       },
       {
-        icon: <ShieldAlert className="w-5 h-5 text-sky-600" />,
+        icon: <Sparkles className="w-5 h-5 text-sky-600" />,
         title: 'Hyper-Local Weather & Sowing Guidance',
         description: '7-day precipitation forecasts combined with crop stage advice to prevent waterlogging and crop loss.'
       },
@@ -269,16 +271,281 @@ const FEATURE_DATA = {
   }
 };
 
+const FEATURE_DATA_KN = {
+  'ai-verification': {
+    id: 'ai-verification',
+    icon: <ShieldCheck className="w-10 h-10 text-emerald-600" />,
+    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    accentGradient: 'from-emerald-500 to-green-600',
+    title: 'AI-ಆಧಾರಿತ ಗುಣಮಟ್ಟ ಪರಿಶೀಲನೆ',
+    tagline: '100% ಪಾರದರ್ಶಕ ಬೆಳೆ ವರ್ಗೀಕರಣಕ್ಕಾಗಿ ಬಹು-ಕೋನ ಕಂಪ್ಯೂಟರ್ ದೃಷ್ಟಿ ತಂತ್ರಜ್ಞಾನ',
+    summary: 'ನಮ್ಮ ಅತ್ಯಾಧುನಿಕ ಕಂಪ್ಯೂಟರ್ ದೃಷ್ಟಿ ವ್ಯವಸ್ಥೆಯು ಬೆಳೆಗಳನ್ನು ಬಹು ಕ್ಯಾಮೆರಾ ಕೋನಗಳಲ್ಲಿ ವಿಶ್ಲೇಷಿಸಿ ದೋಷಗಳನ್ನು ಪತ್ತೆಹಚ್ಚುತ್ತದೆ, ತಾಜಾತನ ಸ್ಕೋರ್ ನೀಡುತ್ತದೆ ಮತ್ತು ಪಟ್ಟಿ ಪ್ರಕಟಿಸುವ ಮುನ್ನವೇ ಗುಣಮಟ್ಟವನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ನಿರ್ಧರಿಸುತ್ತದೆ.',
+    highlights: [
+      {
+        icon: <Eye className="w-5 h-5 text-emerald-600" />,
+        title: 'ಬಹು-ಕೋನ ಪರಿಶೀಲನೆ',
+        description: 'ರೈತರು ಮುಂಭಾಗ, ಬದಿ ಮತ್ತು ಮೇಲ್ಭಾಗದ ಕೋನಗಳಲ್ಲಿ ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಮಾಡುತ್ತಾರೆ. ನಕಲಿ ಫೋಟೋ ತಡೆಯಲು AI ಪರಿಶೀಲಿಸುತ್ತದೆ.'
+      },
+      {
+        icon: <Cpu className="w-5 h-5 text-emerald-600" />,
+        title: 'ತ್ವರಿತ ಕೀಟ ಮತ್ತು ಕೊಳೆತ ಪತ್ತೆ',
+        description: '5,00,000+ ಕೃಷಿ ದತ್ತಾಂಶಗಳೊಂದಿಗೆ ತರಬೇತಿ ಪಡೆದ AI ಕೊಳೆತ, ಶಿಲೀಂಧ್ರ ಕಲೆಗಳು ಮತ್ತು ಕೀಟ ಹಾನಿಯನ್ನು ತಕ್ಷಣ ಗುರುತಿಸುತ್ತದೆ.'
+      },
+      {
+        icon: <Award className="w-5 h-5 text-emerald-600" />,
+        title: 'ಅಧಿಕೃತ ಗ್ರೇಡ್ ಪ್ರಮಾಣೀಕರಣ (A+, A, B)',
+        description: 'ಪ್ರಮಾಣಿತ ಗ್ರೇಡಿಂಗ್ ಡೆಲಿವರಿ ಸಮಯದಲ್ಲಿ ಖರೀದಿದಾರರು ಮತ್ತು ರೈತರ ನಡುವಿನ ವಿವಾದಗಳನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ತಪ್ಪಿಸುತ್ತದೆ.'
+      },
+      {
+        icon: <Clock className="w-5 h-5 text-emerald-600" />,
+        title: 'ಶೆಲ್ಫ್ ಜೀವಿತಾವಧಿ ಮತ್ತು ತಾಜಾತನ ಸ್ಕೋರ್',
+        description: 'ಬೆಳೆಯ ಗರಿಷ್ಠ ತಾಜಾತನದ ದಿನಗಳನ್ನು ಮುಂಚಿತವಾಗಿಯೇ ಅಂದಾಜಿಸಿ ಖರೀದಿದಾರರಿಗೆ ನಿಖರ ಸಾರಿಗೆ ಸಮಯ ನೀಡುತ್ತದೆ.'
+      }
+    ],
+    howItWorks: [
+      {
+        step: '01',
+        title: 'ರೈತರು ನೈಜ ಫೋಟೋಗಳನ್ನು ಸೆರೆಹಿಡಿಯುತ್ತಾರೆ',
+        description: 'ಇನ್-ಆ್ಯಪ್ ಕ್ಯಾಮೆರಾ ಬಳಸಿ ಕಟಾವು ಮಾಡಿದ ತಾಜಾ ಬೆಳೆಯ ಕೋನಗಳನ್ನು ರೈತರು ಸುಲಭವಾಗಿ ಸೆರೆಹಿಡಿಯುತ್ತಾರೆ.'
+      },
+      {
+        step: '02',
+        title: 'ವಿಷನ್ AI ಡೀಪ್-ಸ್ಕ್ಯಾನ್',
+        description: 'ನ್ಯೂರಲ್ ನೆಟ್‌ವರ್ಕ್ ಕೇವಲ 3 ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಬೆಳೆಯ ತಳಿ, ಬಣ್ಣದ ವ್ಯತ್ಯಾಸ, ಸಿಪ್ಪೆಯ ಶುದ್ಧತೆ ಮತ್ತು ಮಾಗುವ ಹಂತವನ್ನು ಪತ್ತೆ ಮಾಡುತ್ತದೆ.'
+      },
+      {
+        step: '03',
+        title: 'ಸ್ವಯಂಚಾಲಿತ ಪರಿಶೀಲನಾ ಪ್ರಮಾಣಪತ್ರ',
+        description: 'ಪ್ರತಿ ಪಟ್ಟಿಗೆ "AI ಪರಿಶೀಲಿತ" ಬ್ಯಾಡ್ಜ್ ನೀಡಲಾಗುತ್ತದೆ, ಇದು ಸಾರ್ವಜನಿಕವಾಗಿ ಪ್ರತಿಯೊಬ್ಬ ಖರೀದಿದಾರರಿಗೂ ಗೋಚರಿಸುತ್ತದೆ.'
+      }
+    ],
+    stats: [
+      { label: 'ತಪಾಸಣೆ ನಿಖರತೆ', value: '98.4%' },
+      { label: 'ವಿವಾದ ಕಡಿತ', value: '87%' },
+      { label: 'ಪರಿಶೀಲನಾ ವೇಗ', value: '< 3 ಸೆ' },
+      { label: 'ಬೆಂಬಲಿತ ಬೆಳೆಗಳು', value: '45+' }
+    ],
+    faq: [
+      {
+        q: 'ಫೋಟೋಗಳನ್ನು ನಕಲಿ ಅಥವಾ ಮರುಬಳಕೆ ಮಾಡಬಹುದೇ?',
+        a: 'ಇಲ್ಲ. ನಮ್ಮ ಇಮೇಜ್ ಪೈಪ್‌ಲೈನ್ ಹ್ಯಾಶ್ ಹೋಲಿಕೆ ಮತ್ತು ಟೈಮ್‌ಸ್ಟ್ಯಾಂಪ್ ಪರಿಶೀಲನೆ ನಡೆಸಿ ನೈಜ, ಇತ್ತೀಚಿನ ಫೋಟೋಗಳನ್ನು ಮಾತ್ರ ಸ್ವೀಕರಿಸುತ್ತದೆ.'
+      },
+      {
+        q: 'ಬೆಳೆ AI ಪರಿಶೀಲನೆಯಲ್ಲಿ ವಿಫಲವಾದರೆ ಏನಾಗುತ್ತದೆ?',
+        a: 'ಫೋಟೋ ಏಕೆ ತಿರಸ್ಕರಿಸಲ್ಪಟ್ಟಿತು (ಕಡಿಮೆ ಬೆಳಕು, ಮಸುಕು ಅಥವಾ ತೀವ್ರ ದೋಷ) ಎಂಬುದನ್ನು ರೈತರಿಗೆ ತಕ್ಷಣ ತಿಳಿಸಿ ಸರಿಪಡಿಸುವ ಮಾರ್ಗದರ್ಶನ ನೀಡಲಾಗುತ್ತದೆ.'
+      }
+    ]
+  },
+
+  'lightning-listing': {
+    id: 'lightning-listing',
+    icon: <Zap className="w-10 h-10 text-amber-500" />,
+    badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+    accentGradient: 'from-amber-500 to-orange-600',
+    title: 'ಮಿಂಚಿನ ವೇಗದ ಸಗಟು ಪಟ್ಟಿ',
+    tagline: 'ಹೊಲದಿಂದ 60 ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಲೈವ್ ವಾಣಿಜ್ಯ ಮಂಡಿಗೆ',
+    summary: 'ಕಡಿಮೆ ತಂತ್ರಜ್ಞಾನ ಅನುಭವವಿರುವ ರೈತರಿಗಾಗಿ ಸರಳವಾಗಿ ವಿನ್ಯಾಸಗೊಳಿಸಲಾಗಿದೆ. ಸ್ಥಳೀಯ ಭಾಷೆಯ ಧ್ವನಿ ಟೈಪಿಂಗ್, ಸ್ವಯಂಚಾಲಿತ APMC ಬೆಲೆ ಅಂದಾಜು ಮತ್ತು ಟ್ರಕ್‌ಲೋಡ್ ಸಗಟು ಬ್ಯಾಚ್‌ಗಳ ಸಂರಚನೆ ಒಳಗೊಂಡಿದೆ.',
+    highlights: [
+      {
+        icon: <Sparkles className="w-5 h-5 text-amber-600" />,
+        title: 'ಬೃಹತ್ ಪ್ರಮಾಣದ ಸಗಟು ನಿರ್ವಹಣೆ',
+        description: 'ವಾಣಿಜ್ಯ ವ್ಯಾಪಾರಕ್ಕಾಗಿ ಕನಿಷ್ಠ 50 ಕೆಜಿ / 1 ಕ್ವಿಂಟಾಲ್ ಮಿತಿಯೊಂದಿಗೆ ಸಗಟು ಮಾರಾಟಗಾರರಿಗೆ ಸರಿಹೊಂದಿಸಲಾಗಿದೆ.'
+      },
+      {
+        icon: <Bot className="w-5 h-5 text-amber-600" />,
+        title: 'ಕನ್ನಡ ಧ್ವನಿ ಟೈಪಿಂಗ್',
+        description: 'ರೈತರು ತಮ್ಮ ಬೆಳೆಯ ಹೆಸರು, ತಳಿ ಮತ್ತು ಸ್ಥಳವನ್ನು ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡುವ ಮೂಲಕವೇ ನಮೂದಿಸಬಹುದು.'
+      },
+      {
+        icon: <Scale className="w-5 h-5 text-amber-600" />,
+        title: 'ಲೈವ್ APMC ಮಂಡಿ ಬೆಲೆ ಮಾರ್ಗದರ್ಶಿ',
+        description: 'ತ್ವರಿತ ಮಾರಾಟ ಖಾತರಿಪಡಿಸಲು AI ಸಮೀಪದ ಮಂಡಿಗಳ ಇತ್ತೀಚಿನ ದರಗಳನ್ನು ಆಧರಿಸಿ ಉತ್ತಮ ಬೆಲೆಯನ್ನು ಸೂಚಿಸುತ್ತದೆ.'
+      },
+      {
+        icon: <Award className="w-5 h-5 text-amber-600" />,
+        title: '1-ಕ್ಲಿಕ್ ಸಾಮಾಜಿಕ ಹಂಚಿಕೆ',
+        description: 'ಪರಿಶೀಲಿತ ಸಗಟು ಪಟ್ಟಿಗಳನ್ನು ತಕ್ಷಣ ಸ್ಥಳೀಯ ಖರೀದಿದಾರರ ಟೆಲಿಗ್ರಾಂ, ವಾಟ್ಸಾಪ್ ಮತ್ತು ಮಂಡಿ ಗುಂಪುಗಳಿಗೆ ರವಾನಿಸುತ್ತದೆ.'
+      }
+    ],
+    howItWorks: [
+      {
+        step: '01',
+        title: 'ಧ್ವನಿ ಮೂಲಕ ಮಾತನಾಡಿ ಅಥವಾ ಟ್ಯಾಪ್ ಮಾಡಿ',
+        description: 'ಸ್ಥಳೀಯ ಭಾಷೆಯ ಧ್ವನಿ ಮೂಲಕ ರೈತರು ಕೆಲವೇ ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಬೆಳೆಯ ವಿವರಗಳನ್ನು ನಮೂದಿಸುತ್ತಾರೆ.'
+      },
+      {
+        step: '02',
+        title: 'AI ಬೆಲೆ ಶಿಫಾರಸು',
+        description: 'ಸಮೀಪದ ಜಿಲ್ಲೆಗಳಲ್ಲಿನ ಪ್ರಸ್ತುತ APMC ಮಂಡಿ ದರಗಳನ್ನು ಆಧರಿಸಿ ನ್ಯಾಯೋಚಿತ ಬೆಲೆಯನ್ನು ವ್ಯವಸ್ಥೆ ಸೂಚಿಸುತ್ತದೆ.'
+      },
+      {
+        step: '03',
+        title: 'ತಕ್ಷಣದ ವಾಣಿಜ್ಯ ಪ್ರಕಟಣೆ',
+        description: 'ಪಟ್ಟಿ ತಕ್ಷಣ ಪ್ರಕಟಗೊಂಡು ಸುತ್ತಮುತ್ತಲಿನ ಪರಿಶೀಲಿತ ಸಗಟು ಖರೀದಿದಾರರಿಗೆ ತಕ್ಷಣ ಅಧಿಸೂಚನೆ ನೀಡುತ್ತದೆ.'
+      }
+    ],
+    stats: [
+      { label: 'ಪಟ್ಟಿ ಮಾಡುವ ಸಮಯ', value: '58 ಸೆ' },
+      { label: 'ನೇರ ವಿಚಾರಣೆಗಳು', value: '3.4x ವೇಗ' },
+      { label: 'ಸಂಪರ್ಕಿತ APMC ಮಂಡಿಗಳು', value: '1,200+' },
+      { label: 'ಧ್ವನಿ ನಿಖರತೆ', value: '96.2%' }
+    ],
+    faq: [
+      {
+        q: 'ಪಟ್ಟಿಗಳಿಗೆ ಕನಿಷ್ಠ ಪ್ರಮಾಣದ ಮಿತಿ ಏಕೆ ಇದೆ?',
+        a: 'ಕಿಸಾನ್‌ಬಜಾರ್ ನೇರ ಸಗಟು ಮಾರುಕಟ್ಟೆಯಾಗಿದ್ದು, ಉತ್ತಮ ಲಾಭಕ್ಕಾಗಿ ಚಿಲ್ಲರೆ ಮಧ್ಯವರ್ತಿಗಳಿಲ್ಲದೆ ರೈತರನ್ನು ನೇರವಾಗಿ ದೊಡ್ಡ ಖರೀದಿದಾರರೊಂದಿಗೆ ಸಂಪರ್ಕಿಸುತ್ತದೆ.'
+      },
+      {
+        q: 'ನಾನು ಕ್ವಿಂಟಾಲ್ ಅಥವಾ ಟನ್‌ಗಳಲ್ಲಿ ಮಾರಾಟ ಮಾಡಬಹುದೇ?',
+        a: 'ಹೌದು! ಬೆಳೆ ಪಟ್ಟಿ ರಚಿಸುವಾಗ ನೀವು ಕಿಲೋಗ್ರಾಂ (ಕೆಜಿ), ಕ್ವಿಂಟಾಲ್ ಅಥವಾ ಮೆಟ್ರಿಕ್ ಟನ್‌ಗಳನ್ನು ಸುಲಭವಾಗಿ ಆಯ್ಕೆ ಮಾಡಬಹುದು.'
+      }
+    ]
+  },
+
+  'ai-agronomist': {
+    id: 'ai-agronomist',
+    icon: <Bot className="w-10 h-10 text-sky-600" />,
+    badgeColor: 'bg-sky-100 text-sky-800 border-sky-200',
+    accentGradient: 'from-sky-500 to-blue-600',
+    title: '24/7 AI ಕೃಷಿ ತಜ್ಞ & ಮಂಡಿ ಸಲಹೆಗಾರ',
+    tagline: 'ನೈಜ ಸಮಯದ ಕೃಷಿ ಯಶಸ್ಸಿಗೆ ನಿಮ್ಮ ಬುದ್ಧಿವಂತ ಡಿಜಿಟಲ್ ಪಾಲುದಾರ',
+    summary: '24 ಗಂಟೆಯೂ ಲಭ್ಯವಿರುವ ಸಂಭಾಷಣಾ AI ಕೃಷಿ ತಜ್ಞ. ಎಲೆ ಫೋಟೋಗಳಿಂದ ರೋಗ ಪತ್ತೆ, ಸ್ಥಳೀಯ ಹವಾಮಾನ ಎಚ್ಚರಿಕೆಗಳು, ಮಂಡಿ ಬೆಲೆ ಮುನ್ಸೂಚನೆ ಮತ್ತು ನೈಸರ್ಗಿಕ ಸಾವಯವ ಗೊಬ್ಬರ ಸಲಹೆಗಳನ್ನು ನೀಡುತ್ತದೆ.',
+    highlights: [
+      {
+        icon: <Cpu className="w-5 h-5 text-sky-600" />,
+        title: 'ತ್ವರಿತ ಬೆಳೆ ರೋಗ ಪತ್ತೆ',
+        description: 'ಹಳದಿ ಅಥವಾ ಕಲೆಯುಳ್ಳ ಎಲೆಗಳ ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ ತಕ್ಷಣ ನಿಖರ ಪರಿಹಾರ ಸಲಹೆಗಳನ್ನು ಪಡೆಯಿರಿ.'
+      },
+      {
+        icon: <Clock className="w-5 h-5 text-sky-600" />,
+        title: 'ಲೈವ್ APMC ಮಂಡಿ ಬೆಲೆ ಮಾಹಿತಿ',
+        description: '"ಇಂದು ಕೋಲಾರ ಮಾರುಕಟ್ಟೆಯಲ್ಲಿ ಟೊಮೆಟೊ ಬೆಲೆ ಎಷ್ಟು?" ಎಂದು ಕೇಳಿ ತಕ್ಷಣ ಹೋಲಿಕೆಗಳನ್ನು ಪಡೆಯಿರಿ.'
+      },
+      {
+        icon: <Sparkles className="w-5 h-5 text-sky-600" />,
+        title: 'ಸ್ಥಳೀಯ ಹವಾಮಾನ & ಬಿತ್ತನೆ ಮಾರ್ಗದರ್ಶನ',
+        description: '7-ದಿನಗಳ ಮಳೆ ಮುನ್ಸೂಚನೆ ಮತ್ತು ಬೆಳೆ ಹಂತದ ಸಲಹೆಗಳ ಮೂಲಕ ಬೆಳೆ ಹಾನಿಯನ್ನು ತಡೆಯಿರಿ.'
+      },
+      {
+        icon: <Users className="w-5 h-5 text-sky-600" />,
+        title: 'ಸ್ವಾಭಾವಿಕ ಕನ್ನಡ ಧ್ವನಿ / ಚಾಟ್',
+        description: 'ಕ್ಲಿಷ್ಟಕರ ವೈಜ್ಞಾನಿಕ ಪದಗಳಿಲ್ಲದೆ ಸರಳ ಕನ್ನಡದಲ್ಲೇ ನೈಸರ್ಗಿಕವಾಗಿ ಪ್ರಶ್ನೆ ಕೇಳಿ ಉತ್ತರ ಪಡೆಯಿರಿ.'
+      }
+    ],
+    howItWorks: [
+      {
+        step: '01',
+        title: 'ಪ್ರಶ್ನೆ ಕೇಳಿ ಅಥವಾ ಫೋಟೋ ಕ್ಲಿಕ್ ಮಾಡಿ',
+        description: 'ನಿಮ್ಮ ಬೆಳೆಯ ಸಮಸ್ಯೆಯನ್ನು ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಪೀಡಿತ ಎಲೆಯ ಫೋಟೋವನ್ನು ಸುಲಭವಾಗಿ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.'
+      },
+      {
+        step: '02',
+        title: 'AI ವಿಶ್ಲೇಷಣೆ & ಮಾರುಕಟ್ಟೆ ಪರಿಶೀಲನೆ',
+        description: 'ವ್ಯವಸ್ಥೆಯು ಕೃಷಿ ಸಂಶೋಧನೆಗಳು, ಹವಾಮಾನ ಡೇಟಾ ಮತ್ತು ಮಂಡಿ ಬೆಲೆಗಳನ್ನು ತುಲನೆ ಮಾಡುತ್ತದೆ.'
+      },
+      {
+        step: '03',
+        title: 'ಕಾರ್ಯಸಾಧ್ಯ ಪರಿಹಾರ',
+        description: 'ನಿಖರ ಔಷಧ ಪ್ರಮಾಣ, ಸಾವಯವ ಕೀಟನಾಶಕ ಪರ್ಯಾಯಗಳು ಅಥವಾ ಬೆಳೆ ಮಾರಲು ಹೆಚ್ಚು ಲಾಭದಾಯಕ ದಿನದ ಸಲಹೆ ಪಡೆಯಿರಿ.'
+      }
+    ],
+    stats: [
+      { label: 'ಲಭ್ಯತೆ', value: '24/7/365' },
+      { label: 'ಪತ್ತೆಹಚ್ಚುವ ರೋಗಗಳು', value: '200+' },
+      { label: 'ಟ್ರ್ಯಾಕ್ ಮಾಡಿದ APMCಗಳು', value: '1,200+' },
+      { label: 'ರೈತರ ತೃಪ್ತಿ', value: '96.8%' }
+    ],
+    faq: [
+      {
+        q: 'AI ಕೃಷಿ ತಜ್ಞ ರೈತರಿಗೆ ಉಚಿತವೇ?',
+        a: 'ಹೌದು, ಎಲ್ಲಾ ನೋಂದಾಯಿತ ರೈತರಿಗೆ ಮೂಲಭೂತ ಬೆಳೆ ರೋಗ ಪತ್ತೆ ಮತ್ತು ಲೈವ್ ಮಂಡಿ ಬೆಲೆ ವಿಚಾರಣೆಗಳು ಸಂಪೂರ್ಣವಾಗಿ ಉಚಿತ.'
+      },
+      {
+        q: 'AI ಸಾವಯವ ಪರಿಹಾರಗಳನ್ನು ಸೂಚಿಸುತ್ತದೆಯೇ?',
+        a: 'ಹೌದು, AI ನೈಸರ್ಗಿಕ ಸಾವಯವ (ಬೇವಿನ ಎಣ್ಣೆ, ಜೀವಾಮೃತ) ಮತ್ತು ಪ್ರಮಾಣಿತ ಶಿಫಾರಸು ಪರಿಹಾರಗಳೆರಡನ್ನೂ ನೀಡುತ್ತದೆ.'
+      }
+    ]
+  },
+
+  'direct-contact': {
+    id: 'direct-contact',
+    icon: <Smartphone className="w-10 h-10 text-rose-600" />,
+    badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
+    accentGradient: 'from-rose-500 to-pink-600',
+    title: 'ತಡೆರಹಿತ ನೇರ ಸಂಪರ್ಕ & ನ್ಯಾಯೋಚಿತ ವ್ಯಾಪಾರ',
+    tagline: 'ಶೂನ್ಯ ಮಧ್ಯವರ್ತಿಗಳು, ನೇರ WhatsApp ಮಾತುಕತೆ ಮತ್ತು ಸುರಕ್ಷಿತ ವಹಿವಾಟುಗಳು',
+    summary: 'ಮಧ್ಯವರ್ತಿಗಳ ಕಮಿಷನ್ ರದ್ದುಗೊಳಿಸಿ. ಕಿಸಾನ್ ಬಜಾರ್ ಪರಿಶೀಲಿಸಿದ ಬೃಹತ್ ಖರೀದಿದಾರರನ್ನು ನೇರವಾಗಿ ರೈತರೊಂದಿಗೆ 1-ಕ್ಲಿಕ್ ವಾಟ್ಸಾಪ್, ಇನ್-ಆ್ಯಪ್ ಸಂದೇಶ, ಪರಿಶೀಲಿತ ಫೋನ್ ಸಂಪರ್ಕ ಮತ್ತು ಡೆಲಿವರಿ ಏಜೆಂಟ್ ನೆಟ್‌ವರ್ಕ್ ಮೂಲಕ ಸಂಪರ್ಕಿಸುತ್ತದೆ.',
+    highlights: [
+      {
+        icon: <Users className="w-5 h-5 text-rose-600" />,
+        title: '1-ಕ್ಲಿಕ್ WhatsApp ಮಾತುಕತೆ',
+        description: 'ಬೆಳೆಯ ಹೆಸರು, ಪ್ರಮಾಣ ಮತ್ತು ಅಪೇಕ್ಷಿತ ಬೆಲೆಯೊಂದಿಗೆ ಮುಂಚಿತವಾಗಿ ರಚಿಸಲಾದ ಸಂದೇಶಗಳು ತಕ್ಷಣ ಒಪ್ಪಂದ ಮುಕ್ತಾಯಗೊಳಿಸುತ್ತವೆ.'
+      },
+      {
+        icon: <ShieldCheck className="w-5 h-5 text-rose-600" />,
+        title: 'ಪರಿಶೀಲಿತ ರೈತ & ಖರೀದಿದಾರ ಪ್ರೊಫೈಲ್‌ಗಳು',
+        description: 'ಸರ್ಕಾರಿ ಗುರುತಿನ ಚೀಟಿ, ಕೃಷಿ ಜಿಯೋಟ್ಯಾಗಿಂಗ್ ಮತ್ತು ಜಿಎಸ್‌ಟಿಐಎನ್ ಪರಿಶೀಲನೆಯು ನೈಜ ವಹಿವಾಟನ್ನು ಖಾತರಿಪಡಿಸುತ್ತದೆ.'
+      },
+      {
+        icon: <Award className="w-5 h-5 text-rose-600" />,
+        title: 'ಸಂಪೂರ್ಣ ಡೆಲಿವರಿ ಸಮನ್ವಯ',
+        description: 'ಸಂಯೋಜಿತ ಡೆಲಿವರಿ ಏಜೆಂಟರು ಮತ್ತು ಟ್ರಕ್ ಚಾಲಕರು ಪ್ರತಿ ಕಿಲೋಮೀಟರ್ ಸಾರಿಗೆ ದರವನ್ನು ನೇರವಾಗಿ ಲೆಕ್ಕಾಚಾರ ಮಾಡುತ್ತಾರೆ.'
+      },
+      {
+        icon: <CheckCircle2 className="w-5 h-5 text-rose-600" />,
+        title: '100% ಕಮಿಷನ್-ಮುಕ್ತ ಪಟ್ಟಿಗಳು',
+        description: 'ದಲ್ಲಾಳಿಗಳ ಯಾವುದೇ ಕಮಿಷನ್ ಕಡಿತವಿಲ್ಲದೆ ರೈತರು ತಮ್ಮ ಬೆಳೆಯ ಸಂಪೂರ್ಣ ಮೌಲ್ಯವನ್ನು ತಾವೇ ಪಡೆಯುತ್ತಾರೆ.'
+      }
+    ],
+    howItWorks: [
+      {
+        step: '01',
+        title: 'ಖರೀದಿದಾರರು ಪರಿಶೀಲಿತ ಬೆಳೆ ಹುಡುಕುತ್ತಾರೆ',
+        description: 'ರಾಜ್ಯ, ಬೆಳೆ ಗ್ರೇಡ್, ಸಗಟು ಪ್ರಮಾಣ ಮತ್ತು ಅಂತರದ ಪ್ರಕಾರ ಫಿಲ್ಟರ್ ಮಾಡಿ ಪಟ್ಟಿಗಳನ್ನು ವೀಕ್ಷಿಸುತ್ತಾರೆ.'
+      },
+      {
+        step: '02',
+        title: 'ನೇರ ಮಾತುಕತೆ',
+        description: 'ಖರೀದಿದಾರರು ಸ್ವಯಂಚಾಲಿತ ನಿಯಮಗಳೊಂದಿಗೆ WhatsApp ಅಥವಾ ಫೋನ್ ಮೂಲಕ ನೇರವಾಗಿ ರೈತರೊಂದಿಗೆ ಸಂಪರ್ಕ ಸಾಧಿಸುತ್ತಾರೆ.'
+      },
+      {
+        step: '03',
+        title: 'ತಡೆರಹಿತ ಪಿಕಪ್ ಮತ್ತು ರವಾನೆ',
+        description: 'ಡೆಲಿವರಿ ಏಜೆಂಟ್ ಹೊಲದ ಗೇಟ್‌ನಿಂದ ಖರೀದಿದಾರರ ಗೋದಾಮಿನವರೆಗೆ ಲೈವ್ ಜಿಪಿಎಸ್ ಟ್ರ್ಯಾಕಿಂಗ್‌ನೊಂದಿಗೆ ಸರಕನ್ನು ರವಾನಿಸುತ್ತಾರೆ.'
+      }
+    ],
+    stats: [
+      { label: 'ರೈತರ ಗಳಿಕೆ ಹೆಚ್ಚಳ', value: '+28%' },
+      { label: 'ಕಮಿಷನ್ ಶುಲ್ಕ', value: '0%' },
+      { label: 'ಪರಿಶೀಲಿತ ಪಾಲುದಾರರು', value: '15,000+' },
+      { label: 'ಸಾರಿಗೆ ಭದ್ರತೆ', value: '100% ಸುರಕ್ಷಿತ' }
+    ],
+    faq: [
+      {
+        q: 'ಕಿಸಾನ್‌ಬಜಾರ್ ಸಗಟು ಮಾರಾಟದಲ್ಲಿ ಕಮಿಷನ್ ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆಯೇ?',
+        a: 'ಇಲ್ಲ! ಸಾಂಪ್ರದಾಯಿಕ APMC ಮಂಡಿಗಳು ಶೇಕಡಾ 6% ರಿಂದ 12% ಕಮಿಷನ್ ಕಡಿತಗೊಳಿಸುವಂತಲ್ಲದೆ, ನಮ್ಮ ನೇರ ಮಾದರಿಯು 100% ಕಮಿಷನ್ ಮುಕ್ತವಾಗಿದೆ.'
+      },
+      {
+        q: 'ಸಾರಿಗೆ ಹೇಗೆ ವ್ಯವಸ್ಥೆ ಮಾಡಲಾಗುತ್ತದೆ?',
+        a: 'ನಮ್ಮ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್‌ನಲ್ಲಿ ನೋಂದಾಯಿತ ಸ್ಥಳೀಯ ಡೆಲಿವರಿ ಏಜೆಂಟರು ತಮ್ಮ ಮೀಸಲಾದ ಪೋರ್ಟಲ್ ಮೂಲಕ ಪಿಕಪ್ ಕೆಲಸಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಾರೆ.'
+      }
+    ]
+  }
+};
+
 export default function FeatureDetailPage() {
   const { featureId } = useParams();
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
 
   // Scroll to top on mount or feature change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [featureId]);
 
-  const feature = FEATURE_DATA[featureId] || FEATURE_DATA['ai-verification'];
+  const isKn = (i18n.language || '').startsWith('kn');
+  const dataSource = isKn ? FEATURE_DATA_KN : FEATURE_DATA_EN;
+  const feature = dataSource[featureId] || dataSource['ai-verification'];
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20">
@@ -288,15 +555,16 @@ export default function FeatureDetailPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <button
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-all cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Home</span>
+            <span>{isKn ? 'ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ' : 'Back to Home'}</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full border ${feature.badgeColor}`}>
-              KisanBazaar Feature
+          <div className="flex items-center gap-2.5">
+            <LanguageToggle role="default" />
+            <span className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full border ${feature.badgeColor} hidden sm:inline-block`}>
+              {isKn ? 'ಕಿಸಾನ್‌ಬಜಾರ್ ವೈಶಿಷ್ಟ್ಯ' : 'KisanBazaar Feature'}
             </span>
           </div>
         </div>
@@ -312,15 +580,13 @@ export default function FeatureDetailPage() {
           transition={{ duration: 0.5 }}
           className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-sm relative overflow-hidden mb-10"
         >
-          <div className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${feature.accentGradient}`}></div>
-
           <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-6">
-            <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner">
+            <div className="w-20 h-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shadow-inner shrink-0">
               {feature.icon}
             </div>
             <div>
               <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full border ${feature.badgeColor}`}>
-                Feature Spotlight
+                {isKn ? 'ವಿಶೇಷ ನೋಟ' : 'Feature Spotlight'}
               </span>
               <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mt-2 mb-1 tracking-tight">
                 {feature.title}
@@ -338,62 +604,60 @@ export default function FeatureDetailPage() {
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-8 border-t border-slate-100">
             {feature.stats.map((s, idx) => (
-              <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                <div className="text-2xl sm:text-3xl font-black text-slate-900">{s.value}</div>
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">{s.label}</div>
+              <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                <span className="block text-2xl sm:text-3xl font-black text-slate-900 mb-1">{s.value}</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">{s.label}</span>
               </div>
             ))}
           </div>
         </motion.div>
 
-        {/* Key Highlights / Capabilities */}
+        {/* Key Highlights Grid */}
         <div className="mb-12">
-          <div className="text-center sm:text-left mb-6">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Core Capabilities & Technical Advantages</h2>
-            <p className="text-slate-500 text-sm font-medium">How this technology empowers farmers and bulk buyers</p>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {isKn ? 'ಪ್ರಮುಖ ಸಾಮರ್ಥ್ಯಗಳು & ವೈಶಿಷ್ಟ್ಯಗಳು' : 'Key Capabilities & Engineering Highlights'}
+            </h2>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-6">
-            {feature.highlights.map((h, idx) => (
+          <div className="grid md:grid-cols-2 gap-6">
+            {feature.highlights.map((item, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.1 }}
-                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex gap-4"
+                className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-start gap-4 hover:shadow-md transition-shadow"
               >
-                <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                  {h.icon}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 shrink-0">
+                  {item.icon}
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 mb-1.5">{h.title}</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">{h.description}</p>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">{item.title}</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
                 </div>
               </motion.div>
             ))}
           </div>
         </div>
 
-        {/* Step-by-Step Workflow */}
-        <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-sm mb-12">
+        {/* How It Works Section */}
+        <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-sm mb-12">
           <div className="text-center mb-10">
-            <span className="text-xs font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-100">
-              Workflow
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-2">How It Works in Practice</h2>
-            <p className="text-slate-500 text-sm font-medium mt-1">Simple, automated, and fail-safe at every stage</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              {isKn ? 'ವ್ಯವಸ್ಥೆ ಹೇಗೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ' : 'How the System Works'}
+            </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 relative">
+          <div className="grid sm:grid-cols-3 gap-8 relative">
             {feature.howItWorks.map((step, idx) => (
-              <div key={idx} className="relative p-6 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
-                <div>
-                  <span className="text-xs font-black text-slate-400 uppercase tracking-widest bg-white px-2.5 py-1 rounded-md border border-slate-200">
-                    Step {step.step}
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-4 mb-2">{step.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{step.description}</p>
+              <div key={idx} className="relative z-10 flex flex-col items-center text-center">
+                <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white font-black text-lg flex items-center justify-center mb-4 shadow-md">
+                  {step.step}
                 </div>
+                <h4 className="text-base font-bold text-slate-900 mb-2">{step.title}</h4>
+                <p className="text-sm text-slate-500 leading-relaxed">{step.description}</p>
               </div>
             ))}
           </div>
@@ -403,7 +667,7 @@ export default function FeatureDetailPage() {
         <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-sm mb-12">
           <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
             <HelpCircle className="w-6 h-6 text-slate-400" />
-            Frequently Asked Questions
+            <span>{isKn ? 'ಪದೇ ಪದೇ ಕೇಳಲಾಗುವ ಪ್ರಶ್ನೆಗಳು' : 'Frequently Asked Questions'}</span>
           </h2>
 
           <div className="space-y-4">
@@ -413,22 +677,6 @@ export default function FeatureDetailPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">{item.a}</p>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Bottom Navigation & Other Features */}
-        <div className="p-8 rounded-3xl bg-slate-900 text-white text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div>
-            <h3 className="text-xl font-bold mb-1">Explore Other KisanBazaar Innovations</h3>
-            <p className="text-sm text-slate-400">Discover all tools engineered for modern agriculture and bulk trade.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => navigate('/')}
-              className="px-5 py-3 rounded-xl bg-white text-slate-900 font-black text-sm hover:bg-slate-100 transition-all flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" /> Return to Homepage
-            </button>
           </div>
         </div>
 

@@ -32,12 +32,16 @@ export default function Sidebar({
   setActiveTab,
   role,
   sidebarOpen,
-  setSidebarOpen
+  setSidebarOpen,
+  collapsed: collapsedProp,
+  setCollapsed: setCollapsedProp
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isFarmer = role === 'farmer';
-  const [collapsed, setCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const collapsed = collapsedProp !== undefined ? collapsedProp : internalCollapsed;
+  const setCollapsed = setCollapsedProp || setInternalCollapsed;
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch unread notification count for all users (Farmer, Buyer, Delivery Agent)
@@ -118,7 +122,6 @@ export default function Sidebar({
     {
       label: t('sidebar.aiTools'),
       items: [
-        { id: 'assistant', icon: Bot, label: t('sidebar.aiAssistant'), badge: 'AI' },
         { id: 'analyzer', icon: ScanEye, label: t('sidebar.cropVerification'), badge: 'AI' },
         { id: 'weather', icon: CloudSun, label: t('sidebar.weather'), external: '/weather' },
         { id: 'market', icon: TrendingUp, label: t('sidebar.marketPrices'), external: '/market-prices' },
@@ -143,8 +146,22 @@ export default function Sidebar({
     setSidebarOpen(false);
   };
 
-  // Non-farmer: previous clean buyer sidebar layout
+  // Non-farmer: buyer (orange) or delivery agent (teal) sidebar
   if (!isFarmer) {
+    const isDeliveryAgent = role === 'delivery_agent' || role === 'delivery';
+    // Teal palette for delivery agent, orange palette for buyer
+    const accent     = isDeliveryAgent ? '#0D9488' : '#EA580C';
+    const accentLight= isDeliveryAgent ? '#F0FDFA' : '#FFF7ED';
+    const accentBorder= isDeliveryAgent ? '#99F6E4' : '#FED7AA';
+    const accentShadow= isDeliveryAgent ? 'rgba(13,148,136,0.08)' : 'rgba(234,88,12,0.08)';
+    const gradStart  = isDeliveryAgent ? '#F0FDFA' : '#FFF7ED';
+    const gradEnd    = isDeliveryAgent ? '#CCFBF1' : '#FFEDD5';
+    const activeGrad = isDeliveryAgent
+      ? 'linear-gradient(to bottom, #0D9488, #0F766E)'
+      : 'linear-gradient(to bottom, #F97316, #EA580C)';
+    const badgeGrad  = isDeliveryAgent
+      ? 'linear-gradient(to right, #0D9488, #0891B2)'
+      : 'linear-gradient(to right, #EA580C, #F59E0B)';
     return (
       <>
         {sidebarOpen && (
@@ -154,9 +171,10 @@ export default function Sidebar({
           />
         )}
         <aside
-          className={`fixed md:relative inset-y-0 left-0 z-50 w-[272px] h-full flex flex-col
-            transform transition-transform duration-300 ease-out md:translate-x-0
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          className={`fixed md:relative inset-y-0 left-0 z-50 h-full flex flex-col
+            transform transition-all duration-300 ease-out md:translate-x-0
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            ${collapsed ? 'w-[72px]' : 'w-[272px]'}`}
           style={{
             background: 'var(--bg-card, #fff)',
             borderRight: '1px solid var(--border-subtle, #f3f4f6)',
@@ -165,129 +183,211 @@ export default function Sidebar({
         >
           {/* Logo Header */}
           <div style={{
-            padding: '1.25rem 1.25rem 1rem',
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            padding: collapsed ? '1.25rem 0.75rem' : '1.25rem 1.25rem 1rem',
+            borderBottom: `1px solid ${accentBorder}40`,
+            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
+            minHeight: 68
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {!collapsed ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: 12,
+                  background: accentLight,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: `1.5px solid ${accentBorder}`,
+                  boxShadow: `0 2px 6px ${accentShadow}`
+                }}>
+                  <Sprout size={22} style={{ color: accent }} />
+                </div>
+                <div>
+                  <h1 style={{
+                    fontWeight: 900, fontSize: '1.2rem', color: '#1c1917',
+                    margin: 0, lineHeight: 1, letterSpacing: '-0.03em'
+                  }}>
+                    Kisan<span style={{ color: accent }}>Bazaar</span>
+                  </h1>
+                  <p style={{
+                    fontSize: '0.58rem', fontWeight: 800, color: accent,
+                    textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
+                  }}>
+                    {isDeliveryAgent ? `🚚 ${t('sidebar.deliveryAgentHub', 'Delivery Agent Hub')}` : `🛒 ${t('sidebar.buyerHub', 'Buyer Hub')}`}
+                  </p>
+                </div>
+              </div>
+            ) : (
               <div style={{
-                width: 38, height: 38, borderRadius: 10,
-                background: 'var(--color-primary-light, #E8F7EE)',
+                width: 38, height: 38, borderRadius: 12,
+                background: accentLight,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '1px solid rgba(31,122,77,0.15)'
+                border: `1.5px solid ${accentBorder}`,
+                boxShadow: `0 2px 6px ${accentShadow}`
               }}>
-                <Sprout size={22} style={{ color: 'var(--color-primary, #1F7A4D)' }} />
+                <Sprout size={22} style={{ color: accent }} />
               </div>
-              <div>
-                <h1 style={{
-                  fontWeight: 900, fontSize: '1.2rem', color: 'var(--text-main, #1c1917)',
-                  margin: 0, lineHeight: 1, letterSpacing: '-0.03em'
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={() => setSidebarOpen(false)} className="md:hidden"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716c' }}>
+                <X size={20} />
+              </button>
+              <button onClick={() => setCollapsed(!collapsed)} className="hidden md:flex"
+                style={{
+                  background: accentLight, border: `1px solid ${accentBorder}`,
+                  cursor: 'pointer', color: accent,
+                  borderRadius: 8, padding: '0.35rem', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
                 }}>
-                  Kisan<span style={{ color: 'var(--color-primary, #1F7A4D)' }}>Bazaar</span>
-                </h1>
-                <p style={{
-                  fontSize: '0.58rem', fontWeight: 800, color: 'var(--color-primary, #1F7A4D)',
-                  textTransform: 'uppercase', letterSpacing: '0.12em', margin: '3px 0 0'
-                }}>
-                  🚚 {role === 'delivery_agent' || role === 'delivery' ? 'Delivery Agent Hub' : `🍃 ${t('sidebar.buyerHub')}`}
-                </p>
-              </div>
+                <ChevronLeft size={14} style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
+              </button>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="md:hidden"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-              <X size={20} />
-            </button>
           </div>
 
           {/* User Profile Card */}
-          <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border-subtle)', boxShadow: 'inset 0 0 6px rgba(0,0,0,0.2)' }}>
-            <div style={{
-              background: 'var(--color-primary-light, #E8F7EE)', borderRadius: 14, padding: '0.75rem 0.875rem',
-              display: 'flex', alignItems: 'center', gap: '0.75rem'
-            }}>
-              <div 
-                onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
-                title={t('navbar.viewProfile', 'View Profile')}
-                style={{
-                  width: 40, height: 40, borderRadius: '50%',
-                  background: 'var(--color-primary, #1F7A4D)', color: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
-                  flexShrink: 0, border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                  cursor: 'pointer', transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(31,122,77,0.3)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; }}
-              >
-                {user?.avatar ? (
-                  <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (user?.name?.charAt(0)?.toUpperCase() || 'U')}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
-                <p style={{ fontSize: '0.65rem', fontWeight: 700, color: '#a3e635', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  📍 {typeof user?.location === 'object'
-                    ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
-                    : (user?.location || 'Karnataka')}
-                </p>
-
+          {!collapsed && (
+            <div style={{ padding: '0.875rem 1rem', borderBottom: `1px solid ${accentBorder}33` }}>
+              <div style={{
+                background: `linear-gradient(135deg, ${gradStart} 0%, ${gradEnd} 100%)`,
+                borderRadius: 16, padding: '0.75rem 0.875rem',
+                border: `1.5px solid ${accentBorder}`,
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                boxShadow: `0 2px 8px ${accentShadow}`
+              }}>
+                <div 
+                  onClick={() => { setActiveTab?.('profile'); setSidebarOpen?.(false); }}
+                  title={t('navbar.viewProfile', 'View Profile')}
+                  style={{
+                    width: 42, height: 42, borderRadius: 14,
+                    background: accentLight, color: accent,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 900, fontSize: '1rem', overflow: 'hidden',
+                    flexShrink: 0, border: `1.5px solid ${accentBorder}`,
+                    boxShadow: `0 2px 6px ${accentShadow}`,
+                    cursor: 'pointer', transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.borderColor = accent; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = accentBorder; }}
+                >
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={22} style={{ color: accent }} />
+                  )}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1c1917', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatDisplayName(user?.name) || user?.name || 'User'}</p>
+                  <p style={{ fontSize: '0.65rem', fontWeight: 700, color: accent, margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    📍 {typeof user?.location === 'object'
+                      ? `${user?.location?.district || user?.location?.address || 'Karnataka'}, ${user?.location?.state || 'IN'}`
+                      : (user?.location || 'Karnataka')}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Navigation Links */}
-          <nav style={{ flex: 1, padding: '0.75rem 0.875rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <nav style={{ flex: 1, padding: collapsed ? '0.75rem 0.5rem' : '0.75rem 0.875rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const notifCount = item.count > 0 ? item.count : (item.id === 'notifications' && unreadCount > 0 ? unreadCount : 0);
               return (
                 <button key={item.id} id={`nav-${item.id}`}
                   onClick={() => handleItemClick(item)}
+                  title={collapsed ? item.label : undefined}
                   style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    padding: '0.75rem 0.875rem', borderRadius: 12,
-                    border: 'none', cursor: 'pointer', textAlign: 'left',
-                    background: isActive ? 'var(--color-primary-light, #E8F7EE)' : 'transparent',
-                    color: isActive ? 'var(--color-primary, #1F7A4D)' : 'var(--text-main, #1c1917)',
+                    width: '100%', display: 'flex', alignItems: 'center',
+                    gap: collapsed ? 0 : '0.75rem',
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    padding: collapsed ? '0.75rem' : '0.75rem 0.875rem', borderRadius: 14,
+                    border: isActive ? `1.5px solid ${accentBorder}` : '1.5px solid transparent',
+                    cursor: 'pointer', textAlign: 'left',
+                    background: isActive ? accentLight : 'transparent',
+                    color: isActive ? accent : '#44403c',
                     fontWeight: isActive ? 800 : 600, fontSize: '0.85rem',
+                    boxShadow: isActive ? `0 2px 8px ${accentShadow}` : 'none',
                     transition: 'all 0.2s ease', position: 'relative'
                   }}
-                  onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(34,197,94,0.2)'; e.currentTarget.style.color = '#fff'; } }}
-                  onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#a3bfa8'; } }}
+                  onMouseEnter={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = `${accentLight}80`;
+                      e.currentTarget.style.color = accent;
+                      e.currentTarget.style.borderColor = `${accentBorder}40`;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#44403c';
+                      e.currentTarget.style.borderColor = 'transparent';
+                    }
+                  }}
                 >
-                  {isActive && <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 4, background: 'var(--color-primary, #1F7A4D)' }} />}
-                  {Icon && <Icon size={18} style={{ color: isActive ? 'var(--color-primary, #1F7A4D)' : 'var(--text-muted, #78716c)', flexShrink: 0 }} />}
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {item.badge && (
-                    <span style={{ fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', background: 'linear-gradient(to right, #7c3aed, #3b82f6)', color: '#fff', boxShadow: '0 0 4px rgba(124,58,237,0.5)' }}>{item.badge}</span>
+                  {isActive && (
+                    <div style={{
+                      position: 'absolute', left: 0, top: '15%', bottom: '15%',
+                      width: 3.5, borderRadius: '0 4px 4px 0',
+                      background: activeGrad
+                    }} />
                   )}
-                  {((item.count > 0) || (item.id === 'notifications' && unreadCount > 0)) && (
-                    <span style={{
-                      fontSize: '0.6rem', minWidth: 20, height: 20,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      borderRadius: 99, fontWeight: 800, background: '#ef4444', color: '#fff',
-                      padding: '0 4px'
-                    }}>
-                      {item.count > 0 ? (item.count > 99 ? '99+' : item.count) : (unreadCount > 99 ? '99+' : unreadCount)}
-                    </span>
+                  {Icon && <Icon size={18} style={{ color: isActive ? accent : '#78716c', flexShrink: 0 }} />}
+                  {!collapsed && (
+                    <>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {item.badge && (
+                        <span style={{
+                          fontSize: '0.55rem', padding: '0.15rem 0.45rem', borderRadius: 99,
+                          fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                          background: badgeGrad, color: '#fff',
+                          boxShadow: `0 0 6px ${accentShadow}`
+                        }}>
+                          {item.badge}
+                        </span>
+                      )}
+                      {notifCount > 0 && (
+                        <span style={{
+                          fontSize: '0.6rem', minWidth: 20, height: 20,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: 99, fontWeight: 800, background: '#ef4444', color: '#fff',
+                          padding: '0 4px'
+                        }}>
+                          {notifCount > 99 ? '99+' : notifCount}
+                        </span>
+                      )}
+                      {isActive && <ChevronRight size={14} style={{ color: accent, flexShrink: 0 }} />}
+                    </>
                   )}
-                  {isActive && <ChevronRight size={14} style={{ color: 'var(--color-primary, #1F7A4D)', flexShrink: 0 }} />}
+                  {collapsed && notifCount > 0 && (
+                    <div style={{
+                      position: 'absolute', top: 6, right: 6, width: 8, height: 8,
+                      borderRadius: '50%', background: '#ef4444', border: '2px solid #fff',
+                    }} />
+                  )}
                 </button>
               );
             })}
           </nav>
 
           {/* Footer Controls */}
-          <div style={{ padding: '0.875rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ background: '#1F7A4D', borderRadius: '9999px', border: '1px solid #2d6a4f', padding: '0.25rem 0.5rem', display: 'flex', justifyContent: 'center', transition: 'background 0.2s' }}>
-  <LanguageToggle className="w-full justify-center" />
-</div>
-            <button id="btn-logout" onClick={onLogout}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.65rem', background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '9999px', color: '#ef4444', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s ease' }}
+          <div style={{ padding: collapsed ? '0.75rem 0.5rem' : '0.875rem 1rem', borderTop: `1px solid ${accentBorder}40`, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {!collapsed && (
+              <LanguageToggle
+                role={role || (isDeliveryAgent ? 'delivery_agent' : 'buyer')}
+                className="w-full justify-center py-2"
+              />
+            )}
+            <button id="btn-logout" onClick={onLogout} title={collapsed ? t('common.logout') : undefined}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: collapsed ? 0 : '0.5rem',
+                padding: '0.65rem', background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '9999px',
+                color: '#ef4444', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.08em',
+                textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s ease'
+              }}
               onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#FEF2F2'; }}
             >
-              <LogOut size={15} />{t('common.logout')}
+              <LogOut size={15} />{!collapsed && t('common.logout')}
             </button>
           </div>
         </aside>
@@ -498,9 +598,10 @@ export default function Sidebar({
           display: 'flex', flexDirection: 'column', gap: '0.5rem',
         }}>
           {!collapsed && (
-            <div style={{ background: '#fff', borderRadius: 99, border: '1px solid rgba(21,128,61,0.12)', padding: '0.25rem 0.5rem', display: 'flex', justifyContent: 'center', transition: 'background 0.2s' }}>
-              <LanguageToggle className="w-full justify-center" />
-            </div>
+            <LanguageToggle
+              role="farmer"
+              className="w-full justify-center py-2"
+            />
           )}
           <button id="btn-logout" onClick={onLogout} title={collapsed ? 'Logout' : undefined}
             style={{

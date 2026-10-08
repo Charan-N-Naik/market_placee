@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
+import LanguageToggle from '../components/LanguageToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Mail, Lock, Phone, User as UserIcon, MapPin, Building, Sprout, ArrowRight, ArrowLeft, Leaf, Map, Camera, X, AlertCircle, ChevronDown, Search } from 'lucide-react';
@@ -79,6 +81,8 @@ const COUNTRY_CODES = [
 ];
 
 export default function AuthPage({ mode = 'login' }) {
+  const { t, i18n } = useTranslation();
+  const isKn = (i18n.language || '').startsWith('kn');
   const { role } = useParams();
   const navigate = useNavigate();
   const { login, register, loading } = useAuth();
@@ -269,7 +273,7 @@ export default function AuthPage({ mode = 'login' }) {
         <div style={{ width: '100%', maxWidth: 480 }}>
 
           {/* Top Back Navigation Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <button
               type="button"
               onClick={() => navigate('/')}
@@ -292,23 +296,30 @@ export default function AuthPage({ mode = 'login' }) {
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = primaryLight; e.currentTarget.style.color = '#374151'; }}
             >
               <ArrowLeft size={16} />
-              <span>Back to Home</span>
+              <span>{isKn ? 'ಮುಖಪುಟಕ್ಕೆ ಹಿಂತಿರುಗಿ' : 'Back to Home'}</span>
             </button>
 
-            <span style={{
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              color: primary,
-              background: '#fff',
-              border: `1.5px solid ${primaryLight}`,
-              padding: '0.45rem 0.85rem',
-              borderRadius: '12px',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-            }}>
-              {isFarmer ? '🌾 Farmer Portal' : isDeliveryAgent ? '🚚 Delivery Portal' : '🛒 Buyer Portal'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <LanguageToggle role={role} />
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                color: primary,
+                background: '#fff',
+                border: `1.5px solid ${primaryLight}`,
+                padding: '0.45rem 0.85rem',
+                borderRadius: '12px',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+              }}>
+                {isFarmer
+                  ? (isKn ? '🌾 ರೈತ ಪೋರ್ಟಲ್' : '🌾 Farmer Portal')
+                  : isDeliveryAgent
+                    ? (isKn ? '🚚 ಡೆಲಿವರಿ ಪೋರ್ಟಲ್' : '🚚 Delivery Portal')
+                    : (isKn ? '🛒 ಖರೀದಿದಾರ ಪೋರ್ಟಲ್' : '🛒 Buyer Portal')}
+              </span>
+            </div>
           </div>
 
           {/* Card */}
@@ -337,12 +348,18 @@ export default function AuthPage({ mode = 'login' }) {
                 </h1>
               </Link>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111827', margin: '0 0 0.35rem', letterSpacing: '-0.02em' }}>
-                {isLogin ? 'Welcome back' : 'Create account'}
+                {isLogin
+                  ? (isKn ? 'ಮರಳಿ ಸ್ವಾಗತ' : 'Welcome back')
+                  : (isKn ? 'ಖಾತೆ ರಚಿಸಿ' : 'Create account')}
               </h2>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600, margin: 0 }}>
                 {isLogin
-                  ? `Sign in to your ${isFarmer ? 'Farmer' : isDeliveryAgent ? 'Delivery Agent' : 'Buyer'} portal`
-                  : `Join as a ${isFarmer ? 'Farmer 🌾' : isDeliveryAgent ? 'Delivery Agent 🚚' : 'Buyer 🛒'} today`}
+                  ? (isKn
+                      ? `ನಿಮ್ಮ ${isFarmer ? 'ರೈತ' : isDeliveryAgent ? 'ಡೆಲಿವರಿ ಏಜೆಂಟ್' : 'ಖರೀದಿದಾರ'} ಪೋರ್ಟಲ್‌ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ`
+                      : `Sign in to your ${isFarmer ? 'Farmer' : isDeliveryAgent ? 'Delivery Agent' : 'Buyer'} portal`)
+                  : (isKn
+                      ? `ಇಂದೇ ${isFarmer ? 'ರೈತರಾಗಿ 🌾' : isDeliveryAgent ? 'ಡೆಲಿವರಿ ಏಜೆಂಟ್ ಆಗಿ 🚚' : 'ಖರೀದಿದಾರರಾಗಿ 🛒'} ಸೇರಿ`
+                      : `Join as a ${isFarmer ? 'Farmer 🌾' : isDeliveryAgent ? 'Delivery Agent 🚚' : 'Buyer 🛒'} today`)}
               </p>
             </div>
 
@@ -402,13 +419,13 @@ export default function AuthPage({ mode = 'login' }) {
 
                     {/* Full Name */}
                     <div>
-                      <label style={labelStyle}>Full Name</label>
+                      <label style={labelStyle}>{isKn ? 'ಪೂರ್ಣ ಹೆಸರು' : 'Full Name'}</label>
                       <div style={fieldWrap}>
                         <UserIcon size={16} style={iconStyle} />
                         <input
                           {...formRegister('name')}
                           style={inputStyle(errors.name)}
-                          placeholder="John Doe"
+                          placeholder={isKn ? 'ನಿಮ್ಮ ಹೆಸರು' : 'John Doe'}
                         />
                       </div>
                       {errors.name && <p style={errorStyle}>{errors.name.message}</p>}
@@ -416,7 +433,7 @@ export default function AuthPage({ mode = 'login' }) {
 
                     {/* Phone */}
                     <div>
-                      <label style={labelStyle}>Phone Number</label>
+                      <label style={labelStyle}>{isKn ? 'ದೂರವಾಣಿ ಸಂಖ್ಯೆ' : 'Phone Number'}</label>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
 
                         {/* Custom Country Code Dropdown */}
@@ -487,7 +504,7 @@ export default function AuthPage({ mode = 'login' }) {
                                   <input
                                     autoFocus
                                     type="text"
-                                    placeholder="Search country or code..."
+                                    placeholder={isKn ? 'ದೇಶ ಅಥವಾ ಕೋಡ್ ಹುಡುಕಿ...' : 'Search country or code...'}
                                     value={dialSearch}
                                     onChange={e => setDialSearch(e.target.value)}
                                     style={{
@@ -567,7 +584,7 @@ export default function AuthPage({ mode = 'login' }) {
                                   c.code.toLowerCase().includes(dialSearch.toLowerCase())
                                 ).length === 0 && (
                                   <div style={{ padding: '14px', textAlign: 'center', fontSize: '0.82rem', color: '#9ca3af', fontWeight: 600 }}>
-                                    No country found
+                                    {isKn ? 'ಯಾವುದೇ ದೇಶ ಕಂಡುಬಂದಿಲ್ಲ' : 'No country found'}
                                   </div>
                                 )}
                               </div>
@@ -594,21 +611,21 @@ export default function AuthPage({ mode = 'login' }) {
                     {/* Location */}
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <label style={{ ...labelStyle, marginBottom: 0 }}>Location</label>
+                        <label style={{ ...labelStyle, marginBottom: 0 }}>{isKn ? 'ಸ್ಥಳ' : 'Location'}</label>
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                           <button type="button" onClick={() => setShowMapModal(true)} style={{
                             background: 'none', border: 'none', cursor: 'pointer',
                             fontSize: '0.72rem', fontWeight: 800, color: primary,
                             display: 'flex', alignItems: 'center', gap: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em'
                           }}>
-                            <MapPin size={12} /> Map
+                            <MapPin size={12} /> {isKn ? 'ನಕ್ಷೆ' : 'Map'}
                           </button>
                           <button type="button" onClick={autoDetectLocation} style={{
                             background: 'none', border: 'none', cursor: 'pointer',
                             fontSize: '0.72rem', fontWeight: 800, color: primary,
                             display: 'flex', alignItems: 'center', gap: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em'
                           }}>
-                            <Map size={12} /> Auto-detect
+                            <Map size={12} /> {isKn ? 'ಸ್ವಯಂ ಪತ್ತೆ' : 'Auto-detect'}
                           </button>
                         </div>
                       </div>
@@ -618,7 +635,7 @@ export default function AuthPage({ mode = 'login' }) {
                             <input
                               {...formRegister(f)}
                               style={{ ...inputStyle(errors[f]), padding: '0.7rem 0.75rem', fontSize: '0.82rem' }}
-                              placeholder={['Village/City', 'District', 'State'][i]}
+                              placeholder={(isKn ? ['ಗ್ರಾಮ/ನಗರ', 'ಜಿಲ್ಲೆ', 'ರಾಜ್ಯ'] : ['Village/City', 'District', 'State'])[i]}
                             />
                             {errors[f] && <p style={{ ...errorStyle, fontSize: '0.65rem' }}>{errors[f].message}</p>}
                           </div>
@@ -631,28 +648,28 @@ export default function AuthPage({ mode = 'login' }) {
                       <div className="space-y-3">
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                           <div>
-                            <label style={labelStyle}>Farm Size</label>
+                            <label style={labelStyle}>{isKn ? 'ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣ' : 'Farm Size'}</label>
                             <div style={fieldWrap}>
                               <MapPin size={16} style={iconStyle} />
-                              <input {...formRegister('farmSize')} style={inputStyle(errors.farmSize)} placeholder="e.g. 5 acres" />
+                              <input {...formRegister('farmSize')} style={inputStyle(errors.farmSize)} placeholder={isKn ? 'ಉದಾ. 5 ಎಕರೆ' : 'e.g. 5 acres'} />
                             </div>
                             {errors.farmSize && <p style={errorStyle}>{errors.farmSize.message}</p>}
                           </div>
                           <div>
-                            <label style={labelStyle}>Primary Crops</label>
+                            <label style={labelStyle}>{isKn ? 'ಪ್ರಮುಖ ಬೆಳೆಗಳು' : 'Primary Crops'}</label>
                             <div style={fieldWrap}>
                               <Sprout size={16} style={iconStyle} />
-                              <input {...formRegister('primaryCrops')} style={inputStyle(errors.primaryCrops)} placeholder="Wheat, Rice..." />
+                              <input {...formRegister('primaryCrops')} style={inputStyle(errors.primaryCrops)} placeholder={isKn ? 'ಗೋಧಿ, ಭತ್ತ...' : 'Wheat, Rice...'} />
                             </div>
                             {errors.primaryCrops && <p style={errorStyle}>{errors.primaryCrops.message}</p>}
                           </div>
                         </div>
 
                         <div>
-                          <label style={labelStyle}>Kisan Card ID / Aadhaar No. (Verification)</label>
+                          <label style={labelStyle}>{isKn ? 'ಕಿಸಾನ್ ಕಾರ್ಡ್ ಐಡಿ / ಆಧಾರ್ ಸಂಖ್ಯೆ (ದೃಢೀಕರಣ)' : 'Kisan Card ID / Aadhaar No. (Verification)'}</label>
                           <div style={fieldWrap}>
                             <Leaf size={16} style={iconStyle} />
-                            <input {...formRegister('kisanId')} style={inputStyle(errors.kisanId)} placeholder="e.g. KSN-882190 or Aadhaar 12-digit" />
+                            <input {...formRegister('kisanId')} style={inputStyle(errors.kisanId)} placeholder={isKn ? 'ಉದಾ. KSN-882190 ಅಥವಾ 12 ಅಂಕಿಯ ಆಧಾರ್' : 'e.g. KSN-882190 or Aadhaar 12-digit'} />
                           </div>
                         </div>
                       </div>
@@ -662,24 +679,24 @@ export default function AuthPage({ mode = 'login' }) {
                     {!isFarmer && !isDeliveryAgent && (
                       <div className="space-y-3">
                         <div>
-                          <label style={labelStyle}>Business Name</label>
+                          <label style={labelStyle}>{isKn ? 'ವ್ಯಾಪಾರದ ಹೆಸರು' : 'Business Name'}</label>
                           <div style={fieldWrap}>
                             <Building size={16} style={iconStyle} />
-                            <input {...formRegister('businessName')} style={inputStyle(errors.businessName)} placeholder="Your Company Ltd." />
+                            <input {...formRegister('businessName')} style={inputStyle(errors.businessName)} placeholder={isKn ? 'ನಿಮ್ಮ ಸಂಸ್ಥೆ ಹೆಸರು' : 'Your Company Ltd.'} />
                           </div>
                           {errors.businessName && <p style={errorStyle}>{errors.businessName.message}</p>}
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                           <div>
-                            <label style={labelStyle}>GSTIN Number (Optional)</label>
+                            <label style={labelStyle}>{isKn ? 'ಜಿಎಸ್‍ಟಿ ಸಂಖ್ಯೆ (ಐಚ್ಛಿಕ)' : 'GSTIN Number (Optional)'}</label>
                             <div style={fieldWrap}>
                               <Building size={16} style={iconStyle} />
                               <input {...formRegister('gstNumber')} style={inputStyle(errors.gstNumber)} placeholder="29ABCDE1234F1Z5" />
                             </div>
                           </div>
                           <div>
-                            <label style={labelStyle}>APMC Trade License No.</label>
+                            <label style={labelStyle}>{isKn ? 'ಎಪಿಎಂಸಿ ವ್ಯಾಪಾರ ಪರವಾನಗಿ ಸಂಖ್ಯೆ' : 'APMC Trade License No.'}</label>
                             <div style={fieldWrap}>
                               <Building size={16} style={iconStyle} />
                               <input {...formRegister('licenseNumber')} style={inputStyle(errors.licenseNumber)} placeholder="APMC-KA-99120" />
@@ -693,7 +710,7 @@ export default function AuthPage({ mode = 'login' }) {
 
                 {/* Email */}
                 <div>
-                  <label style={labelStyle}>{isLogin ? 'Email or Phone' : 'Email Address'}</label>
+                  <label style={labelStyle}>{isLogin ? (isKn ? 'ಇಮೇಲ್ ಅಥವಾ ಮೊಬೈಲ್' : 'Email or Phone') : (isKn ? 'ಇಮೇಲ್ ವಿಳಾಸ' : 'Email Address')}</label>
                   <div style={fieldWrap}>
                     <Mail size={16} style={iconStyle} />
                     <input
@@ -702,7 +719,7 @@ export default function AuthPage({ mode = 'login' }) {
                       autoComplete={isLogin ? "username email" : "email"}
                       {...formRegister(isLogin ? 'loginId' : 'email')}
                       style={inputStyle(errors.loginId || errors.email)}
-                      placeholder={isLogin ? 'Enter email or phone' : 'you@example.com'}
+                      placeholder={isLogin ? (isKn ? 'ಇಮೇಲ್ ಅಥವಾ ಮೊಬೈಲ್ ನಮೂದಿಸಿ' : 'Enter email or phone') : 'you@example.com'}
                     />
                   </div>
                   {(errors.loginId || errors.email) && <p style={errorStyle}>{(errors.loginId || errors.email).message}</p>}
@@ -711,10 +728,10 @@ export default function AuthPage({ mode = 'login' }) {
                 {/* Password */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>{isKn ? 'ಪಾಸ್‌ವರ್ಡ್' : 'Password'}</label>
                     {isLogin && (
                       <Link to="/forgot-password" style={{ fontSize: '0.72rem', fontWeight: 800, color: primary, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Forgot?
+                        {isKn ? 'ಮರೆತಿರಾ?' : 'Forgot?'}
                       </Link>
                     )}
                   </div>
@@ -741,7 +758,7 @@ export default function AuthPage({ mode = 'login' }) {
                 {/* Confirm Password */}
                 {!isLogin && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <label style={labelStyle}>Confirm Password</label>
+                    <label style={labelStyle}>{isKn ? 'ಪಾಸ್‌ವರ್ಡ್ ಖಚಿತಪಡಿಸಿ' : 'Confirm Password'}</label>
                     <div style={fieldWrap}>
                       <Lock size={16} style={iconStyle} />
                       <input
@@ -784,11 +801,11 @@ export default function AuthPage({ mode = 'login' }) {
                         <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" opacity="0.25" />
                         <path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round" />
                       </svg>
-                      Processing...
+                      {isKn ? 'ಪ್ರಕ್ರಿಯೆಯಲ್ಲಿದೆ...' : 'Processing...'}
                     </>
                   ) : (
                     <>
-                      {isLogin ? 'Sign In' : 'Create Account'}
+                      {isLogin ? (isKn ? 'ಸೈನ್ ಇನ್' : 'Sign In') : (isKn ? 'ಖಾತೆ ರಚಿಸಿ' : 'Create Account')}
                       <ArrowRight size={16} />
                     </>
                   )}
@@ -802,7 +819,9 @@ export default function AuthPage({ mode = 'login' }) {
               borderTop: `1px solid ${primaryLight}`, textAlign: 'center'
             }}>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0, fontWeight: 600 }}>
-                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                {isLogin
+                  ? (isKn ? "ಖಾತೆ ಇಲ್ಲವೇ? " : "Don't have an account? ")
+                  : (isKn ? "ಈಗಾಗಲೇ ಖಾತೆ ಇದೆಯೇ? " : "Already have an account? ")}
                 <button
                   type="button"
                   onClick={toggleMode}
@@ -812,7 +831,7 @@ export default function AuthPage({ mode = 'login' }) {
                     color: primary, textDecoration: 'underline', fontSize: '0.875rem'
                   }}
                 >
-                  {isLogin ? 'Sign up' : 'Log in'}
+                  {isLogin ? (isKn ? 'ನೋಂದಾಯಿಸಿ' : 'Sign up') : (isKn ? 'ಲಾಗಿನ್ ಮಾಡಿ' : 'Log in')}
                 </button>
               </p>
             </div>
@@ -820,17 +839,17 @@ export default function AuthPage({ mode = 'login' }) {
 
           {/* Role toggle hints */}
           <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.8rem', color: '#6b7280', fontWeight: 600 }} className="flex flex-wrap items-center justify-center gap-2">
-            <span>Switch portal:</span>
+            <span>{isKn ? 'ಪೋರ್ಟಲ್ ಬದಲಾಯಿಸಿ:' : 'Switch portal:'}</span>
             <Link to={`/${isLogin ? 'login' : 'register'}/farmer`} style={{ color: '#15803d', fontWeight: 800, textDecoration: 'none' }}>
-              🌾 Farmer
+              {isKn ? '🌾 ರೈತ' : '🌾 Farmer'}
             </Link>
             <span>•</span>
             <Link to={`/${isLogin ? 'login' : 'register'}/buyer`} style={{ color: '#ea580c', fontWeight: 800, textDecoration: 'none' }}>
-              🛒 Buyer
+              {isKn ? '🛒 ಖರೀದಿದಾರ' : '🛒 Buyer'}
             </Link>
             <span>•</span>
             <Link to={`/${isLogin ? 'login' : 'register'}/delivery_agent`} style={{ color: '#1F7A4D', fontWeight: 800, textDecoration: 'none' }}>
-              🚚 Delivery Agent
+              {isKn ? '🚚 ಡೆಲಿವರಿ ಏಜೆಂಟ್' : '🚚 Delivery Agent'}
             </Link>
           </div>
         </div>
@@ -865,8 +884,12 @@ export default function AuthPage({ mode = 'login' }) {
                 background: '#fafaf9'
               }}>
                 <div>
-                  <h3 style={{ fontWeight: 900, color: '#111827', fontSize: '1rem', margin: 0 }}>Select Your Location</h3>
-                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '2px 0 0', fontWeight: 600 }}>Click anywhere on the map</p>
+                  <h3 style={{ fontWeight: 900, color: '#111827', fontSize: '1rem', margin: 0 }}>
+                    {isKn ? 'ನಿಮ್ಮ ಸ್ಥಳವನ್ನು ಆಯ್ಕೆಮಾಡಿ' : 'Select Your Location'}
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', margin: '2px 0 0', fontWeight: 600 }}>
+                    {isKn ? 'ನಕ್ಷೆಯಲ್ಲಿ ಎಲ್ಲಿಯಾದರೂ ಕ್ಲಿಕ್ ಮಾಡಿ' : 'Click anywhere on the map'}
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowMapModal(false)}
@@ -909,7 +932,9 @@ export default function AuthPage({ mode = 'login' }) {
                         <circle cx="12" cy="12" r="10" stroke={primary} strokeWidth="4" opacity="0.25" />
                         <path d="M4 12a8 8 0 018-8" stroke={primary} strokeWidth="4" strokeLinecap="round" />
                       </svg>
-                      <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#374151' }}>Fetching location...</span>
+                      <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#374151' }}>
+                        {isKn ? 'ಸ್ಥಳವನ್ನು ಪಡೆಯಲಾಗುತ್ತಿದೆ...' : 'Fetching location...'}
+                      </span>
                     </div>
                   </div>
                 )}

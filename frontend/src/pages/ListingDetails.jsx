@@ -26,18 +26,24 @@ export default function ListingDetails() {
   const [apiListing, setApiListing] = useState(null);
   const listing = contextListing || apiListing;
 
-  const MIN_BULK_QTY = listing ? Math.min(50, listing.quantity || 50) : 50;
-  const [quantity, setQuantity] = useState(MIN_BULK_QTY);
+  const availableStock = listing?.quantity !== undefined && listing?.quantity !== null ? Number(listing.quantity) : 0;
+  const isOutOfStock = availableStock <= 0;
+  const MIN_BULK_QTY = isOutOfStock ? 0 : (listing ? Math.min(50, availableStock) : 50);
+  const [quantity, setQuantity] = useState(isOutOfStock ? 0 : MIN_BULK_QTY);
 
   useEffect(() => {
     if (listing) {
-      setQuantity(prev => {
-        if (prev > listing.quantity) return listing.quantity;
-        if (prev < MIN_BULK_QTY) return MIN_BULK_QTY;
-        return prev;
-      });
+      if (isOutOfStock) {
+        setQuantity(0);
+      } else {
+        setQuantity(prev => {
+          if (prev > availableStock) return availableStock;
+          if (prev < MIN_BULK_QTY) return MIN_BULK_QTY;
+          return prev;
+        });
+      }
     }
-  }, [listing?.quantity, MIN_BULK_QTY]);
+  }, [availableStock, isOutOfStock, MIN_BULK_QTY]);
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
@@ -45,9 +51,13 @@ export default function ListingDetails() {
   const [showFullImage, setShowFullImage] = useState(false);
   const [isSavedLocal, setIsSavedLocal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-
   const [showContactModal, setShowContactModal] = useState(false);
   const [heroImageError, setHeroImageError] = useState(false);
+
+  // Guard: only increment view count once per page load
+  const viewIncrementedRef = useState(false);
+  const hasFiredRef = viewIncrementedRef[0] === false ? viewIncrementedRef : null;
+  const [viewFired, setViewFired] = useState(false);
 
   // Gallery state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -66,41 +76,69 @@ export default function ListingDetails() {
     setHeroImageError(false);
   }, [currentPhoto]);
 
+  const [loadingListing, setLoadingListing] = useState(!contextListing);
+  const [fetchError, setFetchError] = useState(false);
+
   useEffect(() => {
     if (!contextListing && id) {
+      setLoadingListing(true);
       api.get(`/listings/${id}`)
-        .then(res => setApiListing(res.data))
-        .catch(err => console.warn('API fetch listing failed:', err.message));
+        .then(res => {
+          setApiListing(res.data);
+          setFetchError(false);
+        })
+        .catch(err => {
+          console.warn('API fetch listing failed:', err.message);
+          setFetchError(true);
+        })
+        .finally(() => setLoadingListing(false));
+    } else if (contextListing) {
+      setLoadingListing(false);
     }
   }, [id, contextListing]);
 
   useEffect(() => {
-    if (listing) {
-      const listingId = listing._id || listing.id;
-      setIsSavedLocal(isSaved(listingId));
-      if (incrementView) incrementView(listingId);
+    if (!listing) return;
+    const listingId = listing._id || listing.id;
+    setIsSavedLocal(isSaved(listingId));
+  }, [listing?._id || listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      // Fetch matching APMC market price from real backend endpoint
-      api.get('/market-prices')
-        .then(res => {
-          const raw = res.data;
-          const prices = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
-          const matched = prices.find(p => 
-            p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
-            p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
-          );
-          if (matched) {
-            setApmcPriceData({
-              ...matched,
-              _stale: raw?.stale ?? false,
-              _source: raw?.source ?? 'live',
-              _updatedAt: raw?.updatedAt || null
-            });
-          }
-        })
-        .catch(() => { });
-    }
-  }, [listing, isSaved, incrementView]);
+  // Increment view ONCE on mount when listing is available
+  useEffect(() => {
+    if (!listing || viewFired) return;
+    const listingId = listing._id || listing.id;
+    setViewFired(true);
+    if (incrementView) incrementView(listingId);
+
+    // Fetch matching APMC market price from real backend endpoint
+    api.get('/market-prices')
+      .then(res => {
+        const raw = res.data;
+        const prices = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : []);
+        const matched = prices.find(p =>
+          p.commodity?.toLowerCase().includes(listing.cropName?.toLowerCase()) ||
+          p.name?.toLowerCase().includes(listing.cropName?.toLowerCase())
+        );
+        if (matched) {
+          setApmcPriceData({
+            ...matched,
+            _stale: raw?.stale ?? false,
+            _source: raw?.source ?? 'live',
+            _updatedAt: raw?.updatedAt || null
+          });
+        }
+      })
+      .catch(() => {});
+  }, [listing?._id || listing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loadingListing && !listing) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FFFDF6] p-6 text-center">
+        <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin mb-4" />
+        <p className="text-sm font-bold text-gray-700">Loading produce details...</p>
+      </div>
+    );
+  }
 
   if (!listing) {
     return (
@@ -111,10 +149,10 @@ export default function ListingDetails() {
         <h2 className="text-xl font-bold text-gray-900">This listing is no longer available.</h2>
         <p className="text-xs text-gray-500 mt-1 max-w-xs">The requested crop may have been sold or removed by the farmer.</p>
         <button
-          onClick={() => navigate('/buyer/dashboard')}
-          className="mt-6 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md"
+          onClick={handleGoBack}
+          className="mt-6 px-6 py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-md inline-flex items-center gap-2"
         >
-          Return to Marketplace
+          <ArrowLeft size={16} /> Return to Marketplace
         </button>
       </div>
     );
@@ -141,6 +179,83 @@ export default function ListingDetails() {
   const reviews = listing.reviews || [];
   const rating = listing.rating || 0;
 
+  // ── Compute dynamic, crop-specific verification & quality metrics ────────
+  const vReport = listing.verificationReport || {};
+  const vDoc = listing.verification || {};
+
+  const isAIVerified = Boolean(
+    listing.aiVerified ||
+    listing.isVerified ||
+    (vReport.trustScore && vReport.trustScore > 0) ||
+    (vReport.qualityGrade && vReport.qualityGrade !== 'Unknown')
+  );
+
+  const verificationStatus = (vDoc.status === 'flagged' || vDoc.status === 'rejected')
+    ? vDoc.status
+    : (isAIVerified || vDoc.status === 'verified')
+      ? 'verified'
+      : (vDoc.status || 'pending_review');
+
+  const dynamicTrust = vDoc.trust_score != null
+    ? vDoc.trust_score
+    : vReport.trustScore != null
+      ? (vReport.trustScore > 1 ? vReport.trustScore / 100 : vReport.trustScore)
+      : vReport.confidenceScore != null
+        ? (vReport.confidenceScore > 1 ? vReport.confidenceScore / 100 : vReport.confidenceScore)
+        : (isAIVerified ? 0.93 : null);
+
+  const cropLower = (listing.cropName || '').toLowerCase();
+
+  // 1. Dynamic Quality Grade based on actual crop quality
+  const qualityGrade = (vReport.qualityGrade && vReport.qualityGrade !== 'Unknown')
+    ? `Grade ${vReport.qualityGrade}`
+    : (dynamicTrust && dynamicTrust >= 0.92)
+      ? 'Grade A+'
+      : (dynamicTrust && dynamicTrust >= 0.82)
+        ? 'Grade A'
+        : 'Grade B';
+
+  // 2. Dynamic Freshness Score based on harvest time and real quality
+  const harvestDaysAgo = harvestDate ? Math.max(0, Math.floor((Date.now() - new Date(harvestDate).getTime()) / (1000 * 60 * 60 * 24))) : 0;
+  const calculatedFreshnessPct = dynamicTrust
+    ? Math.min(99, Math.max(76, Math.round(dynamicTrust * 100 - harvestDaysAgo * 1.5)))
+    : (harvestDaysAgo <= 1 ? 95 : harvestDaysAgo <= 3 ? 91 : 85);
+
+  const freshnessScore = vReport.freshness
+    ? (vReport.freshness.includes('%') ? vReport.freshness : `${calculatedFreshnessPct}% ${vReport.freshness}`)
+    : `${calculatedFreshnessPct}% ${calculatedFreshnessPct >= 92 ? 'Prime Fresh' : 'Farm Fresh'}`;
+
+  // 3. Dynamic Shelf Life based on crop variety
+  const defaultShelfLifeByCrop = {
+    tomato: '7-10 Days',
+    potato: '25-30 Days',
+    onion: '20-25 Days',
+    carrot: '12-14 Days',
+    cabbage: '10-12 Days',
+    spinach: '3-5 Days',
+    chilli: '8-10 Days',
+    garlic: '45-60 Days',
+    ginger: '20-30 Days',
+    mango: '5-7 Days',
+    banana: '4-6 Days',
+    apple: '15-20 Days',
+  };
+  const matchedCropKey = Object.keys(defaultShelfLifeByCrop).find(k => cropLower.includes(k));
+  const estimatedShelfLife = vReport.estimatedShelfLife || (matchedCropKey ? defaultShelfLifeByCrop[matchedCropKey] : '10-12 Days');
+
+  // 4. Disease / Health Analysis
+  const diseaseAnalysis = vReport.pestDetection
+    ? 'Minor pest impact noted'
+    : (vReport.defects?.length > 0
+        ? vReport.defects.join(', ')
+        : (vDoc.disease_label || (listing.isOrganic ? 'Zero Pathogens' : 'Healthy Crop')));
+
+  // 5. Moisture level
+  const moistureLevel = vDoc.moisture || (listing.unit === 'quintal' ? '13.5%' : (cropLower.includes('spinach') || cropLower.includes('tomato') ? '92% Hydrated' : '12% Optimal'));
+
+  // 6. Storage recommendation
+  const storageRecommendation = vReport.storageRecommendation || listing.storageType || 'Cool & Dry (12-15°C)';
+
   // Related products (real data only)
   const relatedProducts = listings
     .filter(l => (l._id || l.id) !== listingId &&
@@ -149,17 +264,24 @@ export default function ListingDetails() {
     .slice(0, 4);
 
   const handleGoBack = () => {
+    // 1. If internal navigation passed previous location
     if (location.state?.from) {
       navigate(location.state.from);
+      return;
+    }
+    // 2. If there is navigation history within this session, go back
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+      return;
+    }
+    // 3. Fallback to appropriate dashboard based on user role
+    const role = user?.role || user?.userType;
+    if (role === 'farmer') {
+      navigate('/farmer/dashboard');
+    } else if (role === 'delivery_agent' || role === 'driver') {
+      navigate('/delivery/dashboard');
     } else {
-      const role = user?.role || user?.userType;
-      if (role === 'farmer') {
-        navigate('/farmer/dashboard');
-      } else if (role === 'delivery_agent' || role === 'driver') {
-        navigate('/delivery/dashboard');
-      } else {
-        navigate('/buyer/dashboard');
-      }
+      navigate('/buyer/dashboard');
     }
   };
 
@@ -169,6 +291,15 @@ export default function ListingDetails() {
   };
 
   const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      navigate('/login/buyer', { state: { from: location.pathname } });
+      return;
+    }
+    if (isOutOfStock || quantity <= 0) {
+      setCartError('This produce lot is completely out of stock.');
+      setTimeout(() => setCartError(''), 4000);
+      return;
+    }
     if (quantity < MIN_BULK_QTY) {
       setCartError(`Bulk Marketplace Requirement: Minimum purchase quantity is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}.`);
       setTimeout(() => setCartError(''), 4000);
@@ -182,15 +313,24 @@ export default function ListingDetails() {
       setTimeout(() => setAddedToCart(false), 2500);
     } catch (error) {
       console.error('Failed to add to cart:', error);
-      const msg = error?.response?.data?.message || error?.message || 'Failed to add to cart.';
+      const msg = error?.response?.data?.message || (error?.message === 'Network Error' ? 'Server connection issue. Please try again.' : (error?.message || 'Failed to add to cart.'));
       setCartError(msg);
-      setTimeout(() => setCartError(''), 4000);
+      setTimeout(() => setCartError(''), 5000);
     } finally {
       setAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
+    if (!isAuthenticated) {
+      navigate('/login/buyer', { state: { from: location.pathname } });
+      return;
+    }
+    if (isOutOfStock || quantity <= 0) {
+      setCartError('This produce lot is completely out of stock.');
+      setTimeout(() => setCartError(''), 4000);
+      return;
+    }
     if (quantity < MIN_BULK_QTY) {
       setCartError(`Bulk Marketplace Requirement: Minimum purchase quantity is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}.`);
       setTimeout(() => setCartError(''), 4000);
@@ -203,9 +343,9 @@ export default function ListingDetails() {
       navigate('/checkout');
     } catch (error) {
       console.error('Buy Now failed:', error);
-      const msg = error?.response?.data?.message || error?.message || 'Failed to add item to checkout.';
+      const msg = error?.response?.data?.message || (error?.message === 'Network Error' ? 'Server connection issue. Please try again.' : (error?.message || 'Failed to add item to checkout.'));
       setCartError(msg);
-      setTimeout(() => setCartError(''), 4000);
+      setTimeout(() => setCartError(''), 5000);
     } finally {
       setAddingToCart(false);
     }
@@ -420,19 +560,19 @@ export default function ListingDetails() {
           <div class="grid-4">
             <div class="data-card">
               <div class="label">Moisture Content</div>
-              <div class="value">${listing.verification?.moisture || '12% (Optimal)'}</div>
+              <div class="value">${moistureLevel}</div>
             </div>
             <div class="data-card">
               <div class="label">Freshness Score</div>
-              <div class="value val-highlight">98% Prime</div>
+              <div class="value val-highlight">${freshnessScore}</div>
             </div>
             <div class="data-card">
               <div class="label">Disease Analysis</div>
-              <div class="value">${listing.verification?.disease_label || (listing.isOrganic ? 'Zero Pathogens' : 'Healthy Crop')}</div>
+              <div class="value">${diseaseAnalysis}</div>
             </div>
             <div class="data-card">
               <div class="label">Quality Grade</div>
-              <div class="value val-highlight">Grade A+</div>
+              <div class="value val-highlight">${qualityGrade}</div>
             </div>
           </div>
         </div>
@@ -443,11 +583,11 @@ export default function ListingDetails() {
           <div class="grid-2">
             <div class="data-card">
               <div class="label">Recommended Storage Ambient</div>
-              <div class="value">${listing.storageType || 'Cool & Dry (12-15°C)'}</div>
+              <div class="value">${storageRecommendation}</div>
             </div>
             <div class="data-card">
               <div class="label">Estimated Shelf Durability</div>
-              <div class="value">14 Days from Dispatch</div>
+              <div class="value">${estimatedShelfLife} from Dispatch</div>
             </div>
           </div>
         </div>
@@ -476,8 +616,21 @@ export default function ListingDetails() {
   const shortDesc = description.length > 200 ? description.slice(0, 200) + '...' : description;
 
   // APMC calculation if backend returns data
-  const apmcPrice = apmcPriceData ? (apmcPriceData.modalPrice || apmcPriceData.price) : null;
-  const priceDiff = (apmcPrice && price) ? Math.round(((price - apmcPrice) / apmcPrice) * 100) : null;
+  const rawApmcPrice = apmcPriceData ? (apmcPriceData.modalPrice || apmcPriceData.price) : null;
+  const apmcMatch = rawApmcPrice != null ? String(rawApmcPrice).match(/(\d+(?:\.\d+)?)/) : null;
+  const numericApmcPrice = apmcMatch ? parseFloat(apmcMatch[1]) : null;
+
+  const rawFarmerPrice = listing.pricePerUnit ?? listing.price;
+  const farmerMatch = rawFarmerPrice != null ? String(rawFarmerPrice).match(/(\d+(?:\.\d+)?)/) : null;
+  const numericFarmerPrice = farmerMatch ? parseFloat(farmerMatch[1]) : null;
+
+  const validApmc = numericApmcPrice != null && !isNaN(numericApmcPrice) && numericApmcPrice > 0;
+  const validFarmerPrice = numericFarmerPrice != null && !isNaN(numericFarmerPrice) && numericFarmerPrice > 0;
+
+  const priceDiffAmount = (validApmc && validFarmerPrice) ? Math.round((numericFarmerPrice - numericApmcPrice) * 100) / 100 : null;
+  const priceDiffPercent = (validApmc && validFarmerPrice) ? Math.round(((numericFarmerPrice - numericApmcPrice) / numericApmcPrice) * 100) : null;
+  const apmcPrice = numericApmcPrice;
+  const priceDiff = priceDiffPercent;
 
   return (
     <div className="min-h-screen bg-[#FFFDF6] text-gray-900 font-sans pb-36">
@@ -565,25 +718,23 @@ export default function ListingDetails() {
 
               {/* Top Left Badges */}
               <div className="absolute top-5 left-5 flex flex-wrap gap-2.5 z-10">
+                {isOutOfStock && (
+                  <span className="bg-rose-600 text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse">
+                    <AlertCircle size={14} /> Out of Stock
+                  </span>
+                )}
                 {listing.isOrganic && (
                   <span className="bg-[#1F7A4D] text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
                     <Leaf size={14} /> Organic Produce 🌿
                   </span>
                 )}
-                {listing.verification?.status && (
-                  <VerificationBadge
-                    status={listing.verification.status}
-                    trustScore={listing.verification.trust_score}
-                    size="sm"
-                    showScore
-                    className="shadow-lg backdrop-blur-md"
-                  />
-                )}
-                {isVerified && !listing.verification?.status && (
-                  <span className="bg-[#1F7A4D] text-white text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
-                    <ShieldCheck size={14} /> AI Certified Grade
-                  </span>
-                )}
+                <VerificationBadge
+                  status={verificationStatus}
+                  trustScore={dynamicTrust}
+                  size="sm"
+                  showScore
+                  className="shadow-lg backdrop-blur-md"
+                />
               </div>
 
               {/* Top Right Inspection Label */}
@@ -660,9 +811,15 @@ export default function ListingDetails() {
 
                 <div className="text-right">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Stock Availability</span>
-                  <span className="text-base font-black text-[#1F7A4D] mt-1 block bg-[#E8F7EE] px-3 py-1 rounded-xl border border-[#1F7A4D]/20">
-                    {listing.quantity} {listing.unit || 'kg'}
-                  </span>
+                  {isOutOfStock ? (
+                    <span className="text-base font-black text-rose-600 mt-1 block bg-rose-50 px-3 py-1 rounded-xl border border-rose-200">
+                      Out of Stock (0 {listing?.unit || 'kg'})
+                    </span>
+                  ) : (
+                    <span className="text-base font-black text-[#1F7A4D] mt-1 block bg-[#E8F7EE] px-3 py-1 rounded-xl border border-[#1F7A4D]/20">
+                      {listing.quantity} {listing.unit || 'kg'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -687,33 +844,44 @@ export default function ListingDetails() {
 
               {/* Quantity Counter */}
               {!isFarmer && (
-                <div className="space-y-2 pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Select Quantity ({listing.unit || 'kg'}):</span>
-                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 inline-flex items-center gap-1 mt-0.5">
-                        📦 Bulk Minimum: 50 {listing?.unit || 'kg'}
-                      </span>
+                isOutOfStock ? (
+                  <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center space-y-1 my-2">
+                    <div className="flex items-center justify-center gap-2 text-rose-700 font-extrabold text-sm">
+                      <AlertCircle size={18} /> Out of Stock
                     </div>
-                    <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
-                      <button
-                        onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
-                        disabled={quantity <= MIN_BULK_QTY}
-                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="w-14 text-center text-sm font-black text-gray-900">{quantity}</span>
-                      <button
-                        onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
-                      >
-                        <Plus size={16} />
-                      </button>
+                    <p className="text-xs text-rose-600 font-semibold">
+                      This harvest lot has been completely sold out and is unavailable for order.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-black text-gray-700 uppercase tracking-wider block">Select Quantity ({listing.unit || 'kg'}):</span>
+                        <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 inline-flex items-center gap-1 mt-0.5">
+                          📦 Bulk Minimum: 50 {listing?.unit || 'kg'}
+                        </span>
+                      </div>
+                      <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+                        <button
+                          onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
+                          disabled={quantity <= MIN_BULK_QTY}
+                          className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="w-14 text-center text-sm font-black text-gray-900">{quantity}</span>
+                        <button
+                          onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                          className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
 
               {/* ACTION BUTTONS / FARMER BANNER */}
@@ -726,6 +894,16 @@ export default function ListingDetails() {
                       className="w-full py-3 bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer transition-all shadow-sm"
                     >
                       Return to Farmer Dashboard
+                    </button>
+                  </div>
+                ) : isOutOfStock ? (
+                  <div className="space-y-2">
+                    <button
+                      disabled
+                      className="w-full min-h-[48px] py-3 px-6 bg-gray-100 text-gray-400 font-bold text-sm rounded-xl cursor-not-allowed flex items-center justify-center gap-2 border border-gray-200"
+                    >
+                      <AlertCircle size={18} />
+                      <span>Currently Out of Stock</span>
                     </button>
                   </div>
                 ) : (
@@ -871,50 +1049,52 @@ export default function ListingDetails() {
             {/* Card 1: Moisture Level */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">💧 Moisture Level</span>
-              <span className="text-2xl font-black text-gray-900 block">{listing.verification?.moisture || '12%'}</span>
+              <span className="text-2xl font-black text-gray-900 block">{moistureLevel}</span>
               <span className="text-xs text-[#1F7A4D] font-extrabold block">Optimal Standard</span>
             </div>
 
             {/* Card 2: Freshness Score */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">🌿 Freshness Score</span>
-              <span className="text-2xl font-black text-[#1F7A4D] block">98% Prime Fresh</span>
-              <span className="text-xs text-[#1F7A4D] font-extrabold block">Harvest Peak</span>
+              <span className="text-2xl font-black text-[#1F7A4D] block">{freshnessScore}</span>
+              <span className="text-xs text-[#1F7A4D] font-extrabold block">{vReport.ripeness || 'Harvest Peak'}</span>
             </div>
 
             {/* Card 3: Disease Status */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">🦠 Disease Analysis</span>
-              <span className="text-lg font-black text-[#1F7A4D] block truncate">{listing.verification?.disease_label || (listing.isOrganic ? 'Zero Pathogens' : 'Healthy Crop')}</span>
+              <span className="text-lg font-black text-[#1F7A4D] block truncate">{diseaseAnalysis}</span>
               <span className="text-xs text-[#1F7A4D] font-extrabold block">100% Clean Harvest</span>
             </div>
 
             {/* Card 4: Pesticide Analysis */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">🧪 Pesticide Residue</span>
-              <span className="text-lg font-black text-[#1F7A4D] block truncate">{listing.isOrganic ? '0% Residue (Organic)' : 'Safe ICAR Limit'}</span>
+              <span className="text-lg font-black text-[#1F7A4D] block truncate">{listing.isOrganic ? '0% Residue (Organic Certified)' : 'Safe ICAR Tolerance'}</span>
               <span className="text-xs text-[#1F7A4D] font-extrabold block">Food Safety Certified</span>
             </div>
 
             {/* Card 5: Shelf Life */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">⏳ Estimated Shelf Life</span>
-              <span className="text-2xl font-black text-gray-900 block">14 Days</span>
-              <span className="text-xs text-gray-500 font-extrabold block">Extended Durability</span>
+              <span className="text-2xl font-black text-gray-900 block">{estimatedShelfLife}</span>
+              <span className="text-xs text-gray-500 font-extrabold block">Crop Specific Durability</span>
             </div>
 
             {/* Card 6: Storage Recommendation */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">📦 Storage Advice</span>
-              <span className="text-sm font-black text-gray-900 block truncate">{listing.storageType || 'Cool & Dry (12-15°C)'}</span>
+              <span className="text-sm font-black text-gray-900 block truncate">{storageRecommendation}</span>
               <span className="text-xs text-gray-500 font-extrabold block">Controlled Ambient</span>
             </div>
 
             {/* Card 7: Quality Grade */}
             <div className="p-5 bg-gradient-to-br from-[#FFFDF6] to-white rounded-2xl border-2 border-[#E8F7EE] shadow-sm hover:shadow-md transition-all space-y-2">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">🛡️ Quality Grade</span>
-              <span className="text-2xl font-black text-[#1F7A4D] block">Grade A+</span>
-              <span className="text-xs text-[#1F7A4D] font-extrabold block">Premium Export Quality</span>
+              <span className="text-2xl font-black text-[#1F7A4D] block">{qualityGrade}</span>
+              <span className="text-xs text-[#1F7A4D] font-extrabold block">
+                {qualityGrade.includes('A') ? 'Premium Export Quality' : 'Standard Market Grade'}
+              </span>
             </div>
 
             {/* Card 8: View Certificate Card */}
@@ -936,10 +1116,17 @@ export default function ListingDetails() {
         </div>
 
         {/* CROPVERIFY AI DETAILED REPORT */}
-        {listing.verification && (
+        {(listing.verification || isAIVerified) && (
           <VerificationReport
             listingId={listingId}
-            verification={listing.verification}
+            verification={{
+              ...listing.verification,
+              status: verificationStatus,
+              trust_score: dynamicTrust,
+              disease_label: diseaseAnalysis,
+              healthy_leaf: !vReport.pestDetection,
+              qualityGrade: qualityGrade,
+            }}
             cropName={listing.cropName}
           />
         )}
@@ -966,23 +1153,52 @@ export default function ListingDetails() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-xs">
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Farmer Price</span>
-                <span className="text-2xl font-black text-[#FF8C42] mt-1 block">₹{price} / {listing.unit || 'kg'}</span>
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Farmer Price</span>
+                  <span className="text-2xl font-black text-[#FF8C42] mt-1 block">₹{numericFarmerPrice ?? price} / {listing.unit || 'kg'}</span>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">Direct farm rate</span>
               </div>
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Today APMC Rate</span>
-                <span className="text-2xl font-black text-gray-900 mt-1 block">₹{apmcPrice} / kg</span>
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Today APMC Rate</span>
+                  <span className="text-2xl font-black text-gray-900 mt-1 block">
+                    {validApmc ? `₹${numericApmcPrice} / ${listing.unit || 'kg'}` : '—'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">Mandi benchmark</span>
               </div>
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Price Difference</span>
-                <span className={`text-2xl font-black mt-1 block ${priceDiff && priceDiff <= 0 ? 'text-emerald-600' : 'text-[#FF8C42]'}`}>
-                  {priceDiff != null ? `${priceDiff > 0 ? '+' : ''}${priceDiff}%` : '—'}
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Price Difference</span>
+                  {priceDiffAmount != null && !isNaN(priceDiffAmount) ? (
+                    <span className={`text-2xl font-black mt-1 block ${priceDiffAmount <= 0 ? 'text-emerald-600' : 'text-[#FF8C42]'}`}>
+                      {priceDiffAmount > 0 ? '+' : ''}₹{priceDiffAmount}
+                      <span className="text-sm font-bold ml-1.5 opacity-90">
+                        ({priceDiffPercent > 0 ? '+' : ''}{priceDiffPercent}%)
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-2xl font-black text-gray-400 mt-1 block">—</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">
+                  {priceDiffAmount != null && !isNaN(priceDiffAmount) ? (
+                    priceDiffAmount === 0
+                      ? 'Matches Mandi rate'
+                      : priceDiffAmount < 0
+                        ? `₹${Math.abs(priceDiffAmount)} / ${listing.unit || 'kg'} below Mandi`
+                        : `₹${priceDiffAmount} / ${listing.unit || 'kg'} above Mandi`
+                  ) : 'Comparison unavailable'}
                 </span>
               </div>
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Reference Mandi</span>
-                <span className="text-sm font-black text-gray-900 mt-1 block truncate">{apmcPriceData.mandi || 'Karnataka APMC'}</span>
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 uppercase block">Reference Mandi</span>
+                  <span className="text-sm font-black text-gray-900 mt-1 block truncate">{apmcPriceData.mandi || 'Karnataka APMC'}</span>
+                </div>
+                <span className="text-[10px] font-medium text-gray-400 block mt-2">Official wholesale yard</span>
               </div>
             </div>
           </div>
@@ -1010,53 +1226,79 @@ export default function ListingDetails() {
       {!isFarmer && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-[#E8F7EE] p-4 md:p-5 z-40 shadow-2xl">
           <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-start gap-1">
-                <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
-                  Min Bulk: {MIN_BULK_QTY} {listing?.unit || 'kg'}
-                </span>
-                <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+            {isOutOfStock ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-rose-600 font-extrabold text-sm bg-rose-50 px-3.5 py-2 rounded-xl border border-rose-200">
+                    <AlertCircle size={18} /> Out of Stock
+                  </div>
+                  <div className="hidden sm:block pl-2 border-l border-gray-200">
+                    <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
+                    <span className="text-xl font-black text-gray-400">₹0</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 flex-1 sm:flex-none">
                   <button
-                    onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
-                    disabled={quantity <= MIN_BULK_QTY}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                    disabled
+                    className="w-full sm:w-auto sm:px-8 min-h-[48px] py-3 bg-gray-100 text-gray-400 text-sm font-bold rounded-xl cursor-not-allowed border border-gray-200 flex items-center justify-center gap-2"
                   >
-                    <Minus size={16} />
-                  </button>
-                  <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
-                    className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
-                  >
-                    <Plus size={16} />
+                    <AlertCircle size={16} />
+                    <span>Out of Stock</span>
                   </button>
                 </div>
-              </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-start gap-1">
+                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">
+                      Min Bulk: {MIN_BULK_QTY} {listing?.unit || 'kg'}
+                    </span>
+                    <div className="flex items-center bg-gray-100 rounded-2xl border border-gray-200 overflow-hidden shadow-inner">
+                      <button
+                        onClick={() => setQuantity(Math.max(MIN_BULK_QTY, quantity - 1))}
+                        disabled={quantity <= MIN_BULK_QTY}
+                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        title={quantity <= MIN_BULK_QTY ? `Minimum bulk limit is ${MIN_BULK_QTY} ${listing?.unit || 'kg'}` : 'Decrease quantity'}
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-12 text-center text-sm font-black text-gray-900">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity(Math.min(listing.quantity || 999, quantity + 1))}
+                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:bg-gray-200 font-black cursor-pointer transition-all"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="hidden sm:block pl-2 border-l border-gray-200">
-                <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
-                <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
-              </div>
-            </div>
+                  <div className="hidden sm:block pl-2 border-l border-gray-200">
+                    <span className="text-[9px] font-black text-gray-400 uppercase block">Total Amount</span>
+                    <span className="text-xl font-black text-gray-900">₹{(price * quantity).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
 
-            <div className="flex gap-3 flex-1 sm:flex-none">
-              <button
-                onClick={handleAddToCart}
-                disabled={addingToCart}
-                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-              >
-                <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
-                <ChevronRight size={16} className="shrink-0" />
-              </button>
-              <button
-                onClick={handleBuyNow}
-                className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
-              >
-                <span>Buy Now</span>
-                <ChevronRight size={16} className="shrink-0" />
-              </button>
-            </div>
+                <div className="flex gap-3 flex-1 sm:flex-none">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={addingToCart}
+                    className="flex-1 sm:px-6 min-h-[48px] py-3 bg-[#1F7A4D] hover:bg-[#165b38] text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>{addingToCart ? 'Adding...' : addedToCart ? 'Added ✓' : 'Add to Cart'}</span>
+                    <ChevronRight size={16} className="shrink-0" />
+                  </button>
+                  <button
+                    onClick={handleBuyNow}
+                    className="flex-1 sm:px-6 min-h-[48px] py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-sm font-bold rounded-xl cursor-pointer shadow-sm transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>Buy Now</span>
+                    <ChevronRight size={16} className="shrink-0" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

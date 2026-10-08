@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, CloudRain, TrendingUp, BarChart3, Wind, Droplets, Thermometer, ArrowUpRight, ArrowDownRight, Store } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import { cToF } from '../utils/temperature';
 
 const APMC_MANDIS = [
   { name: 'Bengaluru (APMC)', region: 'Bengaluru Urban' },
@@ -143,10 +144,16 @@ const IntelligenceHub = () => {
                 {weatherData?.current ? (
                   <>
                     <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                      <span style={{ fontSize: '4rem', fontWeight: 900, color: '#1e3a8a', lineHeight: 1 }}>
-                        {Math.round(weatherData.current.temperature_2m)}°
-                      </span>
-                      <p style={{ fontSize: '1rem', font700: 'bold', color: '#3b82f6', margin: '0.5rem 0 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.2rem' }}>
+                        <span style={{ fontSize: '4rem', fontWeight: 900, color: '#1e3a8a', lineHeight: 1 }}>
+                          {Math.round(weatherData.current.temperature_2m)}
+                        </span>
+                        <span style={{ fontSize: '2rem', fontWeight: 800, color: '#1e3a8a' }}>°C</span>
+                      </div>
+                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#64748b', margin: '0.25rem 0 0' }}>
+                        {cToF(weatherData.current.temperature_2m)}°F
+                      </p>
+                      <p style={{ fontSize: '1rem', fontWeight: 'bold', color: '#3b82f6', margin: '0.5rem 0 0' }}>
                         {getWeatherDescription(weatherData.current.weather_code)}
                       </p>
                     </div>

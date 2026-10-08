@@ -124,7 +124,9 @@ function App() {
                       </Route>
 
                       {/* Delivery Agent / Driver Routes */}
-                      <Route path="/delivery/dashboard" element={<DeliveryAgentDashboard />} />
+                      <Route element={<ProtectedRoute roleRequired="delivery_agent" />}>
+                        <Route path="/delivery/dashboard" element={<DeliveryAgentDashboard />} />
+                      </Route>
 
                       {/* Protected Buyer Routes */}
                       <Route element={<ProtectedRoute roleRequired="buyer" />}>

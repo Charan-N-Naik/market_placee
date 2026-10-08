@@ -6,22 +6,39 @@ import Listing from '../models/Listing.js';
 // @route   GET /api/cart
 // @access  Private
 export const getCart = asyncHandler(async (req, res) => {
-
-  const cart = await Cart.findOne({ buyer: req.user.id }).populate('items.listing');
+  let cart = await Cart.findOne({ buyer: req.user.id }).populate('items.listing');
   if (!cart) {
     return res.status(200).json({ items: [] });
   }
 
+  // Filter out any items whose listing was deleted or is null
+  const originalLength = cart.items.length;
+  cart.items = cart.items.filter(item => item && item.listing && (item.listing._id || item.listing.id));
+  if (cart.items.length !== originalLength) {
+    await cart.save();
+  }
+
   res.json(cart);
-
-
 });
+
+// Helper to safely extract listing ID from a cart item
+const getListingIdFromItem = (item) => {
+  if (!item || !item.listing) return null;
+  if (typeof item.listing === 'object') {
+    return (item.listing._id || item.listing.id || '').toString();
+  }
+  return item.listing.toString();
+};
 
 // @desc    Add item to cart
 // @route   POST /api/cart/add
 // @access  Private
 export const addToCart = asyncHandler(async (req, res) => {
   const { listingId, quantity, mode } = req.body;
+
+  if (!listingId) {
+    return res.status(400).json({ message: 'Listing ID is required' });
+  }
 
   const numQuantity = Number(quantity);
   if (!Number.isFinite(numQuantity) || numQuantity <= 0) {
@@ -30,7 +47,7 @@ export const addToCart = asyncHandler(async (req, res) => {
 
   const listing = await Listing.findById(listingId);
   if (!listing) {
-    return res.status(404).json({ message: 'Listing not found' });
+    return res.status(404).json({ message: 'Listing not found or no longer available' });
   }
 
   let cart = await Cart.findOne({ buyer: req.user.id });
@@ -38,23 +55,34 @@ export const addToCart = asyncHandler(async (req, res) => {
     cart = new Cart({ buyer: req.user.id, items: [] });
   }
 
-  const existingItem = cart.items.find(item => item.listing.toString() === listingId);
+  // Prune any invalid/null items
+  cart.items = cart.items.filter(item => item && item.listing);
+
+  const targetListingIdStr = listingId.toString();
+  const existingItem = cart.items.find(item => getListingIdFromItem(item) === targetListingIdStr);
   const targetQuantity = existingItem
     ? (mode === 'set' ? numQuantity : existingItem.quantity + numQuantity)
     : numQuantity;
 
   if (targetQuantity > listing.quantity) {
-    return res.status(409).json({ message: 'Insufficient stock' });
+    return res.status(409).json({ message: `Insufficient stock. Only ${listing.quantity} ${listing.unit || 'units'} available.` });
   }
 
   if (existingItem) {
     existingItem.quantity = targetQuantity;
+    existingItem.priceAtAdd = listing.pricePerUnit || listing.price || existingItem.priceAtAdd || 0;
   } else {
-    cart.items.push({ listing: listingId, quantity: targetQuantity, priceAtAdd: listing.pricePerUnit || listing.price || 0 });
+    cart.items.push({
+      listing: listing._id,
+      quantity: targetQuantity,
+      priceAtAdd: listing.pricePerUnit || listing.price || 0
+    });
   }
 
   await cart.save();
   await cart.populate('items.listing');
+  // Return only valid populated items
+  cart.items = cart.items.filter(item => item && item.listing && (item.listing._id || item.listing.id));
   res.status(200).json(cart);
 });
 
@@ -63,6 +91,10 @@ export const addToCart = asyncHandler(async (req, res) => {
 // @access  Private
 export const updateCartItem = asyncHandler(async (req, res) => {
   const { listingId, quantity } = req.body;
+
+  if (!listingId) {
+    return res.status(400).json({ message: 'Listing ID is required' });
+  }
 
   const numQuantity = Number(quantity);
   if (!Number.isFinite(numQuantity) || numQuantity <= 0) {
@@ -75,17 +107,20 @@ export const updateCartItem = asyncHandler(async (req, res) => {
   }
 
   if (numQuantity > listing.quantity) {
-    return res.status(409).json({ message: 'Insufficient stock' });
+    return res.status(409).json({ message: `Insufficient stock. Only ${listing.quantity} available.` });
   }
 
   const cart = await Cart.findOne({ buyer: req.user.id });
   if (!cart) return res.status(404).json({ message: 'Cart not found' });
-  const item = cart.items.find(i => i.listing.toString() === listingId);
+
+  const targetListingIdStr = listingId.toString();
+  const item = cart.items.find(i => getListingIdFromItem(i) === targetListingIdStr);
   if (!item) return res.status(404).json({ message: 'Item not in cart' });
 
   item.quantity = numQuantity;
   await cart.save();
   await cart.populate('items.listing');
+  cart.items = cart.items.filter(i => i && i.listing && (i.listing._id || i.listing.id));
   res.json(cart);
 });
 
@@ -96,8 +131,11 @@ export const removeFromCart = asyncHandler(async (req, res) => {
   const { listingId } = req.body;
   const cart = await Cart.findOne({ buyer: req.user.id });
   if (!cart) return res.status(404).json({ message: 'Cart not found' });
-  cart.items = cart.items.filter(i => i.listing.toString() !== listingId);
+
+  const targetListingIdStr = (listingId || '').toString();
+  cart.items = cart.items.filter(i => getListingIdFromItem(i) !== targetListingIdStr && i.listing);
   await cart.save();
   await cart.populate('items.listing');
+  cart.items = cart.items.filter(i => i && i.listing && (i.listing._id || i.listing.id));
   res.json(cart);
 });

@@ -1,16 +1,21 @@
 import { GoogleGenAI } from '@google/genai';
 import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
-import { verifyImageBatchLocally, computeImageProfile } from '../utils/imageAnalyzer.js';
+import crypto from 'crypto';
+import { verifyImageBatchLocally, computeImageProfile, generateVisualFallbackReport } from '../utils/imageAnalyzer.js';
 
 dotenv.config();
 
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
-// ─── Multi-Angle Crop Quality Analysis (Groq llama-3.3-70b-versatile Engine) ──
+// In-memory verification cache to ensure 100% deterministic consistency when re-verifying the same crop
+const verificationCache = new Map();
+const MAX_CACHE_SIZE = 1000;
+
+// ─── Multi-Angle Crop Quality Analysis (Groq / Gemini / Visual Telemetry Engine) ──
 /**
- * Analyze 3 crop images (Front, Left, Right) using Groq AI + Visual Telemetry.
+ * Analyze 3 crop images (Front, Left, Right) using AI + Visual Telemetry.
  *
  * @param {Array<{ buffer: Buffer, mimeType: string, angle: string }>} images
  * @param {string} [cropType]
@@ -18,47 +23,62 @@ const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_
  * @returns {Promise<Object>}
  */
 export async function analyzeCropImagesMultiAngle(images, cropType = '', role = 'buyer') {
-  if (!images || !Array.isArray(images) || images.length < 3) {
-    throw new Error('All 3 photos (Front View, Left Side, Right Side) are required for multi-angle AI crop verification.');
+  if (!images || !Array.isArray(images) || images.length < 1) {
+    throw new Error('At least one harvest photo (Front View) is required for AI crop verification.');
+  }
+
+  // Check cache for identical image uploads (guarantees identical result when re-verifying same images)
+  const combinedBuffer = Buffer.concat(images.map(img => Buffer.isBuffer(img.buffer) ? img.buffer : Buffer.from(img.buffer)));
+  const cacheKey = crypto.createHash('sha256').update(combinedBuffer).digest('hex') + `_${(cropType || '').trim().toLowerCase()}`;
+
+  if (verificationCache.has(cacheKey)) {
+    console.log('[CropVerification] Returning cached consistent verification report for hash:', cacheKey.slice(0, 12));
+    return verificationCache.get(cacheKey);
   }
 
   // ── Step 0: Instant local forensic check (Duplicate photos, AI saturation, crop mismatch) ──
-  const localCheck = verifyImageBatchLocally(images);
-  if (localCheck && localCheck.rejected) {
-    console.log('[CropVerification] Instant local rejection triggered:', localCheck.reason);
-    return localCheck;
+  if (images.length > 1) {
+    const localCheck = verifyImageBatchLocally(images);
+    if (localCheck && localCheck.rejected) {
+      console.log('[CropVerification] Instant local rejection triggered:', localCheck.reason);
+      return localCheck;
+    }
   }
 
-  // Extract visual profiles for Front, Left, Right photos
-  const profiles = images.map(img => ({
-    angle: img.angle,
+  // Extract visual profiles for uploaded photos
+  const profiles = images.map((img, i) => ({
+    angle: img.angle || (i === 0 ? 'Front View' : i === 1 ? 'Left Side' : 'Right Side'),
     profile: computeImageProfile(img.buffer),
   }));
 
   const cropHint = cropType ? ` User states this crop is "${cropType}".` : '';
+  const photoListText = images.map((img, i) => `- Photo ${i + 1} (${img.angle || (i === 0 ? 'Front View' : `Angle ${i + 1}`)})`).join('\n');
+  const profileListText = profiles.map(p => `- ${p.angle}: ${JSON.stringify(p.profile)}`).join('\n');
 
   const promptText = `You are a senior agricultural scientist, digital image forensics expert, and APMC crop quality inspector.
-You are inspecting 3 harvest photos of a crop batch:
-- Photo 1 (Front View)
-- Photo 2 (Left Side View)
-- Photo 3 (Right Side View)${cropHint}
+You are inspecting ${images.length} harvest photo(s) of a crop batch:
+${photoListText}${cropHint}
 
 Color profile telemetry:
-- Front View: ${JSON.stringify(profiles[0].profile)}
-- Left View: ${JSON.stringify(profiles[1].profile)}
-- Right View: ${JSON.stringify(profiles[2].profile)}
+${profileListText}
 
 EXECUTE THIS VERIFICATION IN STRICT ORDER:
 
 STEP 1: REJECTION CHECKS
-- DUPLICATE ANGLE CHECK: If the 3 images appear to be identical photos or the exact same camera shot re-uploaded, set "rejected": true, "rejectionType": "duplicate_images", "reason": "Duplicate photos detected. All 3 photos must be captured from different physical angles (Front, Left, Right)."
+- DUPLICATE ANGLE CHECK: If multiple images appear to be identical photos or the exact same camera shot re-uploaded, set "rejected": true, "rejectionType": "duplicate_images", "reason": "Duplicate photos detected. Photos must be captured from different physical angles."
 - AI / SYNTHETIC CHECK: If any image is an AI-generated digital image or non-farm stock artwork, set "rejected": true, "rejectionType": "ai_generated", "reason": "Synthetic artwork detected. Please upload real photographs of your harvested produce."
-- CROP MISMATCH CHECK: If the images show completely different produce items (e.g., Tomato in photo 1 vs Chilli in photo 2), set "rejected": true, "rejectionType": "crop_mismatch", "reason": "Inconsistent produce detected across photo angles. All 3 photos must belong to the exact same crop batch."
+- CROP MISMATCH CHECK: If the images show completely different produce items, set "rejected": true, "rejectionType": "crop_mismatch", "reason": "Inconsistent produce detected across photos. All photos must belong to the exact same crop batch."
 
 STEP 2: APMC QUALITY ANALYSIS (If Step 1 passes)
 Identify the ACTUAL crop in the photos (e.g. Tomato, Mango, Potato, Onion, Green Chilli, Eggplant, Paddy, Wheat, etc.) and assess:
 - Actual visual color, ripeness, surface texture, and defects.
-- Calculate an accurate, dynamic Trust Score (0-100) based on visual consistency across all 3 photo views.
+- CRITICAL APMC TRUST SCORE RUBRIC (0-100):
+  * Grade A+ (90-98): Flawless, bright uniform skin, zero dark blemishes or decay, premium export quality.
+  * Grade A (80-89): Normal healthy farm harvest, slight natural surface variation, firm texture.
+  * Grade B (65-79): Noticeable skin blemishes, uneven ripening, minor sunburn or small dark spots.
+  * Grade C (45-64): Visible bruising, significant dark necrotic lesions, pest punctures, or over-ripeness.
+  * Below 45: Rotten, moldy, or diseased produce.
+DO NOT arbitrarily default to high scores like 95-98. Grade realistically across the full spectrum based strictly on what is visible in the photos.
 
 Return ONLY raw JSON with NO markdown formatting:
 {
@@ -67,9 +87,9 @@ Return ONLY raw JSON with NO markdown formatting:
     "cropName": "Identified Crop Name",
     "variety": "Identified Variety or Hybrid",
     "qualityGrade": "A+ or A or B or C",
-    "trustScore": 88,
+    "trustScore": 82,
     "ripeness": "Optimal Harvest / Overripe / Unripe",
-    "freshness": "Excellent / Good / Fair",
+    "freshness": "Excellent / Good / Fair / Poor",
     "colorUniformity": "Percentage Uniformity",
     "surfaceTexture": "Visual Texture description",
     "defects": ["List of visual defects or empty"],
@@ -80,43 +100,28 @@ Return ONLY raw JSON with NO markdown formatting:
     "priceGradeJustification": "Reasoning based on visual quality grade",
     "storageRecommendation": "Storage advice",
     "logisticsAdvice": "Packaging and transport advice",
-    "summary": "2-3 sentence visual analysis summary across Front, Left, and Right views.",
+    "summary": "2-3 sentence visual analysis summary of the produce.",
     "recommendations": ["Recommendation 1", "Recommendation 2"]
   }
 }`;
 
-  // Attempt 1: Call Gemini Vision API passing all 3 image buffers
+  // Attempt 1: Call Gemini Vision API passing all provided image buffers
   if (process.env.GEMINI_API_KEY) {
     try {
-      const contents = [
-        {
-          role: 'user',
-          parts: [
-            { text: promptText },
-            {
-              inlineData: {
-                mimeType: images[0].mimeType || 'image/jpeg',
-                data: Buffer.isBuffer(images[0].buffer) ? images[0].buffer.toString('base64') : images[0].buffer,
-              },
-            },
-            {
-              inlineData: {
-                mimeType: images[1].mimeType || 'image/jpeg',
-                data: Buffer.isBuffer(images[1].buffer) ? images[1].buffer.toString('base64') : images[1].buffer,
-              },
-            },
-            {
-              inlineData: {
-                mimeType: images[2].mimeType || 'image/jpeg',
-                data: Buffer.isBuffer(images[2].buffer) ? images[2].buffer.toString('base64') : images[2].buffer,
-              },
-            },
-          ],
-        },
+      const parts = [
+        { text: promptText },
+        ...images.map(img => ({
+          inlineData: {
+            mimeType: img.mimeType || 'image/jpeg',
+            data: Buffer.isBuffer(img.buffer) ? img.buffer.toString('base64') : img.buffer,
+          },
+        })),
       ];
 
+      const contents = [{ role: 'user', parts }];
+
       const response = await _callGeminiWithFallback(contents, {
-        temperature: 0.15,
+        temperature: 0.0, // Zero temperature for deterministic, consistent outputs
         maxOutputTokens: 900,
       });
 
@@ -124,18 +129,22 @@ Return ONLY raw JSON with NO markdown formatting:
       if (rawText) {
         const parsed = JSON.parse(_stripFences(rawText));
         if (parsed.rejected) {
-          return {
+          const rejectionResult = {
             rejected: true,
             rejectionType: parsed.rejectionType || 'crop_mismatch',
             reason: parsed.reason || 'Crop verification failed.',
           };
+          verificationCache.set(cacheKey, rejectionResult);
+          return rejectionResult;
         }
         if (parsed.report) {
           console.log('[CropVerification] Gemini Vision successfully generated multi-angle report for:', parsed.report.cropName);
-          return {
+          const finalResult = {
             rejected: false,
             report: _normalizeReport(parsed.report),
           };
+          verificationCache.set(cacheKey, finalResult);
+          return finalResult;
         }
       }
     } catch (err) {
@@ -158,24 +167,28 @@ Return ONLY raw JSON with NO markdown formatting:
         const completion = await groq.chat.completions.create({
           model: modelName,
           messages: [{ role: 'user', content: promptText }],
-          temperature: 0.1,
+          temperature: 0.0,
           max_tokens: 1024,
         });
         const rawText = completion.choices?.[0]?.message?.content || '';
         if (rawText) {
           const parsed = JSON.parse(_stripFences(rawText));
           if (parsed.rejected) {
-            return {
+            const rejectionResult = {
               rejected: true,
               rejectionType: parsed.rejectionType || 'crop_mismatch',
               reason: parsed.reason || 'Verification failed.',
             };
+            verificationCache.set(cacheKey, rejectionResult);
+            return rejectionResult;
           }
           if (parsed.report) {
-            return {
+            const finalResult = {
               rejected: false,
               report: _normalizeReport(parsed.report),
             };
+            verificationCache.set(cacheKey, finalResult);
+            return finalResult;
           }
         }
       } catch (err) {
@@ -184,33 +197,44 @@ Return ONLY raw JSON with NO markdown formatting:
     }
   }
 
-  // Attempt 3: Dynamic Visual Telemetry Report (Calculated from actual RGB pixel profiles of the 3 images)
-  console.log('[CropVerification] Generating dynamic visual telemetry report based on crop image profiles.');
+  // Attempt 3: Dynamic Visual Telemetry Report (Calculated from actual RGB defect & uniformity metrics)
+  console.log('[CropVerification] Generating authentic dynamic visual telemetry report based on crop image profiles.');
   const dynamicReport = generateVisualFallbackReport(images, cropType);
-  return {
+  const finalResult = {
     rejected: false,
     report: _normalizeReport(dynamicReport),
   };
+  verificationCache.set(cacheKey, finalResult);
+  if (verificationCache.size > MAX_CACHE_SIZE) {
+    const firstKey = verificationCache.keys().next().value;
+    verificationCache.delete(firstKey);
+  }
+  return finalResult;
 }
 
 function _normalizeReport(r) {
+  const trustNum = Number(r.trustScore);
+  const validTrust = (!isNaN(trustNum) && trustNum >= 0 && trustNum <= 100) ? Math.round(trustNum) : 80;
+
   return {
     cropName:              String(r.cropName || 'Identified Harvest'),
     variety:               String(r.variety || 'General'),
-    qualityGrade:          ['A+','A','B','C'].includes(r.qualityGrade) ? r.qualityGrade : 'A',
-    trustScore:            Math.min(100, Math.max(0, Number(r.trustScore ?? 88))),
-    ripeness:              String(r.ripeness || 'Ripe'),
-    freshness:             String(r.freshness || 'Excellent'),
-    colorUniformity:       String(r.colorUniformity || '92% Uniform Color'),
-    surfaceTexture:        String(r.surfaceTexture || 'Firm & Smooth'),
+    qualityGrade:          ['A+','A','B','C'].includes(r.qualityGrade)
+      ? r.qualityGrade
+      : (validTrust >= 90 ? 'A+' : validTrust >= 80 ? 'A' : validTrust >= 65 ? 'B' : 'C'),
+    trustScore:            validTrust,
+    ripeness:              String(r.ripeness || 'Optimal Harvest'),
+    freshness:             String(r.freshness || (validTrust >= 85 ? 'Excellent' : validTrust >= 65 ? 'Good' : 'Fair')),
+    colorUniformity:       String(r.colorUniformity || `${validTrust}% Surface Uniformity`),
+    surfaceTexture:        String(r.surfaceTexture || (validTrust >= 85 ? 'Firm & Smooth' : 'Natural Texture with Irregularities')),
     defects:               Array.isArray(r.defects) ? r.defects.map(String) : [],
     diseaseSigns:          Array.isArray(r.diseaseSigns) ? r.diseaseSigns.map(String) : [],
     pestDetection:         r.pestDetection === true,
-    estimatedShelfLife:    String(r.estimatedShelfLife || '5-7 days'),
+    estimatedShelfLife:    String(r.estimatedShelfLife || (validTrust >= 80 ? '5-7 days' : '2-4 days')),
     estimatedPricePerKg:   Number(r.estimatedPricePerKg ?? 30),
     priceGradeJustification: String(r.priceGradeJustification || 'Market price estimated based on visual quality grade.'),
-    storageRecommendation: String(r.storageRecommendation || 'Keep in a cool, dry place.'),
-    logisticsAdvice:       String(r.logisticsAdvice || 'Transport in ventilated crates.'),
+    storageRecommendation: String(r.storageRecommendation || 'Store in a cool, shaded, well-ventilated space at 12-15°C.'),
+    logisticsAdvice:       String(r.logisticsAdvice || 'Transport in ventilated crates with protective padding.'),
     summary:               String(r.summary || ''),
     recommendations:       Array.isArray(r.recommendations) ? r.recommendations.map(String) : [],
   };
@@ -411,17 +435,30 @@ function normalizeAnalysis(analysis) {
  * @returns {string} AI response text
  */
 export async function chatResponse(message, lang = 'en') {
-  const prompt = `You are KisanMitra, an agricultural assistant. Respond concisely to the user query. Use language: ${lang === 'en' ? 'English' : 'Kannada'}.\n\nUser: ${message}`;
+  const isKn = lang === 'kn' || (typeof lang === 'string' && lang.startsWith('kn'));
+  const prompt = isKn
+    ? `ನೀವು ಕಿಸಾನ್‌ಬಜಾರ್‌ನ ಕಿಸಾನ್ ಮಿತ್ರ ಎಂಬ ಶ್ರೇಷ್ಠ ಕೃಷಿ AI ಸಹಾಯಕರು.
+ಕಡ್ಡಾಯ ಸೂಚನೆ: ಬಳಕೆದಾರರ ಪ್ರಶ್ನೆಗೆ ಸಂಪೂರ್ಣವಾಗಿ ಶುದ್ಧ ಮತ್ತು ನೈಸರ್ಗಿಕ ಕನ್ನಡದಲ್ಲೇ (ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ) ಉತ್ತರಿಸಿ. ಇಂಗ್ಲಿಷ್ ಬಳಸಬೇಡಿ.
+ಬೆಳೆ ದರ, ಕೀಟ ನಿಯಂತ್ರಣ, ಹವಾಮಾನ ಅಥವಾ ಕೃಷಿ ಸಲಹೆಯನ್ನು ಸವಿಸ್ತಾರವಾಗಿ ಮತ್ತು ಸ್ಪಷ್ಟವಾಗಿ ನೀಡಿ.
+
+ಬಳಕೆದಾರರ ಪ್ರಶ್ನೆ: ${message}`
+    : `You are KisanMitra, an agricultural AI assistant in KisanBazaar. Respond concisely and helpfully to the user query in English.
+
+User: ${message}`;
   try {
     const response = await _callGeminiWithFallback(
       [{ role: 'user', parts: [{ text: prompt }] }],
-      { temperature: 0.3 }
+      { temperature: 0.2 }
     );
     const text = response.text?.trim() || '';
-    return text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    const clean = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+    if (clean) return clean;
+    throw new Error('Empty response');
   } catch (error) {
-    console.error('Gemini chat error:', error);
-    return "I am KisanMitra, your agricultural assistant. I am here to help you with crop advice, pricing, and market guidance.";
+    console.error('Gemini chat error:', error.message);
+    return isKn
+      ? "ನಮಸ್ಕಾರ! ನಾನು ಕಿಸಾನ್ ಮಿತ್ರ. ಬೆಳೆ ದರಗಳು, ಕೀಟ ನಿಯಂತ್ರಣ ಮತ್ತು ಕೃಷಿ ಕುರಿತು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ನಾನು ಸದಾ ಸಿದ್ಧನಾಗಿದ್ದೇನೆ."
+      : "I am KisanMitra, your agricultural assistant. I am here to help you with crop advice, pricing, and market guidance.";
   }
 }
 

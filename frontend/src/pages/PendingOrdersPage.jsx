@@ -387,7 +387,7 @@ export default function BuyerOrdersPage() {
     <div className="min-h-screen bg-stone-50 font-sans pb-24">
       {/* Toast Notification */}
       {toast.show && (
-        <div className={`fixed bottom-8 right-8 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-xl transition-all duration-300 transform translate-y-0 ${toast.type === 'success'
+        <div className={`fixed top-20 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl transition-all duration-300 transform animate-in fade-in slide-in-from-top-4 ${toast.type === 'success'
             ? 'bg-emerald-950 text-emerald-100 border border-emerald-800'
             : 'bg-red-950 text-red-100 border border-red-800'
           }`}>

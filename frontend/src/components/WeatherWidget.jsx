@@ -1,5 +1,5 @@
-import React from 'react';
-import { CloudRain, Sun, Wind, Thermometer, Droplets } from 'lucide-react';
+import { CloudRain, Wind, Thermometer, Droplets } from 'lucide-react';
+import { cToF } from '../utils/temperature';
 
 const WeatherWidget = ({ location, onViewDetails }) => {
   return (
@@ -20,7 +20,13 @@ const WeatherWidget = ({ location, onViewDetails }) => {
         </div>
 
         <div className="flex items-end gap-4 mb-8 flex-1">
-          <span className="text-7xl font-black tracking-tighter">28°</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline">
+              <span className="text-7xl font-black tracking-tighter">28</span>
+              <span className="text-4xl font-bold ml-1">°C</span>
+            </div>
+            <span className="text-xl font-bold opacity-75">{cToF(28)}°F</span>
+          </div>
           <div className="pb-2">
             <p className="font-bold text-lg leading-none">Scattered Rain</p>
             <p className="text-sm font-medium opacity-70">Ideal for sowing</p>
@@ -40,8 +46,8 @@ const WeatherWidget = ({ location, onViewDetails }) => {
           </div>
           <div className="flex flex-col items-center gap-1">
             <Thermometer size={18} className="opacity-60" />
-            <span className="text-xs font-black">31° / 22°</span>
-            <span className="text-[10px] uppercase opacity-50 font-bold">Range</span>
+            <span className="text-xs font-black">31°C / 22°C</span>
+            <span className="text-[10px] uppercase opacity-50 font-bold">{cToF(31)}°F / {cToF(22)}°F</span>
           </div>
         </div>
 

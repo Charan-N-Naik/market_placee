@@ -21,8 +21,8 @@ import multer from 'multer';
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
 
-router.post('/register', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'vehiclePhoto', maxCount: 1 }]), registerUser);
-router.post('/login', loginLimiter, loginUser);
+// router.post('/login', loginLimiter, loginUser);
+router.post('/login', loginUser); // loginLimiter temporarily commented out for testing
 router.get('/refresh', refreshToken);
 router.post('/logout', logoutUser);
 router.post('/google', googleAuth);

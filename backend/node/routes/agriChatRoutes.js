@@ -4,7 +4,8 @@ import {
   processVoiceQuery,
   getMarketPrices,
   getPesticideAdvisories,
-  getGovSchemes
+  getGovSchemes,
+  streamTTSAudio
 } from '../controllers/agriChatController.js';
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.post('/voice', processVoiceQuery);
 router.get('/prices', getMarketPrices);
 router.get('/pesticides', getPesticideAdvisories);
 router.get('/schemes', getGovSchemes);
+router.get('/tts', streamTTSAudio);
 
 export default router;

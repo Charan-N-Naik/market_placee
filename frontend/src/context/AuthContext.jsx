@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import api from '../api/axios';
+import { updateFavicon } from '../utils/favicon';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.origin}/api`;
 
@@ -13,10 +14,25 @@ export function AuthProvider({ children }) {
   });
 
   const [loading, setLoading] = useState(true);
+ 
+  useEffect(() => {
+    updateFavicon(user?.role);
+  }, [user?.role]);
 
   useEffect(() => {
-    // Attempt silent refresh on startup using raw axios (bypasses interceptor to avoid loop)
+    // Attempt silent refresh or validate existing session on startup
     const initializeAuth = async () => {
+      const savedUserStr = localStorage.getItem('kisanbazaar_user');
+      let localUser = null;
+      try {
+        if (savedUserStr) localUser = JSON.parse(savedUserStr);
+      } catch (_) {}
+
+      // If we already have a saved user with token, attach it immediately
+      if (localUser?.token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${localUser.token}`;
+      }
+
       try {
         const { data } = await axios.get(`${API_BASE}/auth/refresh`, {
           withCredentials: true,
@@ -31,8 +47,18 @@ export function AuthProvider({ children }) {
         setUser(userData);
         localStorage.setItem('kisanbazaar_user', JSON.stringify(userData));
       } catch (error) {
-        // Treat 401 or 500 from GET /auth/refresh as "not logged in":
-        // clear local user state, do not retry in a loop, and do not show an error to the user.
+        // Refresh cookie absent or expired. If local user token exists, check if /auth/me still accepts it!
+        if (localUser?.token) {
+          try {
+            const userRes = await api.get('/auth/me');
+            const userData = { ...userRes.data, token: localUser.token };
+            setUser(userData);
+            localStorage.setItem('kisanbazaar_user', JSON.stringify(userData));
+            return;
+          } catch (_) {
+            // Local token also invalid or expired, continue to wipe
+          }
+        }
         delete api.defaults.headers.common['Authorization'];
         setUser(null);
         localStorage.removeItem('kisanbazaar_user');

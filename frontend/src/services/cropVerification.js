@@ -10,8 +10,8 @@ import api from '../api/axios';
  * @returns {Promise<Object>}  - { rejected, reason?, report? }
  */
 export async function analyzeCropMultiAngle(files, cropType = '', role = 'buyer') {
-  if (!files.front || !files.left || !files.right) {
-    throw new Error('All 3 harvest photos (Front View, Left Side, Right Side) are required to perform AI crop quality analysis.');
+  if (!files.front && !files.left && !files.right) {
+    throw new Error('At least one harvest photo (Front View) is required to perform AI crop quality analysis.');
   }
 
   const formData = new FormData();

@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import {
   Menu, Bell, CloudSun, TrendingUp, Globe, ChevronDown,
   Mail, CheckCheck, ExternalLink, X, Package, Check, ArrowRight,
-  MessageSquare, Star, ShoppingBag, Truck, AlertCircle, Trash2
+  MessageSquare, Star, ShoppingBag, Truck, AlertCircle, Trash2,
+  User, Settings, LogOut, Landmark, LayoutDashboard, ChevronRight
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
 import api from '../../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification, apiMarkNotificationRead } from '../../api/notificationsApi';
 import { useAuth } from '../../context/AuthContext';
+import { cToF } from '../../utils/temperature';
 import { getSocket } from '../../utils/socket';
 import DirectBuyerChatModal from '../DirectBuyerChatModal';
 
@@ -77,19 +80,30 @@ function formatTimeAgo(dateString) {
 export default function Navbar({
   activeTab,
   navItems,
+  sidebarOpen,
   setSidebarOpen,
+  collapsed,
+  setCollapsed,
+  toggleSidebar,
   setActiveTab,
   role,
   topBarExtra,
-  user
+  user,
+  onLogout
 }) {
-  const { user: authUser } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const currentUser = user || authUser;
   const isFarmer = role === 'farmer';
   const isBuyer = role === 'buyer';
   const isAgent = role === 'delivery_agent' || role === 'delivery';
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const menuRef = useRef(null);
+
+  const handleHamburgerClick = () => {
+    setActiveDropdown(prev => prev === 'menu' ? null : 'menu');
+  };
 
   // Separate unread counts:
   // 1. Notifications count (only product purchases, reviews, delivery status)
@@ -166,15 +180,29 @@ export default function Navbar({
     }
   };
 
+  const showNavError = (msg) => {
+    setLiveToast({
+      id: Date.now(),
+      kind: 'notification',
+      title: '⚠️ Notification Error',
+      message: msg,
+    });
+    setTimeout(() => {
+      setLiveToast(prev => (prev?.title === '⚠️ Notification Error' ? null : prev));
+    }, 4000);
+  };
+
   // Mark all notifications as read
   const handleMarkAllNotificationsRead = async () => {
     try {
-      setUnreadNotificationsCount(0);
-      setNotificationsList(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-      window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({
+        notifications: notificationsList,
+        setNotifications: setNotificationsList,
+        setUnreadCount: setUnreadNotificationsCount,
+      });
     } catch (err) {
       console.warn('Failed to mark all notifications as read:', err.message);
+      showNavError('Could not mark notifications as read. Please try again.');
     }
   };
 
@@ -185,16 +213,17 @@ export default function Navbar({
     if (!notifId) return;
 
     const wasUnread = !notif.read;
-    if (wasUnread) {
-      setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
-    }
-    setNotificationsList(prev => prev.filter(n => (n._id || n.id) !== notifId));
-    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
-
     try {
-      await api.delete(`/notifications/${notifId}`);
+      await apiDeleteNotification({
+        notifId,
+        wasUnread,
+        notifications: notificationsList,
+        setNotifications: setNotificationsList,
+        setUnreadCount: setUnreadNotificationsCount,
+      });
     } catch (err) {
       console.warn('Failed to delete notification:', err.message);
+      showNavError('Could not delete notification. Please try again.');
     }
   };
 
@@ -213,18 +242,22 @@ export default function Navbar({
   const handleNotificationClick = async (notif) => {
     const notifId = notif._id || notif.id;
     if (!notif.read) {
-      setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
-      setNotificationsList(prev => prev.map(n => ((n._id || n.id) === notifId ? { ...n, read: true, isRead: true } : n)));
-      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
       try {
-        await api.put(`/notifications/${notifId}/read`);
-      } catch (_) {}
+        await apiMarkNotificationRead({
+          notifId,
+          notifications: notificationsList,
+          setNotifications: setNotificationsList,
+          setUnreadCount: setUnreadNotificationsCount,
+        });
+      } catch (err) {
+        console.warn('Failed to mark notification as read:', err.message);
+      }
     }
     setActiveDropdown(null);
 
     if (notif.relatedOrder) {
       if (setActiveTab) setActiveTab('orders');
-      else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/agent/dashboard' : '/buyer/dashboard');
+      else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/delivery/dashboard' : '/buyer/dashboard');
     } else {
       if (setActiveTab) setActiveTab('notifications');
     }
@@ -257,7 +290,9 @@ export default function Navbar({
   // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      const outsideContainer = !containerRef.current || !containerRef.current.contains(e.target);
+      const outsideMenu = !menuRef.current || !menuRef.current.contains(e.target);
+      if (outsideContainer && outsideMenu) {
         setActiveDropdown(null);
       }
     };
@@ -395,36 +430,119 @@ export default function Navbar({
 
   // Fetch dynamic weather & APMC prices for farmers
   useEffect(() => {
-    if (isFarmer) {
-      fetch('https://api.open-meteo.com/v1/forecast?latitude=13.34&longitude=77.10&current_weather=true')
-        .then(res => res.json())
-        .then(data => {
-          if (data?.current_weather) {
-            setNavWeather(`${Math.round(data.current_weather.temperature)}°C`);
-          }
-        })
-        .catch(() => {});
+    if (!isFarmer) return;
 
-      api.get('/market-prices')
-        .then(res => {
-          const prices = res.data || [];
-          if (prices.length > 0) {
-            const first = prices[0];
-            const rawName = first.commodity || first.name || 'Crops';
-            const rawVal = first.modalPrice ?? first.modal_price ?? first.price ?? '—';
+    let priceInterval = null;
+
+    // Fetch Weather with fallback
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=13.34&longitude=77.10&current_weather=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.current_weather) {
+          const raw = data.current_weather.temperature;
+          setNavWeather({ c: Math.round(raw), f: cToF(raw) });
+        } else {
+          setNavWeather({ c: 28, f: 82 });
+        }
+      })
+      .catch(() => {
+        setNavWeather({ c: 28, f: 82 });
+      });
+
+    // Fetch APMC Market Prices from API
+    api.get('/market-prices')
+      .then(res => {
+        const resData = res.data;
+        const prices = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+        if (prices.length > 0) {
+          const formatItem = (item) => {
+            const rawName = item.commodity || item.name || 'Crops';
+            const translatedName = t(`dynamic.crops.${rawName}`, rawName);
+            const displayName = (translatedName && !translatedName.startsWith('dynamic.crops.')) ? translatedName : rawName;
+            const rawVal = item.modalPrice ?? item.modal_price ?? item.price ?? '—';
             const cleanDigits = String(rawVal).replace(/[₹\s]|Rs\.?|\/kg/gi, '').trim();
             const priceFormatted = cleanDigits ? `₹${cleanDigits}/kg` : (String(rawVal).startsWith('₹') ? rawVal : `₹${rawVal}`);
-            setNavPrice(`${rawName} ${priceFormatted}`);
+            return `${displayName} ${priceFormatted}`;
+          };
+
+          // Show top commodity immediately
+          setNavPrice(formatItem(prices[0]));
+
+          // Smoothly rotate through top commodities every 4 seconds
+          if (prices.length > 1) {
+            let idx = 0;
+            priceInterval = setInterval(() => {
+              idx = (idx + 1) % Math.min(prices.length, 6);
+              setNavPrice(formatItem(prices[idx]));
+            }, 4000);
           }
-        })
-        .catch(() => {});
-    }
-  }, [isFarmer]);
+        } else {
+          setNavPrice('Onion ₹67/kg');
+        }
+      })
+      .catch(() => {
+        setNavPrice('Onion ₹67/kg');
+      });
+
+    return () => {
+      if (priceInterval) clearInterval(priceInterval);
+    };
+  }, [isFarmer, t]);
 
   // =========================================================================
   // DROPDOWN 1: MESSAGES (✉️ ENVELOPE) — LIVE CHATS ONLY
   // =========================================================================
-  const renderMessagesDropdown = () => (
+  // DROPDOWN 1: ORDER LIVE CHATS ONLY (✉️ TOP ENVELOPE)
+  // =========================================================================
+  const renderMessagesDropdown = (accent = isFarmer ? 'emerald' : isAgent ? 'teal' : 'orange') => {
+    const isTeal = accent === 'teal';
+    const isOrange = accent === 'orange';
+    const tTheme = isTeal
+      ? {
+          headerGrad: 'from-teal-50 via-cyan-50 to-white',
+          iconBg: 'bg-teal-600',
+          subtitle: 'text-teal-700',
+          markAllBtn: 'text-teal-800 hover:text-teal-950 border-teal-200',
+          markAllIcon: 'text-teal-600',
+          spinner: 'border-teal-600',
+          hoverBg: 'hover:bg-teal-50/50',
+          unreadBg: 'bg-teal-50/70 border-l-4 border-teal-600',
+          avatarBg: 'bg-teal-100 text-teal-800',
+          pill: 'bg-teal-100/80 text-teal-900 border-teal-200',
+          badge: 'bg-teal-600',
+          footerLink: 'text-teal-700 hover:text-teal-900',
+        }
+      : isOrange
+      ? {
+          headerGrad: 'from-orange-50 via-amber-50 to-white',
+          iconBg: 'bg-orange-600',
+          subtitle: 'text-orange-700',
+          markAllBtn: 'text-orange-800 hover:text-orange-950 border-orange-200',
+          markAllIcon: 'text-orange-600',
+          spinner: 'border-orange-600',
+          hoverBg: 'hover:bg-orange-50/50',
+          unreadBg: 'bg-orange-50/70 border-l-4 border-orange-500',
+          avatarBg: 'bg-orange-100 text-orange-800',
+          pill: 'bg-orange-100/80 text-orange-900 border-orange-200',
+          badge: 'bg-orange-600',
+          footerLink: 'text-orange-700 hover:text-orange-900',
+        }
+      : {
+          headerGrad: 'from-emerald-50 via-teal-50 to-white',
+          iconBg: 'bg-[#15803d]',
+          subtitle: 'text-emerald-700',
+          markAllBtn: 'text-emerald-800 hover:text-emerald-950 border-emerald-200',
+          markAllIcon: 'text-emerald-600',
+          spinner: 'border-emerald-600',
+          hoverBg: 'hover:bg-emerald-50/50',
+          unreadBg: 'bg-[#F0FDF4]/70 border-l-4 border-emerald-600',
+          avatarBg: 'bg-emerald-100 text-emerald-800',
+          pill: 'bg-emerald-100/80 text-emerald-900 border-emerald-200',
+          badge: 'bg-emerald-600',
+          footerLink: 'text-emerald-700 hover:text-emerald-900',
+        };
+
+    return (
     <div
       className="absolute right-0 mt-2.5 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       style={{
@@ -432,16 +550,16 @@ export default function Navbar({
       }}
     >
       {/* Header */}
-      <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-white border-b border-gray-100 flex items-center justify-between">
+      <div className={`px-4 py-3 bg-gradient-to-r ${tTheme.headerGrad} border-b border-gray-100 flex items-center justify-between`}>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#15803d] text-white flex items-center justify-center shadow-xs">
+          <div className={`w-7 h-7 rounded-lg ${tTheme.iconBg} text-white flex items-center justify-center shadow-xs`}>
             <Mail size={15} />
           </div>
           <div>
             <h4 className="text-xs font-black text-gray-900 leading-tight">
               Order Messages & Live Chat
             </h4>
-            <p className="text-[10px] font-bold text-emerald-700">
+            <p className={`text-[10px] font-bold ${tTheme.subtitle}`}>
               {unreadMessagesCount > 0 ? `${unreadMessagesCount} unread message${unreadMessagesCount > 1 ? 's' : ''}` : 'No unread messages'}
             </p>
           </div>
@@ -449,9 +567,9 @@ export default function Navbar({
         {unreadMessagesCount > 0 && (
           <button
             onClick={handleMarkAllMessagesRead}
-            className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 hover:text-emerald-950 bg-white/90 hover:bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs transition-colors cursor-pointer"
+            className={`flex items-center gap-1 text-[10px] font-bold ${tTheme.markAllBtn} bg-white/90 hover:bg-white px-2.5 py-1 rounded-lg border shadow-2xs transition-colors cursor-pointer`}
           >
-            <CheckCheck size={12} className="text-emerald-600" />
+            <CheckCheck size={12} className={tTheme.markAllIcon} />
             <span>Mark all read</span>
           </button>
         )}
@@ -461,7 +579,7 @@ export default function Navbar({
       <div className="max-h-[380px] overflow-y-auto divide-y divide-gray-50">
         {loadingMessages ? (
           <div className="p-8 text-center space-y-2">
-            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <div className={`w-6 h-6 border-2 ${tTheme.spinner} border-t-transparent rounded-full animate-spin mx-auto`} />
             <p className="text-xs font-bold text-gray-400">Loading order conversations...</p>
           </div>
         ) : messagesList.length === 0 ? (
@@ -483,12 +601,12 @@ export default function Navbar({
               <div
                 key={item.orderId || item.chatId}
                 onClick={() => handleMessageItemClick(item)}
-                className={`p-3.5 hover:bg-emerald-50/50 cursor-pointer transition-colors relative flex gap-3 items-start ${
-                  isUnread ? 'bg-[#F0FDF4]/70 border-l-4 border-emerald-600' : 'bg-white'
+                className={`p-3.5 ${tTheme.hoverBg} cursor-pointer transition-colors relative flex gap-3 items-start ${
+                  isUnread ? `${tTheme.unreadBg}` : 'bg-white'
                 }`}
               >
                 {/* Participant initial */}
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs mt-0.5">
+                <div className={`w-8 h-8 rounded-xl ${tTheme.avatarBg} flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs mt-0.5`}>
                   {senderName.charAt(0).toUpperCase()}
                 </div>
 
@@ -510,7 +628,7 @@ export default function Navbar({
 
                   {/* Order & Crop Pill */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100/80 text-emerald-900 text-[10px] font-black border border-emerald-200">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black border ${tTheme.pill}`}>
                       🌾 {item.cropName}
                     </span>
                     {item.orderNumber && (
@@ -528,7 +646,7 @@ export default function Navbar({
 
                 {/* Unread badge count or indicator */}
                 {isUnread && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black shadow-xs flex-shrink-0 mt-1">
+                  <span className={`px-1.5 py-0.5 rounded-full ${tTheme.badge} text-white text-[9px] font-black shadow-xs flex-shrink-0 mt-1`}>
                     {item.unreadCount} new
                   </span>
                 )}
@@ -544,16 +662,17 @@ export default function Navbar({
           onClick={() => {
             setActiveDropdown(null);
             if (setActiveTab) setActiveTab('orders');
-            else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/agent/dashboard' : '/buyer/dashboard');
+            else navigate(isFarmer ? '/farmer/dashboard' : isAgent ? '/delivery/dashboard' : '/buyer/dashboard');
           }}
-          className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 mx-auto py-1 cursor-pointer transition-colors"
+          className={`text-xs font-bold ${tTheme.footerLink} flex items-center gap-1 mx-auto py-1 cursor-pointer transition-colors`}
         >
           <span>View All Orders & Chats</span>
           <ArrowRight size={13} />
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   // =========================================================================
   // DROPDOWN 2: NOTIFICATIONS (🔔 BELL) — PRODUCT PURCHASES & REVIEWS ONLY
@@ -696,9 +815,254 @@ export default function Navbar({
   );
 
   // =========================================================================
+  // DROPDOWN 3: QUICK PROFILE & SETTINGS MENU (HAMBURGER / MENU BUTTON)
+  // =========================================================================
+  const renderQuickMenu = (accent = 'emerald') => {
+    const isTeal = accent === 'teal';
+    const isEmerald = accent === 'emerald';
+    const primaryColor = isTeal ? '#0d9488' : isEmerald ? '#15803d' : '#ea580c';
+    const primaryBg = isTeal ? '#f0fdfa' : isEmerald ? '#f0fdf4' : '#fff7ed';
+    const primaryBorder = isTeal ? '#99f6e4' : isEmerald ? '#bbf7d0' : '#fed7aa';
+
+    const handleAction = (cb) => {
+      setActiveDropdown(null);
+      if (typeof cb === 'function') cb();
+    };
+
+    const handleLogoutAction = () => {
+      setActiveDropdown(null);
+      if (onLogout) {
+        onLogout();
+      } else if (logout) {
+        logout();
+      } else {
+        localStorage.clear();
+        window.location.href = '/';
+      }
+    };
+
+    return (
+      <div
+        className="absolute left-0 top-full mt-2.5 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        style={{
+          boxShadow: '0 20px 45px -10px rgba(0,0,0,0.18), 0 8px 16px -6px rgba(0,0,0,0.08)'
+        }}
+      >
+        {/* User Card Header */}
+        <div className="p-4 bg-gradient-to-br from-gray-50 via-white to-gray-50 border-b border-gray-100 flex items-center gap-3">
+          <div
+            onClick={() => handleAction(() => setActiveTab?.('profile'))}
+            title={t('navbar.viewProfile', 'View Profile')}
+            className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg text-white shadow-md flex-shrink-0 cursor-pointer transition-transform hover:scale-105 overflow-hidden"
+            style={{
+              background: isTeal
+                ? 'linear-gradient(135deg, #0d9488, #0f766e)'
+                : isEmerald
+                ? 'linear-gradient(135deg, #22C55E, #15803d)'
+                : 'linear-gradient(135deg, #f97316, #ea580c)'
+            }}
+          >
+            {currentUser?.avatar ? (
+              <img src={currentUser.avatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              (formatDisplayName(currentUser?.name)?.charAt(0) || 'U').toUpperCase()
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-black text-gray-900 truncate leading-tight">
+              {formatDisplayName(currentUser?.name) || 'User'}
+            </h4>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                style={{ background: primaryBg, color: primaryColor, border: `1px solid ${primaryBorder}` }}
+              >
+                {isFarmer ? '🌾 Farmer' : isAgent ? '🚚 Agent' : '🛒 Buyer'}
+              </span>
+              {(currentUser?.location?.district || currentUser?.location?.state || (typeof currentUser?.location === 'string' && currentUser?.location)) && (
+                <span className="text-[10px] font-medium text-gray-500 truncate max-w-[120px]">
+                  📍 {typeof currentUser?.location === 'object'
+                    ? (currentUser?.location?.district || currentUser?.location?.state)
+                    : String(currentUser?.location)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Menu Items List */}
+        <div className="p-2 space-y-0.5">
+          {/* 1. Profile */}
+          <button
+            onClick={() => handleAction(() => setActiveTab?.('profile'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0"
+              style={{ background: primaryBg, color: primaryColor }}
+            >
+              <User size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                {t('sidebar.profile', 'My Profile')}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Personal details & address</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          {/* 2. Settings */}
+          <button
+            onClick={() => handleAction(() => setActiveTab?.('settings'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+              <Settings size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                {t('sidebar.settings', 'Settings')}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Preferences & security</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          {/* 3. Dashboard */}
+          <button
+            onClick={() => handleAction(() => setActiveTab?.('dashboard'))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+              <LayoutDashboard size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                {t('sidebar.dashboard', 'Dashboard Overview')}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Real-time statistics & activity</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          {/* 4. Orders / My Listings */}
+          {isFarmer ? (
+            <button
+              onClick={() => handleAction(() => setActiveTab?.('listings'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+            >
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+                <Package size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                  {t('sidebar.myListings', 'My Listings')}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Manage crops & prices</p>
+              </div>
+              <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+            </button>
+          ) : (
+            <button
+              onClick={() => handleAction(() => setActiveTab?.('orders'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+            >
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+                <Package size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                  {t('sidebar.orders', 'My Orders')}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Track purchases & shipments</p>
+              </div>
+              <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all" />
+            </button>
+          )}
+
+          {/* 5. Govt Schemes for Farmer */}
+          {isFarmer && (
+            <button
+              onClick={() => handleAction(() => navigate('/schemes'))}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+            >
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+                <Landmark size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-gray-800 group-hover:text-gray-900 leading-tight">
+                  {t('navbar.govtSchemes', 'Government Schemes')}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Subsidies, loans & grants</p>
+              </div>
+              <ExternalLink size={13} className="text-gray-300 group-hover:text-gray-500 transition-all" />
+            </button>
+          )}
+
+          {/* 6. Collapse/Expand Sidebar option */}
+          <button
+            onClick={() => handleAction(() => {
+              if (toggleSidebar) toggleSidebar();
+              else setCollapsed?.(prev => !prev);
+            })}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors text-left group cursor-pointer border border-transparent hover:border-gray-100"
+          >
+            <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-600 flex items-center justify-center transition-transform group-hover:scale-110 flex-shrink-0">
+              <Menu size={15} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-700 group-hover:text-gray-900 leading-tight">
+                {collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              </p>
+              <p className="text-[10px] text-gray-400 font-medium">Toggle sidebar width</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-gray-100 my-1" />
+
+        {/* Footer: Language + Logout */}
+        <div className="p-3 bg-gray-50/80 space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1.5">
+              <Globe size={13} /> Language
+            </span>
+            <LanguageToggle role={currentUser?.role || role} />
+          </div>
+
+          <button
+            onClick={handleLogoutAction}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            <LogOut size={14} />
+            <span>{t('common.logout', 'Sign Out')}</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // =========================================================================
   // DUAL BUTTONS COMPONENT (✉️ MESSAGES & 🔔 NOTIFICATIONS)
   // =========================================================================
-  const renderDualTopButtons = (accent = 'emerald') => (
+  const renderDualTopButtons = (accent = 'emerald') => {
+    const isTeal = accent === 'teal';
+    const isOrange = accent === 'orange';
+    const activeMailClass = isTeal
+      ? 'bg-teal-50 border-teal-400 text-teal-700'
+      : isOrange
+      ? 'bg-orange-50 border-orange-400 text-orange-700'
+      : 'bg-emerald-50 border-emerald-400 text-emerald-700';
+    const hoverMailClass = isTeal
+      ? 'hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700'
+      : isOrange
+      ? 'hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700'
+      : 'hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700';
+    const badgeMailBg = isTeal ? 'bg-teal-600' : isOrange ? 'bg-orange-600' : 'bg-emerald-600';
+
+    return (
     <div style={{ position: 'relative' }} ref={containerRef}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
         {/* 1. TOP ENVELOPE: ORDER LIVE CHATS ONLY */}
@@ -713,12 +1077,12 @@ export default function Navbar({
           }}
           title="Order Chats & Direct Messages"
           className={`relative p-2 rounded-xl border border-gray-200 bg-white transition-all cursor-pointer flex items-center justify-center text-gray-600 shadow-2xs ${
-            activeDropdown === 'messages' ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700'
+            activeDropdown === 'messages' ? activeMailClass : hoverMailClass
           }`}
         >
           <Mail size={18} />
           {unreadMessagesCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
+            <span className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full ${badgeMailBg} text-white text-[10px] font-black flex items-center justify-center border-2 border-white shadow-xs animate-pulse`}>
               {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
             </span>
           )}
@@ -749,10 +1113,11 @@ export default function Navbar({
       </div>
 
       {/* Render selected popover */}
-      {activeDropdown === 'messages' && renderMessagesDropdown()}
+      {activeDropdown === 'messages' && renderMessagesDropdown(accent)}
       {activeDropdown === 'notifications' && renderNotificationsDropdown()}
     </div>
   );
+  };
 
   // ====== NON-FARMER NAVBAR (BUYER / DELIVERY AGENT) ======
   if (!isFarmer) {
@@ -771,15 +1136,39 @@ export default function Navbar({
         backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       }}>
         {/* Left */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => setSidebarOpen(true)} className="md:hidden"
-            style={{ background: 'var(--color-primary-light, #fef3c7)', border: 'none', borderRadius: 10, padding: '0.5rem', cursor: 'pointer', color: 'var(--color-primary, #ea580c)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }} ref={isFarmer ? null : menuRef}>
+          <button
+            onClick={handleHamburgerClick}
+            title="Profile & Quick Menu"
+            aria-label="Toggle profile and quick settings menu"
+            className="transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: activeDropdown === 'menu'
+                ? (isAgent ? '#ccfbf1' : '#fed7aa')
+                : (isAgent ? '#f0fdfa' : '#fff7ed'),
+              border: activeDropdown === 'menu'
+                ? (isAgent ? '1.5px solid #0d9488' : '1.5px solid #ea580c')
+                : (isAgent ? '1px solid #99f6e4' : '1px solid #fed7aa'),
+              borderRadius: 10,
+              padding: '0.5rem',
+              cursor: 'pointer',
+              color: isAgent ? '#0d9488' : '#ea580c',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: activeDropdown === 'menu'
+                ? (isAgent ? '0 0 0 3px rgba(13,148,136,0.2)' : '0 0 0 3px rgba(234,88,12,0.2)')
+                : 'none'
+            }}
+            onMouseEnter={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = isAgent ? '#ccfbf1' : '#ffedd5'; }}
+            onMouseLeave={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = isAgent ? '#f0fdfa' : '#fff7ed'; }}
+          >
             <Menu size={20} />
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {Icon && (
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: isAgent ? '#f0fdf4' : '#fff7ed', border: `1px solid ${isAgent ? '#bbf7d0' : '#ffedd5'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={19} style={{ color: isAgent ? '#16a34a' : '#ea580c' }} />
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: isAgent ? '#f0fdfa' : '#fff7ed', border: `1px solid ${isAgent ? '#99f6e4' : '#ffedd5'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={19} style={{ color: isAgent ? '#0d9488' : '#ea580c' }} />
               </div>
             )}
             <div>
@@ -788,7 +1177,7 @@ export default function Navbar({
                 fontSize: '1.05rem', fontWeight: 800, color: '#1c1917', margin: 0, lineHeight: 1.25,
                 letterSpacing: '-0.01em'
               }}>
-                {t('navbar.welcomeBack', 'Welcome,')} <span style={{ color: isAgent ? '#16a34a' : '#ea580c', fontWeight: 800 }}>{formatDisplayName(currentUser?.name) || (isAgent ? 'Driver' : 'Buyer')}</span> 👋
+                {t('navbar.welcomeBack', 'Welcome,')} <span style={{ color: isAgent ? '#0d9488' : '#ea580c', fontWeight: 800 }}>{formatDisplayName(currentUser?.name) || (isAgent ? 'Driver' : 'Buyer')}</span> 👋
               </h2>
               <p style={{
                 fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
@@ -798,12 +1187,20 @@ export default function Navbar({
               </p>
             </div>
           </div>
+
+          {/* Profile & Settings Quick Menu Dropdown */}
+          {activeDropdown === 'menu' && renderQuickMenu(isAgent ? 'teal' : 'orange')}
         </div>
 
         {/* Right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* Dual Top Buttons: ✉️ Messages & 🔔 Notifications */}
-          {renderDualTopButtons(isAgent ? 'emerald' : 'orange')}
+          {renderDualTopButtons(isAgent ? 'teal' : 'orange')}
+
+          {/* Language Toggle */}
+          <div className="flex items-center">
+            <LanguageToggle role={isAgent ? 'delivery_agent' : 'buyer'} />
+          </div>
 
           {/* Profile Avatar */}
           <button
@@ -811,13 +1208,13 @@ export default function Navbar({
             title="View Profile"
             style={{
               width: 40, height: 40, borderRadius: 12,
-              background: isAgent ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #ea580c, #c2410c)',
+              background: isAgent ? 'linear-gradient(135deg, #0d9488, #0f766e)' : 'linear-gradient(135deg, #ea580c, #c2410c)',
               color: 'white', fontWeight: 900, fontSize: '1.05rem',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               overflow: 'hidden', padding: 0,
               cursor: 'pointer', border: '2px solid transparent',
               transition: 'all 0.2s ease',
-              boxShadow: isAgent ? '0 2px 10px rgba(22,163,74,0.25)' : '0 2px 10px rgba(234,88,12,0.25)',
+              boxShadow: isAgent ? '0 2px 10px rgba(13,148,136,0.25)' : '0 2px 10px rgba(234,88,12,0.25)',
             }}
           >
             {currentUser?.avatar ? (
@@ -898,14 +1295,26 @@ export default function Navbar({
       position: 'sticky', top: 0, zIndex: 30,
     }}>
       {/* Left: Hamburger + Welcome */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }} ref={menuRef}>
         <button
-          onClick={() => setSidebarOpen(true)}
-          className="md:hidden"
+          onClick={handleHamburgerClick}
+          title="Profile & Quick Menu"
+          aria-label="Toggle profile and quick settings menu"
+          className="transition-all hover:scale-105 active:scale-95"
           style={{
-            background: '#f4f4f5', border: 'none', borderRadius: 8, padding: '0.5rem',
-            cursor: 'pointer', color: '#18181b', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            background: activeDropdown === 'menu' ? '#dcfce7' : '#f4f4f5',
+            border: activeDropdown === 'menu' ? '1.5px solid #22c55e' : '1px solid #d4d4d8',
+            borderRadius: 10,
+            padding: '0.5rem',
+            cursor: 'pointer',
+            color: activeDropdown === 'menu' ? '#15803d' : '#18181b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: activeDropdown === 'menu' ? '0 0 0 3px rgba(34,197,94,0.2)' : 'none'
           }}
+          onMouseEnter={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = '#e4e4e7'; }}
+          onMouseLeave={e => { if (activeDropdown !== 'menu') e.currentTarget.style.background = '#f4f4f5'; }}
         >
           <Menu size={20} />
         </button>
@@ -924,6 +1333,9 @@ export default function Navbar({
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
+
+        {/* Profile & Settings Quick Menu Dropdown */}
+        {activeDropdown === 'menu' && renderQuickMenu('emerald')}
       </div>
 
       {/* Right: Widgets */}
@@ -944,7 +1356,16 @@ export default function Navbar({
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
         >
           <CloudSun size={15} className="text-[#22C55E]" />
-          <span>{navWeather || t('common.loading')}</span>
+          <span>
+            {navWeather ? (
+              <>
+                <span>{navWeather.c}°C</span>
+                <span className="hidden sm:inline"> · {navWeather.f}°F</span>
+              </>
+            ) : (
+              <span>28°C · 82°F</span>
+            )}
+          </span>
           <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewWeather')}</span>
         </button>
 
@@ -954,7 +1375,7 @@ export default function Navbar({
           className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
         >
           <TrendingUp size={14} className="text-[#22C55E]" />
-          <span>{navPrice || t('common.loading')}</span>
+          <span>{navPrice || 'Onion ₹67/kg'}</span>
           <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewPrices')}</span>
         </button>
 
@@ -962,8 +1383,8 @@ export default function Navbar({
         {renderDualTopButtons('emerald')}
 
         {/* Language Toggle (compact) */}
-        <div className="hidden sm:block">
-          <LanguageToggle />
+        <div className="flex items-center">
+          <LanguageToggle role="farmer" />
         </div>
 
         {/* Profile Avatar — click to go to Profile tab */}

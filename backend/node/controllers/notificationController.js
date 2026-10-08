@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import Notification from '../models/Notification.js';
 
 /**
@@ -49,6 +50,9 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const markAsRead = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.notificationId)) {
+    return res.status(400).json({ message: 'Invalid notification id' });
+  }
   const notification = await Notification.findById(req.params.notificationId);
 
   if (!notification) {
@@ -105,6 +109,9 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const deleteNotification = asyncHandler(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.notificationId)) {
+    return res.status(400).json({ message: 'Invalid notification id' });
+  }
   const notification = await Notification.findById(req.params.notificationId);
 
   if (!notification) {

@@ -1,82 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
-  ShieldCheck, Zap, Bot, TrendingUp, ArrowRight,
-  Smartphone, Shield, Upload, Handshake, Wallet, ArrowUpRight,
-  ArrowDownRight, ChevronRight, Tractor, ShoppingCart, Truck
+  ShieldCheck, Zap, Bot, ArrowRight,
+  Smartphone, Shield, Upload, Handshake, Wallet,
+  ChevronRight, Tractor, ShoppingCart, Truck
 } from 'lucide-react';
 import LanguageToggle from '../components/LanguageToggle';
-import api from '../api/axios';
-
-const FALLBACK_MARKET_DATA = [
-  { commodity: 'Tomato (Hybrid)', mandi: 'Bengaluru (APMC)', modal_price: 2450, trend: '+4.2%', isUp: true },
-  { commodity: 'Onion (Red)', mandi: 'Tumkur Mandi', modal_price: 3180, trend: '+2.8%', isUp: true },
-  { commodity: 'Ragi (Finger Millet)', mandi: 'Ramanagara APMC', modal_price: 3600, trend: '-1.1%', isUp: false },
-  { commodity: 'Potato (Jyoti)', mandi: 'Hassan Mandi', modal_price: 1850, trend: '+3.5%', isUp: true }
-];
 
 const RoleButton = ({ icon: Icon, title, subtitle, bgCls, borderCls, hoverCls, iconBgCls, iconColorCls, arrowCls, onClick }) => (
   <button
     onClick={onClick}
-    className={`group flex items-center justify-between p-4 ${bgCls} ${borderCls} border-2 rounded-2xl hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer w-full text-left`}
+    className={`group flex items-center justify-between p-3 sm:p-3.5 lg:p-4 ${bgCls} ${borderCls} border-2 rounded-2xl hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer w-full text-left min-h-[72px] sm:min-h-[76px]`}
   >
-    <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgCls} shrink-0`}>
+    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgCls} shrink-0 shadow-xs`}>
         <Icon className={`w-5 h-5 ${iconColorCls}`} />
       </div>
-      <div>
-        <div className="font-bold text-[15px] text-slate-800">{title}</div>
-        <div className="text-[11px] text-slate-500 font-medium">{subtitle}</div>
+      <div className="min-w-0 flex-1">
+        <div className="font-bold text-[13.5px] sm:text-[14px] lg:text-[15px] text-slate-800 leading-tight truncate whitespace-nowrap">{title}</div>
+        <div className="text-[10.5px] sm:text-[11px] text-slate-500 font-medium leading-tight truncate whitespace-nowrap mt-0.5">{subtitle}</div>
       </div>
     </div>
-    <ArrowRight className={`w-4 h-4 ${arrowCls} group-hover:translate-x-1 transition-all duration-300`} />
+    <ArrowRight className={`w-4 h-4 ${arrowCls} shrink-0 ml-1.5 group-hover:translate-x-1 transition-all duration-300`} />
   </button>
 );
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-
-  const [livePrices, setLivePrices] = useState([]);
-  const [pricesLoading, setPricesLoading] = useState(true);
-  const [priceMeta, setPriceMeta] = useState({ stale: false, source: 'live', updatedAt: null });
-  const [priceError, setPriceError] = useState(false);
-
-  useEffect(() => {
-    const fetchPrices = async () => {
-      setPricesLoading(true);
-      setPriceError(false);
-      try {
-        const res = await api.get('/market-prices');
-        const resData = res.data;
-        const list = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
-        setPriceMeta({
-          stale: resData?.stale ?? false,
-          source: resData?.source ?? 'live',
-          updatedAt: resData?.updatedAt || null
-        });
-
-        if (list && list.length > 0) {
-          const enriched = list.slice(0, 4).map((item) => ({
-            ...item,
-            trend: item.change || null,
-            isUp: item.up !== undefined ? item.up : true
-          }));
-          setLivePrices(enriched);
-        } else {
-          setPriceError(true);
-        }
-      } catch (err) {
-        console.error('Failed to fetch market prices', err);
-        setPriceError(true);
-      } finally {
-        setPricesLoading(false);
-      }
-    };
-    fetchPrices();
-  }, []);
 
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
@@ -115,7 +68,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <LanguageToggle />
+            <LanguageToggle role="default" />
           </div>
         </div>
       </nav>
@@ -210,71 +163,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 2. LIVE APMC MANDI PRICES */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 mb-16 relative z-20">
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-green-100 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="flex h-3 w-3 relative">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${priceMeta.stale ? 'bg-amber-400' : 'bg-green-400'} opacity-75`}></span>
-                  <span className={`relative inline-flex rounded-full h-3 w-3 ${priceMeta.stale ? 'bg-amber-500' : 'bg-green-500'}`}></span>
-                </span>
-                <span className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <TrendingUp className={`w-4 h-4 ${priceMeta.stale ? 'text-amber-600' : 'text-green-600'}`} />
-                  APMC Mandi Prices
-                </span>
-                {priceMeta.stale && (
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                    {priceMeta.source === 'sample'
-                      ? 'Sample data - live prices unavailable'
-                      : `Last updated ${priceMeta.updatedAt ? new Date(priceMeta.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'recently'}`}
-                  </span>
-                )}
-              </div>
-              <button 
-                onClick={() => navigate('/market-prices')}
-                className="text-xs font-semibold text-green-700 hover:text-green-800 flex items-center gap-1 cursor-pointer"
-              >
-                View all mandis <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {pricesLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="animate-pulse bg-slate-100 rounded-xl p-3 h-20"></div>
-                ))}
-              </div>
-            ) : priceError || livePrices.length === 0 ? (
-              <div className="py-6 text-center text-slate-500 text-sm font-medium bg-slate-50/80 rounded-xl border border-dashed border-slate-200">
-                Prices unavailable right now
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {livePrices.map((item, idx) => (
-                  <div key={idx} className="bg-slate-50/80 hover:bg-white border border-slate-100 hover:border-green-200 rounded-xl p-3 flex flex-col justify-between transition-colors shadow-sm">
-                    <div className="text-xs text-slate-500 font-medium truncate">{item.name || item.commodity}</div>
-                    <div className="flex items-baseline justify-between mt-1.5">
-                      <span className="text-base font-extrabold text-slate-800">{item.price || `₹${item.modal_price}/q`}</span>
-                      {item.trend ? (
-                        <span className={`text-[11px] font-bold flex items-center ${item.up !== false && item.isUp !== false ? 'text-green-600' : 'text-rose-600'}`}>
-                          {item.up !== false && item.isUp !== false ? <ArrowUpRight className="w-3 h-3 mr-0.5" /> : <ArrowDownRight className="w-3 h-3 mr-0.5" />}
-                          {item.trend} <span className="text-[9px] text-slate-400 font-normal ml-0.5">(est.)</span>
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                          Live Rate
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 3. FEATURE HIGHLIGHTS */}
+        {/* 2. FEATURE HIGHLIGHTS */}
         <section className="py-28 relative overflow-hidden">
           <div className="absolute top-1/2 left-10 w-96 h-96 bg-green-200/30 rounded-full blur-[120px] pointer-events-none"></div>
           <div className="absolute top-1/3 right-10 w-96 h-96 bg-amber-200/30 rounded-full blur-[120px] pointer-events-none"></div>
@@ -301,8 +190,9 @@ export default function LandingPage() {
                 title={t('landing.featVerification')}
                 desc={t('landing.featVerificationDesc')}
                 gradient="from-green-500 to-emerald-600"
-                topAccent="bg-gradient-to-r from-green-500 to-emerald-400"
-                shadowColor="hover:shadow-green-500/15 hover:border-green-300"
+                bgCls="bg-green-50"
+                borderCls="border-green-200"
+                hoverCls="hover:bg-green-100 hover:border-green-300 hover:shadow-green-600/15"
                 delay={0}
                 path="/features/ai-verification"
               />
@@ -310,9 +200,10 @@ export default function LandingPage() {
                 icon={<Zap className="w-7 h-7" />}
                 title={t('landing.featCropListing')}
                 desc={t('landing.featCropListingDesc')}
-                gradient="from-amber-400 to-amber-600"
-                topAccent="bg-gradient-to-r from-amber-400 to-amber-500"
-                shadowColor="hover:shadow-amber-500/15 hover:border-amber-300"
+                gradient="from-orange-400 to-amber-600"
+                bgCls="bg-orange-50"
+                borderCls="border-orange-200"
+                hoverCls="hover:bg-orange-100 hover:border-orange-300 hover:shadow-orange-500/15"
                 delay={0.1}
                 path="/features/lightning-listing"
               />
@@ -320,9 +211,10 @@ export default function LandingPage() {
                 icon={<Bot className="w-7 h-7" />}
                 title={t('landing.featAssistant')}
                 desc={t('landing.featAssistantDesc')}
-                gradient="from-sky-400 to-blue-600"
-                topAccent="bg-gradient-to-r from-sky-400 to-blue-500"
-                shadowColor="hover:shadow-sky-500/15 hover:border-sky-300"
+                gradient="from-teal-400 to-teal-600"
+                bgCls="bg-teal-50"
+                borderCls="border-teal-200"
+                hoverCls="hover:bg-teal-100 hover:border-teal-300 hover:shadow-teal-500/15"
                 delay={0.2}
                 path="/features/ai-agronomist"
               />
@@ -330,9 +222,10 @@ export default function LandingPage() {
                 icon={<Smartphone className="w-7 h-7" />}
                 title={t('landing.featContact')}
                 desc={t('landing.featContactDesc')}
-                gradient="from-rose-400 to-pink-600"
-                topAccent="bg-gradient-to-r from-rose-400 to-pink-500"
-                shadowColor="hover:shadow-rose-500/15 hover:border-rose-300"
+                gradient="from-pink-500 to-rose-600"
+                bgCls="bg-pink-50"
+                borderCls="border-pink-200"
+                hoverCls="hover:bg-pink-100 hover:border-pink-300 hover:shadow-pink-500/15"
                 delay={0.3}
                 path="/features/direct-contact"
               />
@@ -439,28 +332,26 @@ export default function LandingPage() {
   );
 }
 
-function FeatureCard({ icon, title, desc, gradient, topAccent, shadowColor, delay, path }) {
+function FeatureCard({ icon, title, desc, gradient, hoverCls, bgCls = 'bg-white', borderCls = 'border-slate-100', delay, path }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.6, delay }}
-      whileHover={{ y: -8 }}
+      transition={{ duration: 0.5, delay }}
       onClick={() => navigate(path)}
-      className={`relative p-8 rounded-3xl bg-white border border-slate-100 shadow-md ${shadowColor} transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden`}
+      className={`relative p-8 rounded-2xl ${bgCls} ${borderCls} border-2 hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer group flex flex-col justify-between overflow-hidden`}
     >
-      <div className={`absolute top-0 left-0 right-0 h-1.5 ${topAccent}`}></div>
       <div>
-        <div className={`mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+        <div className={`mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center shadow-xs`}>
           {icon}
         </div>
         <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-green-700 transition-colors">{title}</h3>
-        <p className="text-slate-500 leading-relaxed font-medium text-sm">{desc}</p>
+        <p className="text-slate-600 leading-relaxed font-medium text-sm">{desc}</p>
       </div>
-      <div className="text-xs font-bold text-slate-400 group-hover:text-green-600 flex items-center gap-1.5 mt-6 transition-all duration-300">
+      <div className="text-xs font-bold text-slate-500 group-hover:text-green-700 flex items-center gap-1.5 mt-6 transition-all duration-300">
         <span>{t('landing.learnMore')}</span>
         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
       </div>

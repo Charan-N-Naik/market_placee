@@ -119,15 +119,15 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
   return (
     <div className="space-y-8 animate-fadeIn">
       
-      {/* Banner & Title Header */}
-      <div className="bg-gradient-to-r from-emerald-900 via-[#1F7A4D] to-teal-900 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
+      {/* Banner & Title Header - Buyer Theme */}
+      <div className="bg-gradient-to-r from-orange-950 via-[#9a3412] to-[#c2410c] text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 max-w-3xl space-y-3">
-          <div className="inline-flex items-center gap-2 bg-emerald-800/80 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider text-emerald-200 border border-emerald-700">
-            <Truck size={14} className="text-emerald-400" /> {t('delivery.hubBadge')}
+          <div className="inline-flex items-center gap-2 bg-orange-800/80 backdrop-blur-md px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider text-orange-200 border border-orange-700">
+            <Truck size={14} className="text-orange-300" /> {t('delivery.hubBadge')}
           </div>
           <h2 className="text-3xl md:text-4xl font-black tracking-tight">{t('delivery.title')}</h2>
-          <p className="text-xs md:text-sm text-emerald-100 font-semibold leading-relaxed">
+          <p className="text-xs md:text-sm text-orange-100 font-semibold leading-relaxed">
             {t('delivery.description')}
           </p>
         </div>
@@ -136,7 +136,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
       {/* FARMER PICKUP & BUYER DROP DETAILS INPUT FORM */}
       <div className="bg-white rounded-3xl border border-stone-200 p-6 md:p-8 shadow-sm space-y-6">
         <div className="flex items-center gap-3 border-b border-stone-100 pb-4">
-          <div className="w-10 h-10 rounded-2xl bg-[#E8F7EE] text-[#1F7A4D] flex items-center justify-center font-black">
+          <div className="w-10 h-10 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center font-black">
             📍
           </div>
           <div>
@@ -147,69 +147,69 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          {/* Farmer Pickup Details Card */}
-          <div className="bg-amber-50/70 rounded-2xl border border-amber-200/90 p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-amber-200/60 pb-3">
-              <span className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <User size={15} className="text-amber-700" /> {t('delivery.sourcingFarmerDetails')}
+          {/* Farmer Pickup Details Card - Farmer Theme (Green) */}
+          <div className="bg-emerald-50/80 rounded-2xl border border-emerald-200/90 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-emerald-200/70 pb-3">
+              <span className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                <User size={15} className="text-emerald-700" /> {t('delivery.sourcingFarmerDetails')}
               </span>
-              <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full">{t('delivery.pickupOrigin')}</span>
+              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-950 px-2.5 py-0.5 rounded-full">{t('delivery.pickupOrigin')}</span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.farmerFullName')}</label>
+                <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.farmerFullName')}</label>
                 <input
                   type="text"
                   placeholder="e.g. Basavaraj Gowda"
                   value={farmerDetails.farmerName}
                   onChange={(e) => setFarmerDetails({ ...farmerDetails, farmerName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.primaryPhone')}</label>
+                  <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.primaryPhone')}</label>
                   <input
                     type="text"
                     placeholder="98450xxxxx"
                     value={farmerDetails.farmerPhone}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, farmerPhone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.altPhone')}</label>
+                  <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.altPhone')}</label>
                   <input
                     type="text"
                     placeholder="99001xxxxx"
                     value={farmerDetails.farmerAltPhone}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, farmerAltPhone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.cropQuantity')}</label>
+                  <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.cropQuantity')}</label>
                   <input
                     type="text"
                     placeholder="e.g. 500 kg Tomatoes"
                     value={farmerDetails.cropTypeQuantity}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, cropTypeQuantity: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.pickupDistrict')}</label>
+                  <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.pickupDistrict')}</label>
                   <select
                     value={farmerDetails.pickupDistrict}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupDistrict: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     {locations.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
@@ -219,34 +219,34 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               </div>
 
               <div>
-                <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.farmAddress')}</label>
+                <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.farmAddress')}</label>
                 <input
                   type="text"
                   placeholder="e.g. Near Milk Dairy Gate, Kyatsandra Post, Tumakuru"
                   value={farmerDetails.pickupAddress}
                   onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupAddress: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.pincode')}</label>
+                  <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.pincode')}</label>
                   <input
                     type="text"
                     placeholder="572101"
                     value={farmerDetails.pickupPincode}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupPincode: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-amber-900 uppercase tracking-wider block mb-1">{t('delivery.pickupSlot')}</label>
+                  <label className="text-[11px] font-black text-emerald-950 uppercase tracking-wider block mb-1">{t('delivery.pickupSlot')}</label>
                   <select
                     value={farmerDetails.pickupTimeSlot}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupTimeSlot: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
                     <option value="Morning (8 AM - 11 AM)">{t('delivery.morningSlot')}</option>
                     <option value="Noon (12 PM - 3 PM)">{t('delivery.noonSlot')}</option>
@@ -258,43 +258,43 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             </div>
           </div>
 
-          {/* Buyer Destination Card */}
-          <div className="bg-emerald-50/70 rounded-2xl border border-emerald-200/90 p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
-              <span className="text-xs font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-                <MapPin size={15} className="text-emerald-700" /> {t('delivery.buyerDestinationDetails')}
+          {/* Buyer Destination Card - Buyer Theme (Orange) */}
+          <div className="bg-orange-50/80 rounded-2xl border border-orange-200/90 p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-orange-200/70 pb-3">
+              <span className="text-xs font-black text-orange-950 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin size={15} className="text-orange-600" /> {t('delivery.buyerDestinationDetails')}
               </span>
-              <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">{t('delivery.destinationDrop')}</span>
+              <span className="text-[10px] font-bold bg-orange-200 text-orange-950 px-2.5 py-0.5 rounded-full">{t('delivery.destinationDrop')}</span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.buyerName')}</label>
+                <label className="text-[11px] font-black text-orange-950 uppercase tracking-wider block mb-1">{t('delivery.buyerName')}</label>
                 <input
                   type="text"
                   value={buyerDropDetails.buyerName}
                   onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, buyerName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-orange-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.buyerPhone')}</label>
+                  <label className="text-[11px] font-black text-orange-950 uppercase tracking-wider block mb-1">{t('delivery.buyerPhone')}</label>
                   <input
                     type="text"
                     value={buyerDropDetails.buyerPhone}
                     onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, buyerPhone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 bg-white border border-orange-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.dropDistrict')}</label>
+                  <label className="text-[11px] font-black text-orange-950 uppercase tracking-wider block mb-1">{t('delivery.dropDistrict')}</label>
                   <select
                     value={buyerDropDetails.dropDistrict}
                     onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, dropDistrict: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-white border border-orange-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
                   >
                     {locations.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
@@ -304,12 +304,12 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
               </div>
 
               <div>
-                <label className="text-[11px] font-black text-emerald-900 uppercase tracking-wider block mb-1">{t('delivery.deliveryAddress')}</label>
+                <label className="text-[11px] font-black text-orange-950 uppercase tracking-wider block mb-1">{t('delivery.deliveryAddress')}</label>
                 <input
                   type="text"
                   value={buyerDropDetails.dropAddress}
                   onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, dropAddress: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-white border border-orange-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
             </div>
@@ -320,11 +320,14 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
         {/* DISTANCE & ESTIMATED EXPENDITURE COST SUMMARY BAR */}
         <div className="bg-[#FFFDF6] rounded-2xl border border-stone-200 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-[10px] font-black text-[#1F7A4D] uppercase tracking-widest bg-[#E8F7EE] px-2.5 py-1 rounded-md border border-[#1F7A4D]/20">
+            <span className="text-[10px] font-black text-orange-800 uppercase tracking-widest bg-orange-100 px-2.5 py-1 rounded-md border border-orange-200">
               {t('delivery.calcTitle')}
             </span>
             <p className="text-xs font-bold text-stone-800 pt-1">
-              {farmerDetails.pickupDistrict || 'Farmer Origin'} → {buyerDropDetails.dropDistrict || 'Buyer Destination'} ({distanceKm} km)
+              <span className="text-emerald-700 font-extrabold">{farmerDetails.pickupDistrict || 'Farmer Origin'}</span>
+              {' '}→{' '}
+              <span className="text-orange-700 font-extrabold">{buyerDropDetails.dropDistrict || 'Buyer Destination'}</span>
+              {' '}({distanceKm} km)
             </p>
           </div>
 
@@ -336,7 +339,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             <div className="h-8 w-px bg-stone-200" />
             <div>
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">{t('delivery.estExpenditure')}</span>
-              <span className="text-xl font-black text-[#1F7A4D]">₹{expenditure.totalExpenditure}</span>
+              <span className="text-xl font-black text-orange-600">₹{expenditure.totalExpenditure}</span>
             </div>
           </div>
         </div>
@@ -758,73 +761,73 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             </button>
 
             <div className="flex items-center gap-3 border-b border-stone-100 pb-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#E8F7EE] text-[#1F7A4D] flex items-center justify-center text-xl font-bold">
+              <div className="w-12 h-12 rounded-2xl bg-orange-100 text-orange-700 flex items-center justify-center text-xl font-bold">
                 🚚
               </div>
               <div>
-                <span className="text-[10px] font-black text-[#1F7A4D] uppercase tracking-wider">{t('delivery.bookTransport')}</span>
+                <span className="text-[10px] font-black text-orange-700 uppercase tracking-wider">{t('delivery.bookTransport')}</span>
                 <h3 className="text-xl font-black text-stone-900">{activeBookingAgent.name}</h3>
               </div>
             </div>
 
-            {/* Comprehensive Farmer Contact & Pickup Details Form */}
-            <div className="space-y-4 bg-amber-50/70 p-4 rounded-2xl border border-amber-200/80">
-              <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                <User size={14} className="text-amber-700" /> {t('delivery.sourcingFarmerDetails')}
+            {/* Comprehensive Farmer Contact & Pickup Details Form - Farmer Theme (Green) */}
+            <div className="space-y-4 bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200/90">
+              <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                <User size={14} className="text-emerald-700" /> {t('delivery.sourcingFarmerDetails')}
               </h4>
               
               <div className="space-y-3">
                 <div>
-                  <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.farmerFullName')}</label>
+                  <label className="text-[11px] font-bold text-emerald-950 block mb-1">{t('delivery.farmerFullName')}</label>
                   <input
                     type="text"
                     placeholder="e.g. Ramesh Gowda"
                     value={farmerDetails.farmerName}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, farmerName: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.primaryPhone')}</label>
+                    <label className="text-[11px] font-bold text-emerald-950 block mb-1">{t('delivery.primaryPhone')}</label>
                     <input
                       type="text"
                       placeholder="98450xxxxx"
                       value={farmerDetails.farmerPhone}
                       onChange={(e) => setFarmerDetails({ ...farmerDetails, farmerPhone: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.altPhone')}</label>
+                    <label className="text-[11px] font-bold text-emerald-950 block mb-1">{t('delivery.altPhone')}</label>
                     <input
                       type="text"
                       placeholder="99001xxxxx"
                       value={farmerDetails.farmerAltPhone}
                       onChange={(e) => setFarmerDetails({ ...farmerDetails, farmerAltPhone: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.cropQuantity')}</label>
+                    <label className="text-[11px] font-bold text-emerald-950 block mb-1">{t('delivery.cropQuantity')}</label>
                     <input
                       type="text"
                       placeholder="e.g. 500 kg Fresh Tomatoes"
                       value={farmerDetails.cropTypeQuantity}
                       onChange={(e) => setFarmerDetails({ ...farmerDetails, cropTypeQuantity: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.pickupDistrict')}</label>
+                    <label className="text-[11px] font-bold text-emerald-950 block mb-1">{t('delivery.pickupDistrict')}</label>
                     <select
                       value={farmerDetails.pickupDistrict}
                       onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupDistrict: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                      className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                     >
                       {locations.map(loc => (
                         <option key={loc} value={loc}>{loc}</option>
@@ -834,37 +837,39 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-amber-900 block mb-1">{t('delivery.farmAddress')}</label>
+                  <label className="text-[11px] font-bold text-emerald-950 block mb-1">{t('delivery.farmAddress')}</label>
                   <input
                     type="text"
                     placeholder="e.g. Near Milk Dairy Gate, Village Road, Tumakuru"
                     value={farmerDetails.pickupAddress}
                     onChange={(e) => setFarmerDetails({ ...farmerDetails, pickupAddress: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Buyer Drop Details */}
-            <div className="space-y-4 pt-2 border-t border-stone-100">
-              <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider">{t('delivery.buyerDestinationDetails')}</h4>
+            {/* Buyer Drop Details - Buyer Theme (Orange) */}
+            <div className="space-y-4 bg-orange-50/80 p-4 rounded-2xl border border-orange-200/90">
+              <h4 className="text-xs font-black text-orange-950 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin size={14} className="text-orange-600" /> {t('delivery.buyerDestinationDetails')}
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-stone-700 block mb-1">{t('delivery.buyerName')}</label>
+                  <label className="text-[11px] font-bold text-orange-950 block mb-1">{t('delivery.buyerName')}</label>
                   <input
                     type="text"
                     value={buyerDropDetails.buyerName}
                     onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, buyerName: e.target.value })}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold outline-none focus:border-[#1F7A4D]"
+                    className="w-full px-3 py-2 bg-white border border-orange-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-stone-700 block mb-1">{t('delivery.dropDistrict')}</label>
+                  <label className="text-[11px] font-bold text-orange-950 block mb-1">{t('delivery.dropDistrict')}</label>
                   <select
                     value={buyerDropDetails.dropDistrict}
                     onChange={(e) => setBuyerDropDetails({ ...buyerDropDetails, dropDistrict: e.target.value })}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold outline-none focus:border-[#1F7A4D]"
+                    className="w-full px-3 py-2 bg-white border border-orange-300 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
                   >
                     {locations.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
@@ -875,14 +880,19 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             </div>
 
             {/* Distance & Expenditure Summary */}
-            <div className="bg-[#FFFDF6] p-4 rounded-2xl border border-amber-200 flex items-center justify-between text-xs">
+            <div className="bg-[#FFFDF6] p-4 rounded-2xl border border-orange-200 flex items-center justify-between text-xs">
               <div>
                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Calculated Distance</span>
-                <span className="font-bold text-stone-900">{farmerDetails.pickupDistrict} → {buyerDropDetails.dropDistrict} ({distanceKm} km)</span>
+                <span className="font-bold text-stone-900">
+                  <span className="text-emerald-700 font-extrabold">{farmerDetails.pickupDistrict}</span>
+                  {' '}→{' '}
+                  <span className="text-orange-700 font-extrabold">{buyerDropDetails.dropDistrict}</span>
+                  {' '}({distanceKm} km)
+                </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">{t('delivery.estExpenditure')}</span>
-                <span className="text-lg font-black text-[#1F7A4D]">₹{expenditure.totalExpenditure}</span>
+                <span className="text-lg font-black text-orange-600">₹{expenditure.totalExpenditure}</span>
               </div>
             </div>
 
@@ -890,7 +900,7 @@ export default function DeliveryLogisticsSection({ user, showToast }) {
             <button
               type="button"
               onClick={() => handleConfirmBooking(activeBookingAgent)}
-              className="w-full py-4 bg-[#1F7A4D] hover:bg-[#165b38] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-colors cursor-pointer flex items-center justify-center gap-2"
             >
               <Truck size={16} /> {t('delivery.bookTransport')}
             </button>
