@@ -15,6 +15,8 @@ import LiveDeliveryTracker from '../components/LiveDeliveryTracker';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
 import GmailNotificationInbox from '../components/GmailNotificationInbox';
 import api from '../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification } from '../api/notificationsApi';
+import { cToF } from '../utils/temperature';
 import ConfirmModal from '../components/common/ConfirmModal';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -23,7 +25,7 @@ import {
 import {
   LayoutDashboard, Plus, Bot, Eye, Brain, User, Package, BadgeCheck, Clock, Eye as EyeIcon, CloudSun,
   TrendingUp, ChevronRight, Pencil, Save, Check, ShoppingCart, Trash2, ArrowUpRight, ArrowDownRight,
-  Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, Calendar, Star, Sparkles,
+  Search, Filter, SlidersHorizontal, RefreshCw, AlertTriangle, AlertCircle, Calendar, Star, Sparkles,
   ShieldCheck, MapPin, Inbox, Info, Bell, CheckSquare, Settings as SettingsIcon, Play, Pause, Copy,
   Download, FileText, ExternalLink, Mail, Phone, Layers, BarChart3, Edit, Truck, Camera, Bookmark, CreditCard,
   CheckCircle, CheckCircle2, MessageSquare
@@ -159,7 +161,8 @@ export default function FarmerDashboard() {
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&relative_humidity_2m=true`);
       const data = await res.json();
       if (data && data.current_weather) {
-        const temp = Math.round(data.current_weather.temperature);
+        const rawTemp = data.current_weather.temperature;
+        const temp = Math.round(rawTemp);
         const wind = Math.round(data.current_weather.windspeed);
 
         // Map weather code to description
@@ -172,7 +175,9 @@ export default function FarmerDashboard() {
         else if (code > 67) { cond = 'Thunderstorm'; forecast = 'Seek indoor storage protection'; }
 
         setWeatherData({
-          temp: temp.toString(),
+          temp: `${temp}°C / ${cToF(rawTemp)}°F`,
+          tempC: temp,
+          tempF: cToF(rawTemp),
           humidity: data.current_weather.relative_humidity_2m ? `${data.current_weather.relative_humidity_2m}%` : '62%',
           rain: code > 48 ? '85%' : '15%',
           wind: `${wind} km/h`,
@@ -334,11 +339,10 @@ export default function FarmerDashboard() {
 
   const markAllAsRead = async () => {
     try {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-      window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({ notifications, setNotifications });
     } catch (err) {
       console.error('Failed to mark notifications as read', err);
+      showToast('Could not mark notifications as read. Please try again.', 'error');
     }
   };
 
@@ -1511,12 +1515,15 @@ export default function FarmerDashboard() {
             sellerOrders={sellerOrders}
             onUpdateOrderStatus={handleUpdateOrderStatus}
             onMarkAsRead={markAllAsRead}
-            onDeleteNotification={(id) => {
+            onDeleteNotification={async (id) => {
               const target = notifications.find(n => (n._id || n.id) === id);
               const wasUnread = target ? !target.read : true;
-              setNotifications(prev => prev.filter(n => (n._id || n.id) !== id));
-              window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id, wasUnread } }));
-              api.delete(`/notifications/${id}`).catch(() => { });
+              try {
+                await apiDeleteNotification({ notifId: id, wasUnread, notifications, setNotifications });
+              } catch (err) {
+                console.error('Failed to delete notification:', err);
+                showToast('Could not delete notification. Please try again.', 'error');
+              }
             }}
             onRefresh={fetchDashboardData}
           />

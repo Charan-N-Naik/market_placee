@@ -63,6 +63,7 @@ export const sendNotification = async ({
       const unreadCount = await Notification.countDocuments({
         recipient: recipientId,
         read: false,
+        type: { $ne: 'message' },
       });
 
       activeIo.to(recipientStr).emit('unread_count_update', { unreadCount, count: unreadCount });

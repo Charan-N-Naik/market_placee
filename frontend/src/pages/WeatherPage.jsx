@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, CloudRain, Wind, Droplets, Thermometer,
@@ -6,6 +6,7 @@ import {
   Sprout, AlertTriangle, CheckCircle, Eye, BarChart2, List, Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { cToF } from '../utils/temperature';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, RadialBarChart, RadialBar,
@@ -194,8 +195,12 @@ const WeatherPage = () => {
 
   const currentInfo = WEATHER_CODES[weatherData.current.weather_code] || { desc:'Unknown', icon:Cloud, color:'text-gray-500', bg:'bg-gray-50', dot:'#94a3b8' };
   const CurrentIcon = currentInfo.icon;
-  const temp      = Math.round(weatherData.current.temperature_2m);
-  const feelsLike = Math.round(weatherData.current.apparent_temperature);
+  const rawTemp   = weatherData.current.temperature_2m;
+  const rawFeelsLike = weatherData.current.apparent_temperature;
+  const temp      = Math.round(rawTemp);
+  const tempF     = cToF(rawTemp);
+  const feelsLike = Math.round(rawFeelsLike);
+  const feelsLikeF = cToF(rawFeelsLike);
   const humidity  = weatherData.current.relative_humidity_2m;
   const windSpeed = Math.round(weatherData.current.wind_speed_10m);
   const rainProb  = weatherData.daily.precipitation_probability_max[0];
@@ -250,14 +255,20 @@ const WeatherPage = () => {
             </h2>
           </div>
 
-          <div className="flex flex-wrap items-end gap-4 mb-8">
+          <div className="flex flex-wrap items-end gap-6 mb-8">
             <div className="flex items-center gap-3">
               <CurrentIcon size={60} className={`${currentInfo.color} flex-shrink-0`} />
-              <span className="text-8xl font-black text-blue-950 leading-none">{temp}°</span>
+              <div className="flex flex-col">
+                <div className="flex items-start leading-none">
+                  <span className="text-8xl font-black text-blue-950 leading-none">{temp}</span>
+                  <span className="text-5xl font-black text-blue-950 align-top ml-1">°C</span>
+                </div>
+                <span className="text-2xl font-black text-stone-400 mt-1">{tempF}°F</span>
+              </div>
             </div>
             <div className="pb-2">
               <p className="text-2xl font-black text-blue-600">{currentInfo.desc}</p>
-              <p className="text-sm text-stone-500 font-semibold mt-1">Feels like {feelsLike}°C</p>
+              <p className="text-sm text-stone-500 font-semibold mt-1">Feels like {feelsLike}°C / {feelsLikeF}°F</p>
             </div>
           </div>
 
@@ -267,9 +278,12 @@ const WeatherPage = () => {
               <p className="text-xl font-black text-stone-900 leading-tight">{windSpeed} <span className="text-sm font-bold text-stone-400">km/h</span></p>
               <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Wind</p>
             </div>
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col items-center gap-2">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col items-center gap-1.5">
               <Thermometer size={20} className="text-slate-500" />
-              <p className="text-xl font-black text-stone-900 leading-tight">{feelsLike}<span className="text-base font-bold text-stone-500">°C</span></p>
+              <div className="text-center">
+                <p className="text-xl font-black text-stone-900 leading-tight">{feelsLike}<span className="text-base font-bold text-stone-500">°C</span></p>
+                <p className="text-xs font-bold text-stone-400">{feelsLikeF}°F</p>
+              </div>
               <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Feels Like</p>
             </div>
             <div className="bg-sky-50 rounded-2xl p-3 border border-sky-100 flex items-center justify-center">
@@ -386,8 +400,12 @@ const WeatherPage = () => {
                 const info     = WEATHER_CODES[code] || { desc:'Unknown', icon:Cloud, color:'text-gray-500', dot:'#94a3b8' };
                 const DayIcon  = info.icon;
                 const rp       = weatherData.daily.precipitation_probability_max[i];
-                const minT     = Math.round(weatherData.daily.temperature_2m_min[i]);
-                const maxT     = Math.round(weatherData.daily.temperature_2m_max[i]);
+                const rawMinT  = weatherData.daily.temperature_2m_min[i];
+                const rawMaxT  = weatherData.daily.temperature_2m_max[i];
+                const minT     = Math.round(rawMinT);
+                const maxT     = Math.round(rawMaxT);
+                const minTF    = cToF(rawMinT);
+                const maxTF    = cToF(rawMaxT);
                 return (
                   <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all hover:shadow-sm ${i===0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100 hover:bg-white'}`}>
                     <span className={`w-14 text-sm font-black flex-shrink-0 ${i===0?'text-blue-700':'text-stone-800'}`}>{dayName}</span>
@@ -397,9 +415,18 @@ const WeatherPage = () => {
                       <Droplets size={11} className="text-blue-400" />
                       <span className="text-xs font-black text-blue-600">{rp}%</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-1">
-                      <span className="text-sm font-bold text-stone-400">{minT}°</span>
-                      <span className="text-base font-black text-stone-900">{maxT}°</span>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-1 text-right">
+                      <div className="flex flex-col items-end">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-sm font-bold text-stone-400">{minT}°C</span>
+                          <span className="text-base font-black text-stone-900">{maxT}°C</span>
+                        </div>
+                        <div className="flex items-baseline gap-1 text-[11px] font-semibold text-stone-400">
+                          <span>{minTF}°F</span>
+                          <span>·</span>
+                          <span>{maxTF}°F</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );

@@ -371,17 +371,10 @@ export default function Sidebar({
           {/* Footer Controls */}
           <div style={{ padding: collapsed ? '0.75rem 0.5rem' : '0.875rem 1rem', borderTop: `1px solid ${accentBorder}40`, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {!collapsed && (
-              <div style={{
-                background: accentLight,
-                borderRadius: '9999px',
-                border: `1.5px solid ${accentBorder}`,
-                padding: '0.25rem 0.5rem',
-                display: 'flex', justifyContent: 'center',
-                boxShadow: `0 2px 4px ${accentShadow}`,
-                transition: 'background 0.2s'
-              }}>
-                <LanguageToggle className="w-full justify-center" />
-              </div>
+              <LanguageToggle
+                role={role || (isDeliveryAgent ? 'delivery_agent' : 'buyer')}
+                className="w-full justify-center py-2"
+              />
             )}
             <button id="btn-logout" onClick={onLogout} title={collapsed ? t('common.logout') : undefined}
               style={{
@@ -605,9 +598,10 @@ export default function Sidebar({
           display: 'flex', flexDirection: 'column', gap: '0.5rem',
         }}>
           {!collapsed && (
-            <div style={{ background: '#fff', borderRadius: 99, border: '1px solid rgba(21,128,61,0.12)', padding: '0.25rem 0.5rem', display: 'flex', justifyContent: 'center', transition: 'background 0.2s' }}>
-              <LanguageToggle className="w-full justify-center" />
-            </div>
+            <LanguageToggle
+              role="farmer"
+              className="w-full justify-center py-2"
+            />
           )}
           <button id="btn-logout" onClick={onLogout} title={collapsed ? 'Logout' : undefined}
             style={{

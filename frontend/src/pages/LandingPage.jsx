@@ -12,18 +12,18 @@ import LanguageToggle from '../components/LanguageToggle';
 const RoleButton = ({ icon: Icon, title, subtitle, bgCls, borderCls, hoverCls, iconBgCls, iconColorCls, arrowCls, onClick }) => (
   <button
     onClick={onClick}
-    className={`group flex items-center justify-between p-4 ${bgCls} ${borderCls} border-2 rounded-2xl hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer w-full text-left`}
+    className={`group flex items-center justify-between p-3 sm:p-3.5 lg:p-4 ${bgCls} ${borderCls} border-2 rounded-2xl hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer w-full text-left min-h-[72px] sm:min-h-[76px]`}
   >
-    <div className="flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgCls} shrink-0`}>
+    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgCls} shrink-0 shadow-xs`}>
         <Icon className={`w-5 h-5 ${iconColorCls}`} />
       </div>
-      <div>
-        <div className="font-bold text-[15px] text-slate-800">{title}</div>
-        <div className="text-[11px] text-slate-500 font-medium">{subtitle}</div>
+      <div className="min-w-0 flex-1">
+        <div className="font-bold text-[13.5px] sm:text-[14px] lg:text-[15px] text-slate-800 leading-tight truncate whitespace-nowrap">{title}</div>
+        <div className="text-[10.5px] sm:text-[11px] text-slate-500 font-medium leading-tight truncate whitespace-nowrap mt-0.5">{subtitle}</div>
       </div>
     </div>
-    <ArrowRight className={`w-4 h-4 ${arrowCls} group-hover:translate-x-1 transition-all duration-300`} />
+    <ArrowRight className={`w-4 h-4 ${arrowCls} shrink-0 ml-1.5 group-hover:translate-x-1 transition-all duration-300`} />
   </button>
 );
 
@@ -68,7 +68,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-            <LanguageToggle />
+            <LanguageToggle role="default" />
           </div>
         </div>
       </nav>
@@ -190,8 +190,9 @@ export default function LandingPage() {
                 title={t('landing.featVerification')}
                 desc={t('landing.featVerificationDesc')}
                 gradient="from-green-500 to-emerald-600"
-                topAccent="bg-gradient-to-r from-green-500 to-emerald-400"
-                shadowColor="hover:shadow-green-500/15 hover:border-green-300"
+                bgCls="bg-green-50"
+                borderCls="border-green-200"
+                hoverCls="hover:bg-green-100 hover:border-green-300 hover:shadow-green-600/15"
                 delay={0}
                 path="/features/ai-verification"
               />
@@ -199,9 +200,10 @@ export default function LandingPage() {
                 icon={<Zap className="w-7 h-7" />}
                 title={t('landing.featCropListing')}
                 desc={t('landing.featCropListingDesc')}
-                gradient="from-amber-400 to-amber-600"
-                topAccent="bg-gradient-to-r from-amber-400 to-amber-500"
-                shadowColor="hover:shadow-amber-500/15 hover:border-amber-300"
+                gradient="from-orange-400 to-amber-600"
+                bgCls="bg-orange-50"
+                borderCls="border-orange-200"
+                hoverCls="hover:bg-orange-100 hover:border-orange-300 hover:shadow-orange-500/15"
                 delay={0.1}
                 path="/features/lightning-listing"
               />
@@ -209,9 +211,10 @@ export default function LandingPage() {
                 icon={<Bot className="w-7 h-7" />}
                 title={t('landing.featAssistant')}
                 desc={t('landing.featAssistantDesc')}
-                gradient="from-sky-400 to-blue-600"
-                topAccent="bg-gradient-to-r from-sky-400 to-blue-500"
-                shadowColor="hover:shadow-sky-500/15 hover:border-sky-300"
+                gradient="from-teal-400 to-teal-600"
+                bgCls="bg-teal-50"
+                borderCls="border-teal-200"
+                hoverCls="hover:bg-teal-100 hover:border-teal-300 hover:shadow-teal-500/15"
                 delay={0.2}
                 path="/features/ai-agronomist"
               />
@@ -219,9 +222,10 @@ export default function LandingPage() {
                 icon={<Smartphone className="w-7 h-7" />}
                 title={t('landing.featContact')}
                 desc={t('landing.featContactDesc')}
-                gradient="from-rose-400 to-pink-600"
-                topAccent="bg-gradient-to-r from-rose-400 to-pink-500"
-                shadowColor="hover:shadow-rose-500/15 hover:border-rose-300"
+                gradient="from-pink-500 to-rose-600"
+                bgCls="bg-pink-50"
+                borderCls="border-pink-200"
+                hoverCls="hover:bg-pink-100 hover:border-pink-300 hover:shadow-pink-500/15"
                 delay={0.3}
                 path="/features/direct-contact"
               />
@@ -328,28 +332,26 @@ export default function LandingPage() {
   );
 }
 
-function FeatureCard({ icon, title, desc, gradient, topAccent, shadowColor, delay, path }) {
+function FeatureCard({ icon, title, desc, gradient, hoverCls, bgCls = 'bg-white', borderCls = 'border-slate-100', delay, path }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.6, delay }}
-      whileHover={{ y: -8 }}
+      transition={{ duration: 0.5, delay }}
       onClick={() => navigate(path)}
-      className={`relative p-8 rounded-3xl bg-white border border-slate-100 shadow-md ${shadowColor} transition-all duration-300 cursor-pointer group flex flex-col justify-between overflow-hidden`}
+      className={`relative p-8 rounded-2xl ${bgCls} ${borderCls} border-2 hover:shadow-xl ${hoverCls} transition-all duration-300 hover:-translate-y-1 active:scale-95 cursor-pointer group flex flex-col justify-between overflow-hidden`}
     >
-      <div className={`absolute top-0 left-0 right-0 h-1.5 ${topAccent}`}></div>
       <div>
-        <div className={`mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+        <div className={`mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center shadow-xs`}>
           {icon}
         </div>
         <h3 className="text-xl font-bold text-slate-800 mb-3 group-hover:text-green-700 transition-colors">{title}</h3>
-        <p className="text-slate-500 leading-relaxed font-medium text-sm">{desc}</p>
+        <p className="text-slate-600 leading-relaxed font-medium text-sm">{desc}</p>
       </div>
-      <div className="text-xs font-bold text-slate-400 group-hover:text-green-600 flex items-center gap-1.5 mt-6 transition-all duration-300">
+      <div className="text-xs font-bold text-slate-500 group-hover:text-green-700 flex items-center gap-1.5 mt-6 transition-all duration-300">
         <span>{t('landing.learnMore')}</span>
         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
       </div>

@@ -10,6 +10,7 @@ import {
   Pencil, Camera, Eye, MessageSquare, Clock, Save, Edit, Bookmark, Trash2, CheckCheck
 } from 'lucide-react';
 import api from '../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification, apiMarkNotificationRead } from '../api/notificationsApi';
 import { getAgentDeliveryRequests, getAllDeliveryBookings, updateDeliveryBookingStatus } from '../utils/deliveryService';
 import { getSocket } from '../utils/socket';
 import DirectBuyerChatModal from '../components/DirectBuyerChatModal';
@@ -182,12 +183,11 @@ export default function DeliveryAgentDashboard() {
   }, []);
 
   const handleMarkAllAgentNotificationsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
     try {
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({ notifications, setNotifications });
     } catch (err) {
       console.warn('Failed to mark all as read:', err);
+      showToast('Could not mark notifications as read. Please try again.', 'error');
     }
   };
 
@@ -196,16 +196,15 @@ export default function DeliveryAgentDashboard() {
     const target = notifications.find(n => (n._id || n.id) === notifId);
     const wasUnread = target ? !target.read : true;
 
-    setNotifications(prev => prev.filter(n => (n._id || n.id) !== notifId));
     if (activeAgentNotificationId === notifId) {
       setActiveAgentNotificationId(null);
     }
-    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
 
     try {
-      await api.delete(`/notifications/${notifId}`);
+      await apiDeleteNotification({ notifId, wasUnread, notifications, setNotifications });
     } catch (err) {
       console.warn('Failed to delete notification:', err);
+      showToast('Could not delete notification. Please try again.', 'error');
     }
   };
 
@@ -213,11 +212,12 @@ export default function DeliveryAgentDashboard() {
     const notifId = n._id || n.id;
     setActiveAgentNotificationId(notifId);
     if (!n.read) {
-      setNotifications(prev => prev.map(item => ((item._id || item.id) === notifId ? { ...item, read: true, isRead: true } : item)));
-      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
       try {
-        await api.put(`/notifications/${notifId}/read`);
-      } catch (_) {}
+        await apiMarkNotificationRead({ notifId, notifications, setNotifications });
+      } catch (err) {
+        console.warn('Failed to mark notification as read:', err);
+        showToast('Could not mark notification as read. Please try again.', 'error');
+      }
     }
   };
 
@@ -721,7 +721,7 @@ export default function DeliveryAgentDashboard() {
                         <p className="font-bold text-gray-900">{order.farmerDetails?.farmerName || order.farmer?.name}</p>
                         <p className="text-gray-600">{order.farmerDetails?.pickupAddress || order.farmer?.location?.address || t('agentDashboard.farmerAddress', 'Farm')}</p>
                         {(order.farmerDetails?.farmerPhone || order.farmer?.phone) && (
-                          <a href={`tel:${order.farmerDetails?.farmerPhone || order.farmer?.phone}`} className="text-blue-600 font-bold mt-1 inline-block">{t('agentDashboard.callFarmer', '📞 Call Farmer')}</a>
+                          <a href={`tel:${order.farmerDetails?.farmerPhone || order.farmer?.phone}`} className="text-blue-600 font-bold mt-1 inline-flex items-center gap-1"><Phone size={12} /> {t('agentDashboard.callFarmer', 'Call Farmer')}</a>
                         )}
                       </div>
                       <div className="md:border-l md:border-gray-200 md:pl-4">
@@ -729,7 +729,7 @@ export default function DeliveryAgentDashboard() {
                         <p className="font-bold text-gray-900">{order.buyerDropDetails?.buyerName || order.buyer?.name}</p>
                         <p className="text-gray-600">{order.buyerDropDetails?.dropAddress || order.buyer?.location?.address || t('agentDashboard.buyerAddress', 'Buyer Address')}</p>
                         {(order.buyerDropDetails?.buyerPhone || order.buyer?.phone) && (
-                          <a href={`tel:${order.buyerDropDetails?.buyerPhone || order.buyer?.phone}`} className="text-blue-600 font-bold mt-1 inline-block">{t('agentDashboard.callBuyer', '📞 Call Buyer')}</a>
+                          <a href={`tel:${order.buyerDropDetails?.buyerPhone || order.buyer?.phone}`} className="text-blue-600 font-bold mt-1 inline-flex items-center gap-1"><Phone size={12} /> {t('agentDashboard.callBuyer', 'Call Buyer')}</a>
                         )}
                       </div>
                     </div>
@@ -1581,7 +1581,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                   href={`tel:${farmerPhone}`}
                   className="bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs"
                 >
-                  <Phone size={12} /> {t('agentDashboard.callFarmer', '📞 Call Farmer')}
+                  <Phone size={12} /> {t('agentDashboard.callFarmer', 'Call Farmer')}
                 </a>
               )}
             </div>
@@ -1621,7 +1621,7 @@ function FullBookingDetailsModal({ order, onClose, handleRespond, handleStatusUp
                   href={`tel:${buyerPhone}`}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-extrabold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs"
                 >
-                  <Phone size={12} /> {t('agentDashboard.callBuyer', '📞 Call Buyer')}
+                  <Phone size={12} /> {t('agentDashboard.callBuyer', 'Call Buyer')}
                 </a>
               )}
             </div>

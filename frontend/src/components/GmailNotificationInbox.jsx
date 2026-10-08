@@ -16,6 +16,7 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [deletedIds, setDeletedIds] = useState(new Set());
   const [localReadIds, setLocalReadIds] = useState(new Set());
+  const [errorToast, setErrorToast] = useState(null);
 
   // Merge backend notifications & seller orders into a rich Gmail inbox feed
   const rawFeed = notifications.map(n => ({
@@ -123,12 +124,13 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
   };
 
   // Dismiss & remove notification handler
-  const handleDismissNotification = (item, e) => {
+  const handleDismissNotification = async (item, e) => {
     if (e) e.stopPropagation();
     const targetId = item._id || item.id;
     const orderId = item.relatedOrder?._id || item.relatedOrder?.id || (typeof item.relatedOrder === 'string' ? item.relatedOrder : null);
     const wasUnread = !isItemRead(item);
 
+    const prevDeleted = new Set(deletedIds);
     setDeletedIds(prev => {
       const next = new Set(prev);
       if (targetId) next.add(targetId);
@@ -139,29 +141,47 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
       return next;
     });
 
-    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: targetId, wasUnread } }));
-
-    if (onDeleteNotification) onDeleteNotification(targetId, orderId);
-    if (targetId && !String(targetId).startsWith('order_notif_')) {
-      api.delete(`/notifications/${targetId}`).catch(() => {});
-    }
     if (activeNotificationId === targetId) {
       setActiveNotificationId(null);
+    }
+
+    try {
+      if (onDeleteNotification) {
+        await onDeleteNotification(targetId, orderId);
+      } else if (targetId && !String(targetId).startsWith('order_notif_')) {
+        await api.delete(`/notifications/${targetId}`);
+        window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: targetId, wasUnread } }));
+      } else {
+        window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: targetId, wasUnread } }));
+      }
+    } catch (err) {
+      setDeletedIds(prevDeleted);
+      setErrorToast('Could not delete notification. Please try again.');
+      setTimeout(() => setErrorToast(null), 4000);
     }
   };
 
   // Mark all as read handler
   const handleMarkAllReadClick = async () => {
+    const prevRead = new Set(localReadIds);
     setLocalReadIds(prev => {
       const next = new Set(prev);
       rawFeed.forEach(n => next.add(n._id || n.id));
       return next;
     });
-    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
-    if (onMarkAsRead) onMarkAsRead();
+
     try {
-      await api.put('/notifications/all/read');
-    } catch (_) {}
+      if (onMarkAsRead) {
+        await onMarkAsRead();
+      } else {
+        await api.put('/notifications/all/read');
+        window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
+      }
+    } catch (err) {
+      setLocalReadIds(prevRead);
+      setErrorToast('Could not mark notifications as read. Please try again.');
+      setTimeout(() => setErrorToast(null), 4000);
+    }
   };
 
   // Filter feed based on tab & search
@@ -241,6 +261,16 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
         </div>
       </div>
 
+      {errorToast && (
+        <div className="bg-red-50 text-red-700 text-xs px-5 py-2 flex items-center justify-between border-b border-red-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={14} className="text-red-500" />
+            <span>{errorToast}</span>
+          </div>
+          <button onClick={() => setErrorToast(null)} className="text-red-400 hover:text-red-700 font-bold ml-2">✕</button>
+        </div>
+      )}
+
       {/* ── Inbox View (List vs Detail) ─────────────────────────────────── */}
       {!activeNotificationId ? (
         <div className="flex-1 flex flex-col">
@@ -314,14 +344,24 @@ export default function GmailNotificationInbox({ notifications = [], sellerOrder
                 return (
                   <div
                     key={item._id}
-                    onClick={() => {
+                    onClick={async () => {
                       setActiveNotificationId(item._id);
                       const id = item._id || item.id;
                       if (isUnreadItem) {
                         setLocalReadIds(prev => new Set(prev).add(id));
-                        window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id } }));
                         if (id && !String(id).startsWith('order_notif_')) {
-                          api.put(`/notifications/${id}/read`).catch(() => {});
+                          try {
+                            await api.put(`/notifications/${id}/read`);
+                            window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id } }));
+                          } catch (err) {
+                            setLocalReadIds(prev => {
+                              const next = new Set(prev);
+                              next.delete(id);
+                              return next;
+                            });
+                          }
+                        } else {
+                          window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id } }));
                         }
                       }
                     }}

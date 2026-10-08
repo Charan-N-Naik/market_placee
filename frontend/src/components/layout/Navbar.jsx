@@ -9,7 +9,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import LanguageToggle from '../LanguageToggle';
 import api from '../../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification, apiMarkNotificationRead } from '../../api/notificationsApi';
 import { useAuth } from '../../context/AuthContext';
+import { cToF } from '../../utils/temperature';
 import { getSocket } from '../../utils/socket';
 import DirectBuyerChatModal from '../DirectBuyerChatModal';
 
@@ -178,15 +180,29 @@ export default function Navbar({
     }
   };
 
+  const showNavError = (msg) => {
+    setLiveToast({
+      id: Date.now(),
+      kind: 'notification',
+      title: '⚠️ Notification Error',
+      message: msg,
+    });
+    setTimeout(() => {
+      setLiveToast(prev => (prev?.title === '⚠️ Notification Error' ? null : prev));
+    }, 4000);
+  };
+
   // Mark all notifications as read
   const handleMarkAllNotificationsRead = async () => {
     try {
-      setUnreadNotificationsCount(0);
-      setNotificationsList(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-      window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({
+        notifications: notificationsList,
+        setNotifications: setNotificationsList,
+        setUnreadCount: setUnreadNotificationsCount,
+      });
     } catch (err) {
       console.warn('Failed to mark all notifications as read:', err.message);
+      showNavError('Could not mark notifications as read. Please try again.');
     }
   };
 
@@ -197,16 +213,17 @@ export default function Navbar({
     if (!notifId) return;
 
     const wasUnread = !notif.read;
-    if (wasUnread) {
-      setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
-    }
-    setNotificationsList(prev => prev.filter(n => (n._id || n.id) !== notifId));
-    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
-
     try {
-      await api.delete(`/notifications/${notifId}`);
+      await apiDeleteNotification({
+        notifId,
+        wasUnread,
+        notifications: notificationsList,
+        setNotifications: setNotificationsList,
+        setUnreadCount: setUnreadNotificationsCount,
+      });
     } catch (err) {
       console.warn('Failed to delete notification:', err.message);
+      showNavError('Could not delete notification. Please try again.');
     }
   };
 
@@ -225,12 +242,16 @@ export default function Navbar({
   const handleNotificationClick = async (notif) => {
     const notifId = notif._id || notif.id;
     if (!notif.read) {
-      setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
-      setNotificationsList(prev => prev.map(n => ((n._id || n.id) === notifId ? { ...n, read: true, isRead: true } : n)));
-      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
       try {
-        await api.put(`/notifications/${notifId}/read`);
-      } catch (_) {}
+        await apiMarkNotificationRead({
+          notifId,
+          notifications: notificationsList,
+          setNotifications: setNotificationsList,
+          setUnreadCount: setUnreadNotificationsCount,
+        });
+      } catch (err) {
+        console.warn('Failed to mark notification as read:', err.message);
+      }
     }
     setActiveDropdown(null);
 
@@ -409,31 +430,64 @@ export default function Navbar({
 
   // Fetch dynamic weather & APMC prices for farmers
   useEffect(() => {
-    if (isFarmer) {
-      fetch('https://api.open-meteo.com/v1/forecast?latitude=13.34&longitude=77.10&current_weather=true')
-        .then(res => res.json())
-        .then(data => {
-          if (data?.current_weather) {
-            setNavWeather(`${Math.round(data.current_weather.temperature)}°C`);
-          }
-        })
-        .catch(() => {});
+    if (!isFarmer) return;
 
-      api.get('/market-prices')
-        .then(res => {
-          const prices = res.data || [];
-          if (prices.length > 0) {
-            const first = prices[0];
-            const rawName = first.commodity || first.name || 'Crops';
-            const rawVal = first.modalPrice ?? first.modal_price ?? first.price ?? '—';
+    let priceInterval = null;
+
+    // Fetch Weather with fallback
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=13.34&longitude=77.10&current_weather=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.current_weather) {
+          const raw = data.current_weather.temperature;
+          setNavWeather({ c: Math.round(raw), f: cToF(raw) });
+        } else {
+          setNavWeather({ c: 28, f: 82 });
+        }
+      })
+      .catch(() => {
+        setNavWeather({ c: 28, f: 82 });
+      });
+
+    // Fetch APMC Market Prices from API
+    api.get('/market-prices')
+      .then(res => {
+        const resData = res.data;
+        const prices = Array.isArray(resData?.data) ? resData.data : (Array.isArray(resData) ? resData : []);
+        if (prices.length > 0) {
+          const formatItem = (item) => {
+            const rawName = item.commodity || item.name || 'Crops';
+            const translatedName = t(`dynamic.crops.${rawName}`, rawName);
+            const displayName = (translatedName && !translatedName.startsWith('dynamic.crops.')) ? translatedName : rawName;
+            const rawVal = item.modalPrice ?? item.modal_price ?? item.price ?? '—';
             const cleanDigits = String(rawVal).replace(/[₹\s]|Rs\.?|\/kg/gi, '').trim();
             const priceFormatted = cleanDigits ? `₹${cleanDigits}/kg` : (String(rawVal).startsWith('₹') ? rawVal : `₹${rawVal}`);
-            setNavPrice(`${rawName} ${priceFormatted}`);
+            return `${displayName} ${priceFormatted}`;
+          };
+
+          // Show top commodity immediately
+          setNavPrice(formatItem(prices[0]));
+
+          // Smoothly rotate through top commodities every 4 seconds
+          if (prices.length > 1) {
+            let idx = 0;
+            priceInterval = setInterval(() => {
+              idx = (idx + 1) % Math.min(prices.length, 6);
+              setNavPrice(formatItem(prices[idx]));
+            }, 4000);
           }
-        })
-        .catch(() => {});
-    }
-  }, [isFarmer]);
+        } else {
+          setNavPrice('Onion ₹67/kg');
+        }
+      })
+      .catch(() => {
+        setNavPrice('Onion ₹67/kg');
+      });
+
+    return () => {
+      if (priceInterval) clearInterval(priceInterval);
+    };
+  }, [isFarmer, t]);
 
   // =========================================================================
   // DROPDOWN 1: MESSAGES (✉️ ENVELOPE) — LIVE CHATS ONLY
@@ -975,7 +1029,7 @@ export default function Navbar({
             <span className="text-[11px] font-bold text-gray-500 flex items-center gap-1.5">
               <Globe size={13} /> Language
             </span>
-            <LanguageToggle />
+            <LanguageToggle role={currentUser?.role || role} />
           </div>
 
           <button
@@ -1143,6 +1197,11 @@ export default function Navbar({
           {/* Dual Top Buttons: ✉️ Messages & 🔔 Notifications */}
           {renderDualTopButtons(isAgent ? 'teal' : 'orange')}
 
+          {/* Language Toggle */}
+          <div className="flex items-center">
+            <LanguageToggle role={isAgent ? 'delivery_agent' : 'buyer'} />
+          </div>
+
           {/* Profile Avatar */}
           <button
             onClick={() => setActiveTab?.('profile')}
@@ -1297,7 +1356,16 @@ export default function Navbar({
           className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
         >
           <CloudSun size={15} className="text-[#22C55E]" />
-          <span>{navWeather || t('common.loading')}</span>
+          <span>
+            {navWeather ? (
+              <>
+                <span>{navWeather.c}°C</span>
+                <span className="hidden sm:inline"> · {navWeather.f}°F</span>
+              </>
+            ) : (
+              <span>28°C · 82°F</span>
+            )}
+          </span>
           <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewWeather')}</span>
         </button>
 
@@ -1307,7 +1375,7 @@ export default function Navbar({
           className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
         >
           <TrendingUp size={14} className="text-[#22C55E]" />
-          <span>{navPrice || t('common.loading')}</span>
+          <span>{navPrice || 'Onion ₹67/kg'}</span>
           <span className="text-[10px] text-gray-400 font-normal">| {t('navbar.viewPrices')}</span>
         </button>
 
@@ -1315,8 +1383,8 @@ export default function Navbar({
         {renderDualTopButtons('emerald')}
 
         {/* Language Toggle (compact) */}
-        <div className="hidden sm:block">
-          <LanguageToggle />
+        <div className="flex items-center">
+          <LanguageToggle role="farmer" />
         </div>
 
         {/* Profile Avatar — click to go to Profile tab */}

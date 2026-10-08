@@ -131,7 +131,7 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
   // Send status update notification to farmer if exists
   try {
-    const { sendNotification } = await import('./notificationController.js');
+    const { sendNotification } = await import('../services/notificationService.js');
     if (order.farmer) {
       await sendNotification({
         recipientId: order.farmer,

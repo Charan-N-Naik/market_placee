@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useListings } from '../context/ListingContext';
 import { useCart } from '../context/CartContext';
 import api from '../api/axios';
+import { apiMarkAllNotificationsRead, apiDeleteNotification, apiMarkNotificationRead } from '../api/notificationsApi';
 import CropCard from '../components/CropCard';
 import CropImage from '../components/CropImage';
 import LoadingSkeleton from '../components/LoadingSkeleton';
@@ -180,7 +181,7 @@ export default function BuyerDashboard() {
   const startVoiceSearch = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setConfirmModal({ isOpen: true, isAlert: true, variant: 'info', title: 'Not Supported', message: 'Voice search is not supported in this browser.', confirmText: 'OK', onConfirm: null });
+      showToast('Voice search is not supported in this browser.', 'info');
       return;
     }
     if (isListening) return; // prevent double-start
@@ -349,12 +350,11 @@ export default function BuyerDashboard() {
   }, []);
 
   const handleMarkAllBuyerNotificationsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
-    window.dispatchEvent(new CustomEvent('kb:notifications_all_read'));
     try {
-      await api.put('/notifications/all/read');
+      await apiMarkAllNotificationsRead({ notifications, setNotifications });
     } catch (err) {
       console.warn('Failed to mark all as read:', err);
+      showToast('Could not mark notifications as read. Please try again.', 'error');
     }
   };
 
@@ -362,17 +362,12 @@ export default function BuyerDashboard() {
     if (e) e.stopPropagation();
     const target = notifications.find(n => (n._id || n.id) === notifId);
     const wasUnread = target ? !target.read : true;
-
-    setNotifications(prev => prev.filter(n => (n._id || n.id) !== notifId));
-    if (activeBuyerNotificationId === notifId) {
-      setActiveBuyerNotificationId(null);
-    }
-    window.dispatchEvent(new CustomEvent('kb:notification_deleted', { detail: { id: notifId, wasUnread } }));
-
+    if (activeBuyerNotificationId === notifId) setActiveBuyerNotificationId(null);
     try {
-      await api.delete(`/notifications/${notifId}`);
+      await apiDeleteNotification({ notifId, wasUnread, notifications, setNotifications });
     } catch (err) {
       console.warn('Failed to delete notification:', err);
+      showToast('Could not delete notification. Please try again.', 'error');
     }
   };
 
@@ -380,11 +375,12 @@ export default function BuyerDashboard() {
     const notifId = n._id || n.id;
     setActiveBuyerNotificationId(notifId);
     if (!n.read) {
-      setNotifications(prev => prev.map(item => ((item._id || item.id) === notifId ? { ...item, read: true, isRead: true } : item)));
-      window.dispatchEvent(new CustomEvent('kb:notification_read', { detail: { id: notifId } }));
       try {
-        await api.put(`/notifications/${notifId}/read`);
-      } catch (_) {}
+        await apiMarkNotificationRead({ notifId, notifications, setNotifications });
+      } catch (err) {
+        console.warn('Failed to mark notification as read:', err);
+        showToast('Could not mark notification as read. Please try again.', 'error');
+      }
     }
   };
 

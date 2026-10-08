@@ -275,15 +275,26 @@ body {
   margin-top: 0.25rem;
 }
 
-/* Custom scrollbar — colorful green-gold */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: linear-gradient(180deg, #f0fdf4, #fefce8); }
+/* Custom scrollbar — thin, modern & elegant */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.45) transparent;
+}
+
+::-webkit-scrollbar { 
+  width: 5px; 
+  height: 5px; 
+}
+::-webkit-scrollbar-track { 
+  background: transparent; 
+}
 ::-webkit-scrollbar-thumb { 
-  background: linear-gradient(180deg, #4caf50, #f59e0b); 
-  border-radius: 4px; 
+  background: rgba(156, 163, 175, 0.4); 
+  border-radius: 9999px; 
+  transition: background 0.2s ease;
 }
 ::-webkit-scrollbar-thumb:hover { 
-  background: linear-gradient(180deg, #388e3c, #d97706); 
+  background: rgba(107, 114, 128, 0.7); 
 }
 
 /* Scrollbar hiding utilities */
@@ -457,11 +468,13 @@ body {
 /* Farmer theme scrollbar */
 .theme-farmer ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #15803d, #059669);
+  border-radius: 9999px;
 }
 
 /* Buyer theme scrollbar */
 .theme-buyer ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, #ea580c, #ca8a04);
+  border-radius: 9999px;
 }
 
 /* === FOCUS STYLES (accessibility) === */
